@@ -340,7 +340,7 @@ export class RenderDesignerApp {
           </div>
           <div class="pill-row">
             <span class="pill">${this.state.outputs.length} outputs</span>
-            <span class="pill">${this.history.currentBranch.name}</span>
+            <span class="pill">${escapeHtml(this.history.currentBranch.name)}</span>
           </div>
         </section>
         <main class="layout-grid">

@@ -482,8 +482,8 @@ export class FormRuntimeApp {
             <input data-document-name="true" value="${escapeHtml(this.documentData.name)}" />
           </div>
           <div class="pill-row">
-            <span class="pill">Definition: ${this.definition?.name ?? 'Not loaded'}</span>
-            <span class="pill">Render: ${this.renderDefinition?.name ?? 'Not loaded'}</span>
+            <span class="pill">Definition: ${escapeHtml(this.definition?.name ?? 'Not loaded')}</span>
+            <span class="pill">Render: ${escapeHtml(this.renderDefinition?.name ?? 'Not loaded')}</span>
             <span class="pill">Progress: ${progress.complete}/${progress.total}</span>
           </div>
           <div>
@@ -510,7 +510,7 @@ export class FormRuntimeApp {
             </section>
             <section class="panel-section">
               <h3>History</h3>
-              <div class="hint-card">Branch: ${this.history.currentBranch.name}<br />Snapshots: ${this.history.currentBranch.snapshots.length}<br />Attachments: ${this.documentData.attachments.length}</div>
+              <div class="hint-card">Branch: ${escapeHtml(this.history.currentBranch.name)}<br />Snapshots: ${this.history.currentBranch.snapshots.length}<br />Attachments: ${this.documentData.attachments.length}</div>
             </section>
           </aside>
         </main>

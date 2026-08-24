@@ -594,7 +594,7 @@ export class DefinitionEditorApp {
           </div>
           <div class="pill-group">
             <span class="pill">${this.state.sections.length} sections</span>
-            <span class="pill">${this.history.currentBranch.name}</span>
+            <span class="pill">${escapeHtml(this.history.currentBranch.name)}</span>
             <span class="pill">${this.history.currentBranch.snapshots.length} snapshots</span>
           </div>
         </section>
@@ -615,7 +615,7 @@ export class DefinitionEditorApp {
           </aside>
           <section class="panel main-panel">
             <div class="section-header-inline">
-              <h3>${section?.title ?? 'Fields'}</h3>
+              <h3>${escapeHtml(section?.title ?? 'Fields')}</h3>
               <div class="toolbar compact-toolbar">
                 <button data-action="add-field-text">Text</button>
                 <button data-action="add-field-number">Number</button>
