@@ -427,14 +427,17 @@ export class FormRuntimeApp {
       this.render();
       return;
     }
+    const isHtml = this.activeOutput.format === 'html' || this.activeOutput.template.type === 'html';
+    const bodyContent = isHtml ? rendered : `<pre>${escapeHtml(rendered)}</pre>`;
+    const styles = (this.activeOutput.template.styles ?? '').replace(/<\/style>/gi, '');
     previewWindow.document.write(`
       <html>
         <head>
-          <title>${this.activeOutput.name}</title>
-          <style>body{font-family:Arial,sans-serif;padding:24px;background:#f8fafc;color:#1e293b}${this.activeOutput.template.styles ?? ''}</style>
+          <title>${escapeHtml(this.activeOutput.name)}</title>
+          <style>body{font-family:Arial,sans-serif;padding:24px;background:#f8fafc;color:#1e293b}${styles}</style>
         </head>
         <body>
-          ${this.activeOutput.format === 'html' || this.activeOutput.template.type === 'html' ? rendered : `<pre>${escapeHtml(rendered)}</pre>`}
+          ${bodyContent}
         </body>
       </html>
     `);
@@ -516,7 +519,7 @@ export class FormRuntimeApp {
         </main>
         <footer class="statusbar">
           <span>${escapeHtml(this.status)}</span>
-          <span>${this.documentData.metadata.modified}</span>
+          <span>${escapeHtml(this.documentData.metadata.modified)}</span>
         </footer>
       </div>
       <style>

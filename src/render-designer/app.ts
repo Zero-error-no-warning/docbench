@@ -381,7 +381,7 @@ export class RenderDesignerApp {
         </main>
         <footer class="statusbar">
           <span>${escapeHtml(this.status)}</span>
-          <span>${this.state.metadata.modified}</span>
+          <span>${escapeHtml(this.state.metadata.modified)}</span>
         </footer>
       </div>
       <style>
