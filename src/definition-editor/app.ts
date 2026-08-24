@@ -633,7 +633,7 @@ export class DefinitionEditorApp {
           <aside class="panel inspector">${this.renderFieldProperties(this.selectedField)}</aside>
         </main>
         <footer class="statusbar">
-          <span>${this.status}</span>
+          <span>${escapeHtml(this.status)}</span>
           <span>${this.state.metadata.modified}</span>
         </footer>
       </div>

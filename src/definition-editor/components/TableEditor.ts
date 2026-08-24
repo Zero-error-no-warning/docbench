@@ -1,5 +1,9 @@
 import type { Field } from '../../shared/types';
 
+function escapeHtml(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 export function renderTableEditor(field: Field | undefined): string {
   if (!field || field.type !== 'table') {
     return '';
@@ -17,8 +21,8 @@ export function renderTableEditor(field: Field | undefined): string {
                 .map(
                   (column, index) => `
                     <div class="table-column-row">
-                      <span>${index + 1}. ${column.label}</span>
-                      <small>${column.type}</small>
+                      <span>${index + 1}. ${escapeHtml(column.label)}</span>
+                      <small>${escapeHtml(column.type)}</small>
                     </div>
                   `,
                 )

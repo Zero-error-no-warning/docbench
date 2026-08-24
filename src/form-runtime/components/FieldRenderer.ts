@@ -10,7 +10,7 @@ function errorsForField(field: Field, errors: ValidationError[]): string {
   if (!list.length) {
     return '';
   }
-  return `<div class="field-errors">${list.map((error) => `<div>${error.message}</div>`).join('')}</div>`;
+  return `<div class="field-errors">${list.map((error) => `<div>${escapeHtml(error.message)}</div>`).join('')}</div>`;
 }
 
 function renderPrimitiveField(field: Field, value: unknown): string {
@@ -24,7 +24,7 @@ function renderPrimitiveField(field: Field, value: unknown): string {
       return `<input data-field-name="${field.name}" type="date" value="${escapeHtml(stringValue)}" />`;
     case 'boolean':
     case 'checkbox':
-      return `<label class="checkbox-row"><input data-field-name="${field.name}" type="checkbox" ${value ? 'checked' : ''} /> ${field.label}</label>`;
+      return `<label class="checkbox-row"><input data-field-name="${field.name}" type="checkbox" ${value ? 'checked' : ''} /> ${escapeHtml(field.label)}</label>`;
     case 'select':
       return `
         <select data-field-name="${field.name}">

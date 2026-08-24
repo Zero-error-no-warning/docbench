@@ -1,5 +1,9 @@
 import type { Field } from '../../shared/types';
 
+function escapeHtml(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 export function renderArrayEditor(field: Field | undefined): string {
   if (!field || field.type !== 'array') {
     return '';
@@ -16,8 +20,8 @@ export function renderArrayEditor(field: Field | undefined): string {
             .map(
               (child) => `
                 <div class="mini-card">
-                  <strong>${child.label || child.name}</strong>
-                  <small>${child.type}</small>
+                  <strong>${escapeHtml(child.label || child.name)}</strong>
+                  <small>${escapeHtml(child.type)}</small>
                 </div>
               `,
             )

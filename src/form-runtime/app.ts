@@ -490,7 +490,7 @@ export class FormRuntimeApp {
             <label>Output</label>
             <select data-selected-output="true">
               <option value="">Select output...</option>
-              ${(this.renderDefinition?.outputs ?? []).map((output) => `<option value="${output.id}" ${output.id === this.activeOutput?.id ? 'selected' : ''}>${output.name}</option>`).join('')}
+              ${(this.renderDefinition?.outputs ?? []).map((output) => `<option value="${escapeHtml(output.id)}" ${output.id === this.activeOutput?.id ? 'selected' : ''}>${escapeHtml(output.name)}</option>`).join('')}
             </select>
           </div>
         </section>
@@ -515,7 +515,7 @@ export class FormRuntimeApp {
           </aside>
         </main>
         <footer class="statusbar">
-          <span>${this.status}</span>
+          <span>${escapeHtml(this.status)}</span>
           <span>${this.documentData.metadata.modified}</span>
         </footer>
       </div>
