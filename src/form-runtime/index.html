@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DocBench Form Runtime</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --primary: #2563eb;
+        --bg: #f8fafc;
+        --panel: #ffffff;
+        --text: #1e293b;
+        --muted: #64748b;
+        --border: #dbe4f0;
+        --accent: #eff6ff;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; font-family: Inter, Arial, sans-serif; background: var(--bg); color: var(--text); }
+      button, input, select, textarea { font: inherit; }
+      #app { min-height: 100vh; }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
