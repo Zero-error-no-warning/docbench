@@ -40,8 +40,31 @@
     return next;
   }
 
+  // Keep editor interaction in the parent realm and isolate document CSS.
+  // Parsed HTML is inert; remove executable nodes/attributes before mounting.
+  function createDesignSurface(surface, html) {
+    const parsed = new DOMParser().parseFromString(html, 'text/html');
+    parsed.querySelectorAll('script,iframe,object,embed,svg,math,link,base,meta').forEach(node => node.remove());
+    for (const node of parsed.querySelectorAll('*')) {
+      for (const attr of [...node.attributes]) {
+        if (/^on/i.test(attr.name) || ['srcdoc','href','action','formaction'].includes(attr.name) ||
+            attr.name === 'src' && !(node.tagName === 'IMG' && /^data:image\/(png|jpeg|gif|webp);base64,/.test(attr.value))) node.removeAttribute(attr.name);
+      }
+    }
+    const shadow = surface.shadowRoot || surface.attachShadow({mode:'open'});
+    const owner = surface.ownerDocument, base = owner.createElement('style');
+    base.textContent = ':host{display:block;overflow:auto;font:16px "Times New Roman",serif;color:#000;text-align:start}body{display:block;margin:8px}';
+    shadow.replaceChildren(base,owner.importNode(parsed.documentElement,true));
+    const body = shadow.querySelector('body');
+    surface.lang = parsed.documentElement.lang || 'ja';
+    return {body,head:shadow.querySelector('head'),scrollingElement:surface,
+      createElement:name=>owner.createElement(name),querySelector:selector=>shadow.querySelector(selector),
+      querySelectorAll:selector=>shadow.querySelectorAll(selector),
+      elementFromPoint:(x,y)=>shadow.elementFromPoint(x,y),addEventListener:(...args)=>body.addEventListener(...args)};
+  }
+
   function attachDesignCanvas(frame, config) {
-    const doc = frame.contentDocument;
+    const doc = config.document || frame.contentDocument;
     if (!doc || !doc.body || config.design.useTemplate) return null;
     const format = config.format;
     const blocks = config.design.blocks || [];
@@ -87,9 +110,10 @@
       return editing || target.isContentEditable || ['INPUT','TEXTAREA','SELECT'].includes(target.tagName);
     }
     function scrollNearEdge(event) {
-      if (event.clientY > frame.clientHeight - 32) doc.scrollingElement.scrollTop += 16;
-      else if (event.clientY < 24) doc.scrollingElement.scrollTop -= 16;
-      if (format === 'xlsx' && event.clientX > frame.clientWidth - 32) doc.scrollingElement.scrollLeft += 20;
+      const rect = frame.tagName === 'IFRAME' ? {top:0,left:0} : frame.getBoundingClientRect();
+      if (event.clientY > rect.top + frame.clientHeight - 32) doc.scrollingElement.scrollTop += 16;
+      else if (event.clientY < rect.top + 24) doc.scrollingElement.scrollTop -= 16;
+      if (format === 'xlsx' && event.clientX > rect.left + frame.clientWidth - 32) doc.scrollingElement.scrollLeft += 20;
     }
 
     function editText(node, block) {
@@ -307,5 +331,5 @@
     if(config.restoreFocus&&selected)nodes.find(n=>n.dataset.blockId===selected)?.focus({preventScroll:true});
     return { select };
   }
-  Object.assign(D, { adjustDesignBox, rangeLayout, reorderDesignBlocks, attachDesignCanvas });
+  Object.assign(D, { adjustDesignBox, rangeLayout, reorderDesignBlocks, createDesignSurface, attachDesignCanvas });
 })(globalThis);

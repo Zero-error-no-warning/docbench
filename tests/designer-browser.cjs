@@ -3,7 +3,15 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
 module.exports=async function({page,out,url,root}){
  await page.goto(url+'/#editor');await page.waitForFunction(()=>window.DocBenchApp);
  const original=await page.evaluate(()=>DocBenchApp.getWorkspace());
- const frame=()=>page.frameLocator('#document-preview');
+ // Mounting preview markup cannot execute code or affect the application CSS.
+ assert.deepEqual(await page.evaluate(()=>{
+  const host=document.createElement('div');document.body.append(host);window.__previewAttack=0;
+  const doc=DocBench.createDesignSurface(host, '<!doctype html><html><head><style>.topbar{display:none}body{color:rgb(1,2,3)}</style><script>window.__previewAttack=1</script></head><body onload="window.__previewAttack=2"><h1>Safe preview</h1><img src="data:image/svg+xml;base64,PHN2Zz4=" onerror="window.__previewAttack=3"><a href="javascript:window.__previewAttack=4">Link</a><iframe srcdoc="&lt;script&gt;parent.__previewAttack=5&lt;/script&gt;"></iframe></body></html>');
+  const result={scripts:doc.querySelectorAll('script,iframe,svg,object').length,events:doc.querySelectorAll('[onload],[onerror],[href],[src]').length,attack:window.__previewAttack,visible:getComputedStyle(document.querySelector('.topbar')).display!=='none',color:getComputedStyle(doc.body).color};
+  host.remove();delete window.__previewAttack;return result;
+ }),{scripts:0,events:0,attack:0,visible:true,color:'rgb(1, 2, 3)'});
+
+ const frame=()=>page.locator('#document-preview');
  const shape=id=>frame().locator('[data-block-id="'+id+'"].db-object');
  const fixture=async format=>{
   await page.evaluate(format=>{
@@ -57,8 +65,9 @@ module.exports=async function({page,out,url,root}){
  await page.locator('#canvas-font-size').fill('28');await page.locator('#canvas-font-size').dispatchEvent('change');await shape('word-title').waitFor();
  const docx=await exportFile('docx'),wordXml=await xmlFrom(docx,'word/document.xml');assert(wordXml.includes('Edited Word heading'));assert(wordXml.includes('w:sz w:val="56"'));
  await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:path.join(out,'12-interactive-word.png'),fullPage:true});
- // Viewer content stays script-disabled, and the portable file exposes the same interaction layer.
- assert.equal(await page.locator('#document-preview').getAttribute('sandbox'),'allow-same-origin');
+ // The editor uses an isolated shadow surface, and portable exposes the same interactions.
+ assert.equal(await page.locator('#document-preview').evaluate(el=>el.tagName),'DIV');
+ assert.equal(await frame().locator('script,[onclick],[onerror]').count(),0);
  await page.evaluate(w=>DocBenchApp.setWorkspace(w),original);await page.evaluate(()=>DocBenchApp.save());
  await page.goto('file://'+path.join(root,'portable/docbench.html')+'#editor');await page.waitForFunction(()=>window.DocBenchApp);await fixture('pptx');const portableStart=await readBlock('drag');await drag(shape('drag'),30,0);await shape('drag').waitFor();assert((await readBlock('drag')).layout.x>portableStart.layout.x);await page.locator('#mode-switch').click();assert.equal(new URL(page.url()).hash,'');assert(await page.locator('#mode-switch').isVisible());assert(!await page.locator('[data-view="definition"]').isVisible());await page.locator('#mode-switch').click();assert.equal(new URL(page.url()).hash,'#editor');assert(await page.locator('[data-view="render"]').isVisible());
 };
