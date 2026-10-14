@@ -109,7 +109,7 @@
         target.contentEditable = 'false';
         target.classList.remove('db-editing');
         editing = false;
-        node.draggable = format !== 'pptx';
+        node.draggable = false;
         if (cancel) target.textContent = previous;
         else if (value !== previous) config.onChange({ kind: 'text', id: block.id, value });
       }
@@ -240,14 +240,35 @@
         const block = byId.get(node.dataset.blockId);
         node.classList.add('db-object');
         node.tabIndex=0;
-        node.draggable = true;
+        node.draggable = false;
         if (block.type === 'pagebreak') {
           node.classList.add('db-pagebreak');
           node.textContent = '改ページ';
         }
-        node.addEventListener('click', () => {select(block.id);node.focus({preventScroll:true});});
+        node.addEventListener('click', event => {if(!isEditing(event.target)){select(block.id);node.focus({preventScroll:true});}});
         node.addEventListener('dblclick', () => editText(node, block));
-        node.addEventListener('dragstart', event => {
+        node.style.touchAction='none';
+        node.addEventListener('pointerdown', event => {
+          if(event.button!==0||isEditing(event.target))return;
+          event.preventDefault();select(block.id);node.focus({preventScroll:true});
+          gesture={node,id:block.id,x:event.clientX,y:event.clientY,moved:false,target:null,after:false};
+          node.setPointerCapture(event.pointerId);
+        });
+        node.addEventListener('pointermove', event => {
+          if(!gesture||gesture.node!==node)return;
+          if(Math.abs(event.clientX-gesture.x)+Math.abs(event.clientY-gesture.y)<4)return;
+          gesture.moved=true;scrollNearEdge(event);clearDrop();
+          const target=doc.elementFromPoint(event.clientX,event.clientY)?.closest('.db-object');
+          gesture.target=target&&target!==node?target.dataset.blockId:null;
+          if(gesture.target){const rect=target.getBoundingClientRect();gesture.after=event.clientY>rect.top+rect.height/2;target.classList.add(gesture.after?'db-drop-after':'db-drop-before');}
+        });
+        node.addEventListener('pointerup', event => {
+          if(!gesture||gesture.node!==node)return;const g=gesture;gesture=null;clearDrop();
+          if(node.hasPointerCapture(event.pointerId))node.releasePointerCapture(event.pointerId);
+          if(g.moved&&g.target)config.onChange({kind:'reorder',id:g.id,target:g.target,after:g.after});
+        });
+        node.addEventListener('pointercancel', ()=>{gesture=null;clearDrop();});
+        node.addEventListener('dragstart' , event => {
           select(block.id);
           event.dataTransfer.setData('text/plain',block.id);
           event.dataTransfer.effectAllowed = 'move';
@@ -283,6 +304,7 @@
       }
     });
     select(selected, false);
+    if(config.restoreFocus&&selected)nodes.find(n=>n.dataset.blockId===selected)?.focus({preventScroll:true});
     return { select };
   }
   Object.assign(D, { adjustDesignBox, rangeLayout, reorderDesignBlocks, attachDesignCanvas });
