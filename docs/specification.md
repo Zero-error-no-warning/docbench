@@ -156,3 +156,9 @@ IndexedDBの`docbench-workspace-v1`へWorkspaceを自動保存し、利用でき
 | rJSmin（ビルドのみ） | 1.3.0 | https://github.com/ndparker/rjsmin | Apache-2.0 |
 
 ライセンス本文はvendorに保存し、portableにも内包する。ビルドで既にminify済みのPptxGenJSを再minifyしない（rJSminが扱えないネストしたテンプレートリテラルがあるため）。
+
+## Portableの格納形式
+
+portable/docbench.htmlは実行に必要な全内容を1ファイルに持つ。短いpako展開用スクリプトとローダー以外のJavaScriptは、ライセンス本文とともにJSONへ格納し、gzip + Base64のASCIIデータとして内包する。展開後のプログラムは動的に作ったscript要素のtextContentへ設定するため、プログラム中のHTML文字列をHTMLパーサーへ直接渡さない。
+
+HTML本体とローダーはASCIIのみ。表示用の日本語はHTML数値文字参照またはJavaScriptのUnicodeエスケープで保持する。LF/CRLFの変換を許容し、コピーで圧縮データが欠けたり変化した場合は画面に起動エラーを表示する。展開には同梱pakoを使い、CDN・fetch・eval・CompressionStreamを必要としない。

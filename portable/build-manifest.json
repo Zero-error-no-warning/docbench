@@ -1,6 +1,6 @@
 {
-  "sha256": "062e15edc85d0a08df1d15ee41ea0e5a9b1ba7e1cbaef6d28c153f6adcd0fd0d",
-  "bytes": 1143004,
+  "sha256": "ded08be2755cc5affd3f35fb0faea6b93683db46942a06c6be39f07d45857177",
+  "bytes": 472799,
   "runtimeFiles": [
     "docbench.html"
   ],
@@ -9,5 +9,8 @@
     "pako.min.js",
     "docx.js",
     "pptxgen.min.js"
-  ]
+  ],
+  "payloadEncoding": "gzip+base64",
+  "sourceEncoding": "ASCII",
+  "programSha256": "2c992688665993d89e8991dad8f0f2e83b96ad7c7b245acd6140e0c89d8f6233"
 }

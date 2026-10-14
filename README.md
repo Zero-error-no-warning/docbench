@@ -19,7 +19,7 @@
 
 ## Portable版
 
-実行に必要なのは **`portable/docbench.html` 1ファイル**です。JS・CSS・第三者ライブラリ・ライセンスを同梱し、JSをminifyしています。実行時のCDNや外部API接続はありません。
+実行に必要なのは **`portable/docbench.html` 1ファイル**です。JS・CSS・第三者ライブラリ・ライセンスを同梱し、JSをminifyし、gzip + Base64で内包しています。ファイル全体はASCIIのみで構成し、コピー時の文字コード変更やWindows形式の改行に影響されにくくしています。実行時のCDNや外部API接続はありません。
 
 リポジトリの`portable/docbench.html`を開き、**Rawで本体ソースを表示 → 全選択してコピー → テキストエディタに貼付 → UTF-8でdocbench.htmlとして保存**します。アプリの導入にファイルダウンロードは不要です。メモ帳ではファイルの種類を「すべてのファイル」にしてください。
 
