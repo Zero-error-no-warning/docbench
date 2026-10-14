@@ -1,1 +1,1 @@
-const fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');vm.runInThisContext(fs.readFileSync(path.join(__dirname,'../src/core.js'),'utf8'),{filename:'docbench-core.js'});module.exports=globalThis.DocBench;
+const fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');vm.runInThisContext(fs.readFileSync(path.join(__dirname,'../src/core.js'),'utf8'),{filename:'docbench-core.js'});vm.runInThisContext(fs.readFileSync(path.join(__dirname,'../src/layout.js'),'utf8'),{filename:'docbench-layout.js'});module.exports=globalThis.DocBench;

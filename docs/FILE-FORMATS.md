@@ -1,37 +1,9 @@
-# DocBench File Formats
+# ファイル形式
 
-## Definition File
-`DefinitionFile` captures the schema for data collection.
+ルート`index.html`とportable版の正式な公開形式は[specification.md](specification.md)を参照する。`kind`、`formatVersion:1`、不変IDを持つDefinition / RenderDefinition / DocumentData / Workspaceを使用する。
 
-Key properties:
-- `version`, `id`, `name`, `description`
-- `sections[]` with `fields[]`, `layout`, and optional `condition`
-- `metadata` timestamps, author, and tags
+RenderDefinitionには形式ごとの`designs`を持つ。Wordの`rich.content`は公開された文章・表・項目参照ノード、Excelはブロックとセル値/書式/結合/寸法、PowerPointはブロックと図形/配置を保存する。ライブラリの内部インスタンス、DOM、Canvas画像、入力値のコピーを保存しない。JSONは手編集とLLMによる生成に利用でき、取込時に参照・構造・寸法・IDを検証する。
 
-## Render Definition
-`RenderDefinition` links a definition to one or more output templates.
+DocumentDataの添付はBase64 data URLで内容を内包し、ファイル単体で共有できる。Array/Tableの入力行は`_id`、Wordの文章・表ノードは`attrs.id`で同一性を判定する。共有時にはJSON全体をgzip圧縮できる。
 
-Key properties:
-- `definitionId` reference to a `DefinitionFile`
-- `outputs[]` containing output `format` and template payload
-- template `content`, optional `styles`, and optional section overrides
-
-## Document Data
-`DocumentData` stores captured user input.
-
-Key properties:
-- `definitionId`, optional `renderDefinitionId`
-- `data` object keyed by field names
-- `attachments[]` with IndexedDB storage references
-- `metadata` for created/modified tracking
-
-## History
-History snapshots are JSON objects containing branch state and snapshots. Diffs are RFC6902-style operations:
-- `add`
-- `remove`
-- `replace`
-
-## Notes
-- All exported files are plain JSON.
-- Formats are optimized to stay readable for people and automation.
-- Attachments store binary content in IndexedDB and references in exported document JSON.
+既存TypeScript版（`src/shared/types.ts`）の形式は独立した旧実装で、統合画面と互換ではない。

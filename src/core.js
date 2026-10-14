@@ -93,7 +93,7 @@ function merge(base,left,right,choices={}) {
   if(equal(l,b))return clone(r);if(equal(r,b))return clone(l);
   if(l===undefined||r===undefined)return conflict(path,'変更と削除の競合',b,l,r);
   if(Array.isArray(l)&&Array.isArray(r)){
-   const all=[...(Array.isArray(b)?b:[]),...l,...r]; const idOf=x=>x && (x._id || x.id);
+   const all=[...(Array.isArray(b)?b:[]),...l,...r]; const idOf=x=>x && (x._id || x.id || (x.type&&x.attrs?.id));
    if(!all.length)return [];
    if(all.every(x=>typeof x==='object'&&idOf(x))){
     for(const a of [b||[],l,r])if(new Set(a.map(idOf)).size!==a.length)return conflict(path,'要素識別子重複',b,l,r);
@@ -116,7 +116,7 @@ function merge(base,left,right,choices={}) {
 }
 function diff(a,b,path='') {
  if(equal(a,b))return [];
- if(Array.isArray(a)&&Array.isArray(b)&&[...a,...b].every(x=>x&&(x._id||x.id))){const id=x=>x._id||x.id;const am=new Map(a.map(x=>[id(x),x])),bm=new Map(b.map(x=>[id(x),x]));let d=[...new Set([...am.keys(),...bm.keys()])].flatMap(k=>diff(am.get(k),bm.get(k),path+'/'+k));if(!equal(a.map(id),b.map(id)))d.push({path:path+'/~order',before:a.map(id),after:b.map(id)});return d;}
+ if(Array.isArray(a)&&Array.isArray(b)&&[...a,...b].every(x=>x&&(x._id||x.id||x.type&&x.attrs?.id))){const id=x=>x._id||x.id||(x.type&&x.attrs?.id);const am=new Map(a.map(x=>[id(x),x])),bm=new Map(b.map(x=>[id(x),x]));let d=[...new Set([...am.keys(),...bm.keys()])].flatMap(k=>diff(am.get(k),bm.get(k),path+'/'+k));if(!equal(a.map(id),b.map(id)))d.push({path:path+'/~order',before:a.map(id),after:b.map(id)});return d;}
  if(a&&b&&typeof a==='object'&&typeof b==='object'&&!Array.isArray(a)&&!Array.isArray(b))return [...new Set([...Object.keys(a),...Object.keys(b)])].flatMap(k=>diff(a[k],b[k],path+'/'+k));
  return [{path,before:clone(a),after:clone(b)}];
 }
@@ -139,9 +139,9 @@ function validateDefinition(def,render) {
   if(f.type==='Array'&&(!types.includes(f.itemType)||['Object','Array','Table'].includes(f.itemType)&&f.itemType!=='Object'))err(p,'Array要素型は単純型またはObjectです');
   if(['Array','Table'].includes(f.type)){for(const name of ['businessKey','uniqueBy','sortBy'])if(f[name]&&f[name]!=='value'&&!(f.fields||[]).some(c=>c.key===f[name]))err(p,name+'に未定義の列が指定されています');if((f.initialRows||0)<(f.minItems||0)||(f.maxItems!==undefined&&(f.initialRows||0)>f.maxItems))err(p,'初期行数が最小・最大要素数の範囲外です');}
  }}walk(def.fields,'');
- if(render){if(root.DocBench.validateRender)errors.push(...root.DocBench.validateRender(render));const activeFormat=render.outputFormat||'html';for(const [format,design] of Object.entries(render.designs||{})){if(format===activeFormat)continue;const checked=validateDefinition(def,{...design,outputFormat:format});errors.push(...checked.errors.map(x=>({...x,path:'designs.'+format+'.'+x.path})));}if(render.designs?.[activeFormat])render={...render,...render.designs[activeFormat],designs:undefined};const bid=new Set();for(const b of render.blocks||[]){if(!b.id||bid.has(b.id))err('render','出力ブロックIDが重複');bid.add(b.id);if(!['heading','text','field','table','pagebreak'].includes(b.type))err('render','未対応ブロック');if(b.type==='table'&&b.field&&fieldAt(def,b.field)&&!['Table','Array'].includes(fieldAt(def,b.field).type))err('render.'+b.id,'表の出力にはTableまたはArray項目を指定してください');if(b.field&&!fieldAt(def,b.field))err('render.'+b.id,'未定義項目参照: '+b.field);if(b.when?.field&&!fieldAt(def,b.when.field))err('render.'+b.id,'条件の参照項目がありません');}
+ if(render){if(root.DocBench.validateRender)errors.push(...root.DocBench.validateRender(render));const activeFormat=render.outputFormat||'html';for(const [format,design] of Object.entries(render.designs||{})){if(format===activeFormat)continue;const checked=validateDefinition(def,{...design,outputFormat:format});errors.push(...checked.errors.map(x=>({...x,path:'designs.'+format+'.'+x.path})));}if(render.designs?.[activeFormat])render={...render,...render.designs[activeFormat],designs:undefined};const bid=new Set();for(const b of render.blocks||[]){if(!b.id||bid.has(b.id))err('render','出力ブロックIDが重複');bid.add(b.id);if(b.type==='shape'&&(!['rect','ellipse','line'].includes(b.shape)||render.outputFormat!=='pptx'))err('render.'+b.id,'図形はPowerPointのrect/ellipse/lineです');if(b.content){for(const msg of root.DocBench.validateRich?.(b.content)||[])err('render.'+b.id,msg);for(const ref of root.DocBench.richReferences?.(b.content)||[])if(!fieldAt(def,ref))err('render.'+b.id,'未定義項目参照: '+ref);}if(!['heading','text','rich','field','table','shape','pagebreak'].includes(b.type))err('render','未対応ブロック');if(b.type==='table'&&b.field&&fieldAt(def,b.field)&&!['Table','Array'].includes(fieldAt(def,b.field).type))err('render.'+b.id,'表の出力にはTableまたはArray項目を指定してください');if(b.field&&!fieldAt(def,b.field))err('render.'+b.id,'未定義項目参照: '+b.field);if(b.when?.field&&!fieldAt(def,b.when.field))err('render.'+b.id,'条件の参照項目がありません');}
  if(render.useTemplate){const t=String(render.template||'');for(const m of t.matchAll(/{{\s*([^{}]+?)\s*}}/g))if(!fieldAt(def,m[1]))err('template','未定義項目参照: '+m[1]);if(t.replace(/{{\s*[A-Za-z][\w.]*\s*}}/g,'').includes('{{')||t.replace(/{{\s*[A-Za-z][\w.]*\s*}}/g,'').includes('}}'))err('template','無効なテンプレート構文');}
- const used=new Set((render.blocks||[]).map(b=>b.field));if(render.useTemplate)for(const m of String(render.template).matchAll(/{{\s*([^{}]+?)\s*}}/g))used.add(m[1]);for(const f of def.fields||[])if(![...used].some(p=>p===f.key||p?.startsWith(f.key+'.')))warnings.push({path:f.key,message:'出力で使われていない項目'});
+ const used=new Set((render.blocks||[]).flatMap(b=>[b.field,...(root.DocBench.richReferences?.(b.content)||[])]));if(render.useTemplate)for(const m of String(render.template).matchAll(/{{\s*([^{}]+?)\s*}}/g))used.add(m[1]);for(const f of def.fields||[])if(![...used].some(p=>p===f.key||p?.startsWith(f.key+'.')))warnings.push({path:f.key,message:'出力で使われていない項目'});
  }
  return {errors,warnings};
 }

@@ -22,7 +22,7 @@ module.exports=async function({page,out,url,root}){
    DocBenchApp.setWorkspace(w);
   },format);
   await page.locator('[data-view="render"]').click();
-  await frame().locator(format==='xlsx'?'[data-cell]':'.db-object').first().waitFor();
+  await frame().locator(format==='xlsx'?'[data-cell]':'.db-object').first().waitFor();if(format==='xlsx')await page.waitForFunction(()=>document.querySelector('#document-preview')?.dataset.editorReady==='true');
  };
  const readBlock=id=>page.evaluate(id=>{const w=DocBenchApp.getWorkspace();return w.render.designs[w.render.outputFormat].blocks.find(b=>b.id===id);},id);
  const drag=async(locator,dx,dy)=>{
@@ -40,9 +40,9 @@ module.exports=async function({page,out,url,root}){
  await drag(shape('drag').locator('.db-resize'),35,18);await shape('drag').waitFor();const resized=await readBlock('drag');assert(resized.layout.w>moved.layout.w);assert(resized.layout.h>moved.layout.h);
  await shape('drag').press('ArrowRight');await shape('drag').waitFor();assert((await readBlock('drag')).layout.x>resized.layout.x);
  await shape('drag').press('Control+d');await frame().locator('.db-object').first().waitFor();assert.equal(await frame().locator('.db-object').count(),3);await page.locator('[data-canvas-command="delete"]').click();await frame().locator('.db-object').first().waitFor();assert.equal(await frame().locator('.db-object').count(),2);
- await shape('drag').click();await page.locator('#canvas-font-size').fill('24');await page.locator('#canvas-font-size').dispatchEvent('change');await shape('drag').waitFor();
+ await shape('drag').click({force:true});await page.locator('#canvas-font-size').fill('24');await page.locator('#canvas-font-size').dispatchEvent('change');await shape('drag').waitFor();
  await page.locator('#canvas-color').fill('#112233');await page.locator('#canvas-color').dispatchEvent('change');await shape('drag').waitFor();
- await shape('drag').dblclick();await shape('drag').locator('p').fill('Edited on canvas');await page.locator('#canvas-selection').click();await shape('drag').waitFor();assert.equal((await readBlock('drag')).text,'Edited on canvas');
+ await shape('drag').dblclick({force:true});await frame().locator('.slide-text-edit').fill('Edited on canvas');await page.locator('#canvas-selection').click();await shape('drag').waitFor();assert.equal((await readBlock('drag')).text,'Edited on canvas');
  const filePpt=await exportFile('pptx'),slideXml=await xmlFrom(filePpt,'ppt/slides/slide1.xml'),final=await readBlock('drag');
  assert(slideXml.includes('Edited on canvas'));assert(slideXml.includes('sz="2400"'));assert(slideXml.includes('112233'));assert(slideXml.includes('x="'+Math.round(final.layout.x*360000)+'" y="'+Math.round(final.layout.y*360000)+'"'));
  await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:path.join(out,'10-interactive-pptx.png'),fullPage:true});
@@ -61,8 +61,8 @@ module.exports=async function({page,out,url,root}){
 
  await fixture('docx');const wordSource=await shape('word-text').boundingBox(),wordTarget=await shape('word-title').boundingBox();assert(wordSource&&wordTarget);await drag(shape('word-text'),wordTarget.x+20-(wordSource.x+wordSource.width/2),wordTarget.y+3-(wordSource.y+wordSource.height/2));await shape('word-title').waitFor();assert.deepEqual(await page.evaluate(()=>DocBenchApp.getWorkspace().render.designs.docx.blocks.map(b=>b.id)),['word-text','word-title','word-table']);
  await page.locator('#undo').click();await shape('word-title').waitFor();assert.equal(await page.evaluate(()=>DocBenchApp.getWorkspace().render.designs.docx.blocks[0].id),'word-title');
- await shape('word-title').dblclick();await shape('word-title').locator('h1').fill('Edited Word heading');await shape('word-title').locator('h1').click();assert.equal(await shape('word-title').locator('h1').getAttribute('contenteditable'),'true');await page.locator('#canvas-selection').click();await shape('word-title').waitFor();assert.equal((await readBlock('word-title')).text,'Edited Word heading');
- await page.locator('#canvas-font-size').fill('28');await page.locator('#canvas-font-size').dispatchEvent('change');await shape('word-title').waitFor();
+ await shape('word-title').dblclick();await shape('word-title').locator('.tiptap').fill('Edited Word heading');await shape('word-title').locator('.tiptap').click();assert.equal(await shape('word-title').locator('.tiptap').getAttribute('contenteditable'),'true');await page.locator('#canvas-selection').click();await shape('word-title').waitFor();assert.equal((await readBlock('word-title')).text,'Edited Word heading');
+ await shape('word-title').locator('.tiptap').press('Control+a');await page.locator('#canvas-font-size').fill('28');await page.locator('#canvas-font-size').dispatchEvent('change');await shape('word-title').waitFor();
  const docx=await exportFile('docx'),wordXml=await xmlFrom(docx,'word/document.xml');assert(wordXml.includes('Edited Word heading'));assert(wordXml.includes('w:sz w:val="56"'));
  await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:path.join(out,'12-interactive-word.png'),fullPage:true});
  // The editor uses an isolated shadow surface, and portable exposes the same interactions.

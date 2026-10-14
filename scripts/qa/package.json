@@ -3,6 +3,7 @@
   "private": true,
   "devDependencies": {
     "docx": "9.6.1",
+    "exceljs": "4.4.0",
     "jszip": "3.10.1",
     "pako": "1.0.11",
     "pptxgenjs": "4.0.1",

@@ -107,7 +107,7 @@
       nodes.forEach(n => n.classList.remove('db-drop-before', 'db-drop-after'));
     }
     function isEditing(target) {
-      return editing || target.isContentEditable || ['INPUT','TEXTAREA','SELECT'].includes(target.tagName);
+      return editing || target.closest?.('.tiptap') || target.isContentEditable || ['INPUT','TEXTAREA','SELECT'].includes(target.tagName);
     }
     function scrollNearEdge(event) {
       const rect = frame.tagName === 'IFRAME' ? {top:0,left:0} : frame.getBoundingClientRect();
@@ -117,7 +117,8 @@
     }
 
     function editText(node, block) {
-      if (!['heading', 'text'].includes(block.type) || editing) return;
+      if (!['heading', 'text','rich'].includes(block.type) || editing) return;
+      if(config.richEdit){config.richEdit(node,block);return;}
       const target = node.querySelector(block.type === 'heading' ? 'h1' : 'p') || node;
       const previous = block.text || '';
       editing = true;
@@ -255,7 +256,7 @@
         });
         cell.addEventListener('dblclick', () => {
           const block = byId.get(cell.dataset.blockId);
-          if (block && ['heading','text'].includes(block.type)) editText(cell, block);
+          if (block && ['heading','text','rich'].includes(block.type)) editText(cell, block);
         });
       }
       if(config.range)showRange(config.range);
@@ -269,7 +270,7 @@
           node.classList.add('db-pagebreak');
           node.textContent = '改ページ';
         }
-        node.addEventListener('click', event => {if(!isEditing(event.target)){select(block.id);node.focus({preventScroll:true});}});
+        node.addEventListener('click', event => {if(!isEditing(event.target)){config.onPart?.(event.target.closest('[data-style-part]')?.dataset.stylePart||'value');select(block.id);node.focus({preventScroll:true});}});
         node.addEventListener('dblclick', () => editText(node, block));
         node.style.touchAction='none';
         node.addEventListener('pointerdown', event => {

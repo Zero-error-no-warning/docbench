@@ -21,7 +21,7 @@ jobs:
           node-version: '22'
       - name: Install development tools (runtime libraries are already local)
         run: npm --prefix scripts/qa install --ignore-scripts --no-audit --no-fund
-      - name: Generate one-file portable app
+      - name: Generate portable HTML with local vendor libraries
         run: npm run build:portable
       - name: Verify identity, constraints, merges and Office exports
         run: npm run test:offline

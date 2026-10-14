@@ -2,7 +2,7 @@
 
 2026-10-14に提示された完全版を開発の基準とする。システム自身にAI機能は持たせない。
 
-| 要件 | 0.1の実装 | 拡張事項 |
+| 要件 | 現行の実装 | 拡張事項 |
 | --- | --- | --- |
 | 3ツールとManager/Userの分離 | 工程タブと入力者モード、独立JSON | 配置先による権限管理 |
 | String/Text/RichText/Integer/Float/Boolean/Date/DateTime/Enum/MultiEnum/File/Image/Object/Array/Table | 全15型をフォーム生成・検証 | 高度なRichTextのOffice表現 |
@@ -11,7 +11,7 @@
 | 配列・表の型/行数/操作可否/初期行/行名 | 画面で定義、操作を制御 | 初期行ごとの初期値設定 |
 | 業務キー・重複禁止・並び順 | 単一列、昇順/降順 | 複合キー、任意の要素間整合性式 |
 | 各配列要素の不変ID・メタデータ | _id/_meta、複製元ID、作成/更新者日時 | 監査を要する認証済み作成者 |
-| HTML/Word/Excel/PPTX/PDF | HTML/CSS、Wordページ・段落・表、Excelセル位置・結合・書式、PPTXスライド位置・サイズ、画像埋込、PDF印刷 | 既存Officeテンプレート、Officeと完全一致するプレビュー、直接PDF生成 |
+| HTML/Word/Excel/PPTX/PDF | HTML/CSS、Word文字範囲・任意の表と入れ子/結合/列幅/セル書式、Excelセル編集・結合・書式・列幅/行高、PPTX図形・位置・サイズ・回転、画像埋込、PDF印刷 | 既存Officeテンプレート、Officeと完全一致するプレビュー、直接PDF生成 |
 | テンプレート・出力ルール・任意サンプル | ブロック配置、HTML変数、別添、条件、表分割 | ループ・複雑な条件、Office内差込 |
 | フォーム生成/入力/添付/保存/読込 | 実装 | 大容量添付の外部管理 |
 | 作成者/日時/変更内容/親状態の履歴 | DAGスナップショット | サーバ同期 |
@@ -25,9 +25,9 @@
 | 独立JSONとJSON + gzip | ローカルpakoによる圧縮、HTTPでも使用可 | 互換性移行ツール |
 | 公開仕様/AIなし/手修正 | 公開仕様とサンプルJSON | JSON Schema、外部ツール用SDK |
 | 型/未定義参照/循環/無効テンプレート/不要項目検出 | 型・参照・構造/履歴循環・テンプレート記法・未使用出力項目 | 式導入時の依存循環検出、厳格HTML構文検査 |
-| HTML/JS/静的SharePoint Classic | ランタイム外部依存なし、HTTP/ローカルを想定 | 配置先での実機検証、IEモードは対象外 |
+| HTML/JS/静的SharePoint Classic | ローカルvendor参照、HTTP/ローカルを想定 | 配置先での実機検証、IEモードは対象外 |
 | GitHub Pagesで確認 | 検証・公開workflow | 初回設定の管理権限が必要な場合あり |
-| 最大5ファイル程度、minify、少手順コピペ | 約460KBのHTML 1ファイルをリポジトリ登録、Raw表示からコピー | サイズ最適化 |
-| 外部ライブラリをローカルファイルとして使用 | vendor同梱、portableへ内包 | 不要依存削減 |
+| portableのリポジトリ登録、minify、コピー可能なHTML | ASCIIのportable HTMLと独立vendorフォルダー、同じ相対配置で使用 | ユーザー補足に従いライブラリは単一HTMLへ内包しない |
+| 外部ライブラリをローカルファイルとして使用 | Tiptap/Jspreadsheet CE/ExcelJS/Konvaをvendorへ固定、CDN不使用 | 高度なOffice機能・実機でのレイアウト検証 |
 
 初版を動作可能な基盤として作り、今後の拡張で公開フォーマット・履歴IDの連続性を維持する。全項目を本番完成済みとは扱わない。

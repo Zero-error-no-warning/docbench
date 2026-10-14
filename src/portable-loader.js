@@ -9,12 +9,14 @@ function fail(error) {
  if (app) {
   const message = document.createElement('section');
   message.className = 'notice error';
-  message.textContent = 'HTMLのコピー・保存内容を確認してください。\n' + (error.message || String(error));
+  message.textContent = (error.dependencies?'必要なライブラリが読み込めません。HTMLとvendorフォルダーの配置を確認してください。\n':'HTMLのコピー・保存内容を確認してください。\n') + (error.message || String(error));
   app.replaceChildren(message);
  }
  console.error(error);
 }
 try {
+ const missing=['JSZip','pako','docx','PptxGenJS','ExcelJS','jSuites','jspreadsheet','Konva','DocBenchEditorLib'].filter(name=>!globalThis[name]);
+ if(missing.length){const error=Error(missing.join(', '));error.dependencies=true;throw error;}
  const encoded = packet.textContent.replace(/\s/g, '');
  if (!encoded || encoded.length % 4) throw Error('Portable data is incomplete.');
  const bytes = Uint8Array.from(atob(encoded), c => c.charCodeAt(0));

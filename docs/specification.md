@@ -71,7 +71,7 @@ Objectは子項目で構成する。Arrayは全要素を行ラッパーで持ち
 
 この例のsummary/statusは対応するDefinitionに定義する必要がある。未定義参照はエラー。
 
-ブロック型は`heading` / `text` / `field` / `table` / `pagebreak`。`field`はルート項目、またはObject内のドット区切りパス。配列内の複数行を直接のドット参照で展開せず、配列全体を`table`ブロックに渡す。
+ブロック型は`heading` / `text` / `field` / `table` / `pagebreak` / `rich`（Word）/ `shape`（PPTX）。`field`はルート項目、またはObject内のドット区切りパス。配列内の複数行を直接のドット参照で展開せず、配列全体を`table`ブロックに渡す。
 
 `when`は条件に一致した場合だけブロックを出力。`appendixAfter`は表示文字数が上限を超えた項目を別添へ移し、元位置を別添参照に置換。`rowsPerPage`は表を指定行数で分割し、HTML/Wordでは改ページを挿入する。Excelは開始セルから配置し、PPTXは指定したスライド内へ配置する。分割で増えた表は次の印刷ページ・スライドへ配置する。
 
@@ -81,7 +81,7 @@ HTMLテンプレートはHTML/印刷PDF用。Officeは形式別のブロック�
 
 ### 形式別デザイン
 
-`outputFormat`で設計・出力する形式を先に選ぶ。値は`html` / `docx` / `xlsx` / `pptx` / `pdf`。入力者は定義された形式で出力する。`designs`に形式ごとのレイアウトを独立して保存する。形式を初めて作成するときは現在の要素構成を引き継ぎ、その形式の初期配置を作成する。既存デザインの切替では再変換しない。
+`outputFormat`で設計・出力する形式を先に選ぶ。値は`html` / `docx` / `xlsx` / `pptx` / `pdf`。入力者は定義された形式で出力する。`designs`に形式ごとのレイアウトを独立して保存する。形式を初めて作成するときは互換用ルート`blocks`から要素構成を引き継ぎ、その形式の初期配置を作成する。既存デザインの切替では再変換しない。
 
 ```json
 {
@@ -101,18 +101,73 @@ HTMLテンプレートはHTML/印刷PDF用。Officeは形式別のブロック�
 
 従来ファイルのルート`blocks` / `template` / `useTemplate`も読込可能。`designs`がない形式の初期構成に使用する。形式別デザインが存在する場合、ルート`blocks`は互換用データとして保持し、参照検証・出力には形式別の要素を使用する。選択中以外のデザインも参照・書式・位置を検証する。各形式内のブロックIDは一意であり、履歴・マージの項目識別に使用する。
 
-共通`settings`は`font`、`fontSize`（pt）、`color`、`accent`。ブロック`style`は`fontSize`、`bold`、`color`、`fill`、`align`（left / center / right）。色は`#RRGGBB`。`showLabel:false`は項目名の出力を省略する。
+共通`settings`は`font`、`fontSize`（pt）、`color`、`accent`。ブロック`style`は`font`、`fontSize`（pt）、`bold`、`italic`、`underline`、`strike`、`color`、`fill`（nullは透明）、`align`（left / center / right / justify）、`valign`（top / middle / bottom）、`border`、`borderWidth`（pt）、`bottomBorder`、`bottomBorderWidth`（pt）、`lineHeight`（倍率）、`spaceBefore/spaceAfter`（pt）、`wrap`、`numberFormat`。罫線色は`#RRGGBB`または`none`。`labelStyle`と`valueStyle`は同じ書式プロパティを使い、項目名・入力値を別々に上書きする。見出しや項目名に暗黙の下線・背景を付けない。文字の下線と段落/セルの下罫線は別設定。色は`#RRGGBB`。`showLabel:false`は項目名の出力を省略する。
 
 | 形式 | 全体の設定 | 要素ごとの設定・出力 |
 | --- | --- | --- |
 | HTML / PDF | `css`を標準CSSの後へ追加。`useTemplate`と`template` | `cssClass`でCSS対象を指定。テンプレートはclass/idを保持。PDFはブラウザ印刷 |
 | Word | `pageSize`（A4/Letter）、`orientation`、`marginTop/Bottom/Left/Right`（mm）、`lineHeight`（倍率）、`header`、`footer`、`pageNumbers` | 段落の`style.spaceBefore/spaceAfter`（pt）、文字揃え、文字書式、表の`headerFill`、`columnWidths`（列幅比率）、`imageWidth`（最大mm）。表見出し行の繰返し・行の分割防止、RichTextの太字・斜体・下線を保持 |
-| Excel | `sheetName`、`columnWidths`（Excelの列幅単位、カンマ区切り）、`rowHeight`（pt）、`freezeRows`、`showGridLines`、印刷`orientation`、`headerFill` | `layout.cell`（開始セル）、`layout.span`（横結合の列数）、`layout.rowSpan`（縦結合の行数）、`layout.rowHeight`（pt、未指定は折返し量から自動調整）、`style.numberFormat`（Excel数値書式）。項目名を表示すると値は開始セルの右隣。表は開始セルから列を展開。数字は数値セル、文字列はinlineStr、画像はDrawingMLで埋込。重複セル・重複結合は出力エラー |
-| PPTX | `width` / `height`（cm）、`background` | `layout.slide`（1始まり）、`x` / `y` / `w` / `h`（cm）。テキスト・表・画像を指定位置へ配置。表の`headerFill`、`columnWidths`（列幅比率）。長文はテキスト枠に合わせて縮小 |
+| Excel | `sheetName`、`columnWidths`（Excelの列幅単位、カンマ区切り）、`rowHeight`（pt）、`freezeRows`、`showGridLines`、印刷`orientation`、`headerFill`、`printArea`（例A1:F20） | `layout.cell`（開始セル）、`layout.span`（横結合の列数）、`layout.rowSpan`（縦結合の行数）、`layout.rowHeight`（pt、未指定は折返し量から自動調整）、`style.numberFormat`（Excel数値書式）。項目名を表示すると値は開始セルの右隣。表は開始セルから列を展開。数字は数値セル、文字列は共有文字列、画像はDrawingMLで埋込。重複セル・重複結合は出力エラー |
+| PPTX | `width` / `height`（cm）、`background` | `layout.slide`（1始まり）、`x` / `y` / `w` / `h`（cm）、`rotation`（-360〜360度、中心回転）。テキスト・表・画像を指定位置へ配置。表の`headerFill`、`columnWidths`（列幅比率）。長文はテキスト枠に合わせて縮小。`shape`は`rect` / `ellipse` / `line`、fillとborderを指定。表の回転は未対応で検証エラー |
 
 CSSは外部読込・url()・HTMLタグ・式評価を許可しない。HTML成果物はCSPでも外部接続とスクリプト実行を禁止する。フォントは利用するPCにインストールされたものを使う。HTML/PDF以外でHTMLテンプレートを有効にした定義は検証エラー。
 
-プレビューは形式別の配置・書式をHTMLで表示し、定義者の画面では選択・ドラッグ・サイズ変更・範囲選択・直接文章編集を既存のJSONモデルへの変更操作へ変換する。1回のドラッグは1回のUndo操作。ズーム・選択枠・ハンドルは出力ファイルやJSONに含めない。入力者のプレビューは読み取り専用。Officeのレイアウトエンジンとは異なるため、Wordの自動改ページ・文字の折返し、Excelの複雑な数値書式、PowerPointの文字縮小・表の行高まで完全一致を保証しない。Excelプレビューは先頭300行・60列。出力定義画面の「出力して確認」で実ファイルを確認できる。
+### Wordの文章・レイアウト表
+
+`rich`ブロックの`content`は下記の公開ノード構造を保存する。これは入力項目のTableとは別の固定レイアウト表であり、任意の行列と入れ子・結合を使える。二段組に専用構造はない。`text`は互換表示用の固定文字・参照記法で、入力値をコピーしない。成果物生成時に`content`を使う。
+
+```json
+{
+  "id":"layout-1", "type":"rich",
+  "content":{"type":"doc","content":[
+    {"type":"table","attrs":{"id":"t-1"},"content":[
+      {"type":"tableRow","attrs":{"id":"r-1"},"content":[
+        {"type":"tableCell","attrs":{"id":"c-1","colspan":1,"rowspan":1,"colwidth":[200],"border":"none","fill":null,"padding":6,"valign":"top"},"content":[
+          {"type":"paragraph","attrs":{"id":"p-1"},"content":[{"type":"text","text":"固定文章","marks":[{"type":"underline"}]}]}
+        ]},
+        {"type":"tableCell","attrs":{"id":"c-2","colspan":1,"rowspan":1,"colwidth":[120],"border":"none","padding":6},"content":[
+          {"type":"paragraph","attrs":{"id":"p-2"},"content":[{"type":"fieldRef","attrs":{"id":"ref-1","field":"projectName","part":"value"}}]}
+        ]}
+      ]}
+    ]}
+  ]}
+}
+```
+
+| ノード・属性 | 内容 |
+| --- | --- |
+| `doc.content` | 段落・見出し・表・リスト等の配列 |
+| `paragraph` / `heading` | `attrs.textAlign`、`lineHeight`、`spaceBefore/spaceAfter`（pt）、`bottomBorder`。headingは`level:1..6` |
+| `text` / `hardBreak` | 文字列`text` / 明示改行。`marks`で文字範囲の書式を指定 |
+| `marks` | `bold`、`italic`、`underline`、`strike`、`textStyle`。textStyle.attrsは`fontFamily`、`fontSize`（例16pt）、`color`、`backgroundColor` |
+| `fieldRef` | `attrs.field`はDefinitionのルートキーまたはObjectのドットパス。`part:value/label`で入力値/項目名を差込。未定義参照は拒否 |
+| `table` / `tableRow` | 行配列/セル配列。`tableCell`または`tableHeader`を使う |
+| セル属性 | `colspan/rowspan`（1..100）、`colwidth`（列ごとのpx配列）、`fill`（色/null）、`border`（色/none）、`borderWidth`（pt）、`padding`（px）、`valign` |
+| セル内content | 段落・見出し・表（入れ子）・リスト等。結合済み領域の重複セルは置かない |
+| その他のノード | `bulletList`、`orderedList`（listItem配列）、`listItem`、`blockquote`、`horizontalRule` |
+
+doc/text/hardBreak以外のノードは一意で不変の`attrs.id`を持つ。画面での新規作成・複製・貼付はIDを生成/再生成する。LLMからはIDを明示して渡す。構造は最大5000ノード・入れ子16段まで。セルの重複結合や表の範囲外結合は拒否する。列幅は先頭行を基準に全幅に対する比率へ換算し、Wordのページ余白内へ配置する。見出しセルの行は繰返し行として出力する。
+
+### Excelの固定セルと範囲設定
+
+`designs.xlsx`には`blocks`のほか以下を保存できる。入力項目に対応するセルの値を設計画面で変更せず、DocumentDataを参照する。空白セル・固定文章は編集可能。ブロックに結び付かない文字は`cellValues`、書式は`cellStyles`に保存する。
+
+```json
+{
+  "cellValues":{"B3":"=文字列として保存","A10":"注記"},
+  "cellStyles":{"B3":{"underline":true,"fill":null,"bottomBorder":"#123456"}},
+  "cellMerges":[{"id":"merge-1","cell":"B3","span":3,"rowSpan":2}],
+  "columnWidths":{"B":28}, "rowHeights":{"3":36}
+}
+```
+
+`cellStyles`は共通styleのプロパティを使い、該当セルのブロック書式を上書きする。列幅はExcel文字幅単位、行高はpt。独立の結合範囲も不変IDを持つ。値のあるセルを潰す結合・配置や範囲の重複は拒否する。数値は数値セル、固定文字は`=`で始まっても文字列で保存し、式を実行しない。Jspreadsheetの計算式エンジンは配布しない。グリッド編集は500行・100列まで、入力者プレビューは先頭300行・60列まで。保存データと出力にズームや選択範囲は含めない。
+
+### 編集とプレビュー
+
+定義者画面はWordにTiptap、ExcelにJspreadsheet CE、PowerPointにKonvaを使用する。操作は上記JSONモデルの変更へ変換し、ライブラリ内部オブジェクト・DOM・Canvas画像を保存しない。1回のドラッグは1回のUndo操作。HTML/PDFはCSSとブロック配置で編集する。入力者のプレビューは読み取り専用HTML。
+
+設定できる文字・背景・罫線・位置を出力へ反映するが、Officeのレイアウトエンジンとは異なる。Wordの自動改ページ・折返し、Excelの複雑な数値書式、PowerPointの文字縮小・表の行高の完全一致は保証しない。「出力して確認」で実ファイルを確認する。出力されたDOCX/XLSX/PPTXは画像化された画面ではなく、編集可能なネイティブ文字・表・図形を含む。
 
 ## Document Data
 
@@ -184,7 +239,7 @@ IndexedDBの`docbench-workspace-v1`へWorkspaceを自動保存し、利用でき
 
 ## 第三者ライブラリ
 
-ランタイムは以下をvendorに同梱する。初版portable版はすべてをHTMLに内包し、CDNへアクセスしない。
+ランタイムは以下をvendorに同梱する。portable版も別ファイルのvendorを参照し、CDNへアクセスしない。
 
 | ライブラリ | 版 | 出典 | ライセンス |
 | --- | --- | --- | --- |
@@ -192,12 +247,17 @@ IndexedDBの`docbench-workspace-v1`へWorkspaceを自動保存し、利用でき
 | pako | 1.0.11 | https://github.com/nodeca/pako | MIT |
 | docx | 9.6.1 | https://github.com/dolanmiu/docx | MIT |
 | PptxGenJS | 4.0.1 | https://github.com/gitbrent/PptxGenJS | MIT |
+| Tiptap core / StarterKit / Table / TextStyleKit | 3.32.0 | https://github.com/ueberdosis/tiptap | MIT（使用するProseMirror依存も同梱） |
+| Jspreadsheet CE | 5.0.4 | https://github.com/jspreadsheet/ce | MIT |
+| jSuites | 5.12.0 | https://github.com/jsuites/jsuites | MIT |
+| ExcelJS | 4.4.0 | https://github.com/exceljs/exceljs | MIT |
+| Konva | 10.0.12 | https://github.com/konvajs/konva | MIT |
 | rJSmin（ビルドのみ） | 1.3.0 | https://github.com/ndparker/rjsmin | Apache-2.0 |
 
-ライセンス本文はvendorに保存し、portableにも内包する。ビルドで既にminify済みのPptxGenJSを再minifyしない（rJSminが扱えないネストしたテンプレートリテラルがあるため）。
+ライセンス本文はvendorに保存し、portableにも内包する。ライブラリは固定版を同梱する。TiptapはMITのコア拡張だけを使用し、商用ページレイアウト機能やAI機能は使用しない。再生成用の依存ロックはscripts/editor-buildにある。
 
 ## Portableの格納形式
 
-portable/docbench.htmlは実行に必要な全内容を1ファイルに持つ。短いpako展開用スクリプトとローダー以外のJavaScriptは、ライセンス本文とともにJSONへ格納し、gzip + Base64のASCIIデータとして内包する。展開後のプログラムは動的に作ったscript要素のtextContentへ設定するため、プログラム中のHTML文字列をHTMLパーサーへ直接渡さない。
+`portable/docbench.html`にアプリ本体・CSS・仕様書・ライセンスを持ち、第三者JS/CSSは`../vendor/`から読み込む。配置は`配置先/portable/docbench.html`と`配置先/vendor/`。必要な実行ファイル一覧はportable/build-manifest.jsonのruntimeFilesを参照する。HTMLだけ移動すると起動できず、ライブラリ配置の確認エラーを表示する。
 
-HTML本体とローダーはASCIIのみ。表示用の日本語はHTML数値文字参照またはJavaScriptのUnicodeエスケープで保持する。LF/CRLFの変換を許容し、コピーで圧縮データが欠けたり変化した場合は画面に起動エラーを表示する。展開には同梱pakoを使い、CDN・fetch・eval・CompressionStreamを必要としない。
+アプリJavaScriptをライセンス本文とともにJSONへ格納し、gzip + Base64のASCIIデータとしてHTMLへ内包する。展開後はscript要素のtextContentへ設定するため、プログラム中のHTML文字列をHTMLパーサーへ直接渡さない。HTML本体とローダーはASCIIのみ。日本語はHTML数値文字参照またはJavaScriptのUnicodeエスケープで保持する。LF/CRLF変換を許容し、圧縮データが欠けた場合は起動エラーを表示する。展開は別ファイルのローカルpakoを使い、CDN・fetch・eval・CompressionStreamを必要としない。
