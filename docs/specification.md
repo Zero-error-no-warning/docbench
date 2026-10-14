@@ -1,6 +1,6 @@
 # DocBench JSON形式 v1
 
-本仕様は初版0.1の実装に対応する。UTF-8 JSONを使用し、共有時は全体をgzipで圧縮できる。ランタイムにはAI機能・外部通信・サーバ処理を持たせない。
+本仕様は形式別デザイン対応版の実装に対応する。UTF-8 JSONを使用し、共有時は全体をgzipで圧縮できる。ランタイムにはAI機能・外部通信・サーバ処理を持たせない。
 
 ## 共通形式
 
@@ -73,11 +73,46 @@ Objectは子項目で構成する。Arrayは全要素を行ラッパーで持ち
 
 ブロック型は`heading` / `text` / `field` / `table` / `pagebreak`。`field`はルート項目、またはObject内のドット区切りパス。配列内の複数行を直接のドット参照で展開せず、配列全体を`table`ブロックに渡す。
 
-`when`は条件に一致した場合だけブロックを出力。`appendixAfter`は表示文字数が上限を超えた項目を別添へ移し、元位置を別添参照に置換。`rowsPerPage`は表を指定行数で分割し、HTML/Wordでは改ページを挿入する。Excelは基本版では行を順に配置し、PPTXはスライドに分割する。
+`when`は条件に一致した場合だけブロックを出力。`appendixAfter`は表示文字数が上限を超えた項目を別添へ移し、元位置を別添参照に置換。`rowsPerPage`は表を指定行数で分割し、HTML/Wordでは改ページを挿入する。Excelは開始セルから配置し、PPTXは指定したスライド内へ配置する。分割で増えた表は次の印刷ページ・スライドへ配置する。
 
 `useTemplate:true`では`template`内の`{{projectName}}`を文字列としてHTMLエスケープして挿入。Objectのパスを使用できる。任意JS評価・関数呼出・ループ・三重括弧・HTMLの無検査挿入は行わない。安全なHTMLタグだけを残し、scriptやイベント属性・外部読込要素を除去する。テンプレートの記法と参照を検証するが、HTML構文の厳格な妥当性検査は初版の対象外。
 
-HTMLテンプレートはHTML/印刷PDF用。Officeはブロック配置から基本レイアウトで生成し、拡張子だけを変えたHTMLではなくネイティブOffice Open XMLパッケージを生成する。
+HTMLテンプレートはHTML/印刷PDF用。Officeは形式別のブロック配置・書式から生成し、拡張子だけを変えたHTMLではなくネイティブOffice Open XMLパッケージを生成する。
+
+### 形式別デザイン
+
+`outputFormat`で設計・出力する形式を先に選ぶ。値は`html` / `docx` / `xlsx` / `pptx` / `pdf`。入力者は定義された形式で出力する。`designs`に形式ごとのレイアウトを独立して保存する。形式を初めて作成するときは現在の要素構成を引き継ぎ、その形式の初期配置を作成する。既存デザインの切替では再変換しない。
+
+```json
+{
+  "outputFormat": "xlsx",
+  "designs": {
+    "xlsx": {
+      "useTemplate": false,
+      "settings": {"sheetName":"報告書","columnWidths":"22,24,24,20","rowHeight":26,"freezeRows":1,"showGridLines":false,"orientation":"portrait","font":"Yu Gothic","fontSize":11},
+      "blocks": [
+        {"id":"excel-title","type":"heading","text":"事業報告書","layout":{"cell":"B2","span":3,"rowHeight":36},"style":{"fontSize":24,"bold":true,"color":"#196c74","align":"center"}},
+        {"id":"excel-budget","type":"field","field":"budget","layout":{"cell":"B5","span":2},"style":{"numberFormat":"#,##0\"円\""}}
+      ]
+    }
+  }
+}
+```
+
+従来ファイルのルート`blocks` / `template` / `useTemplate`も読込可能。`designs`がない形式の初期構成に使用する。形式別デザインが存在する場合、ルート`blocks`は互換用データとして保持し、参照検証・出力には形式別の要素を使用する。選択中以外のデザインも参照・書式・位置を検証する。各形式内のブロックIDは一意であり、履歴・マージの項目識別に使用する。
+
+共通`settings`は`font`、`fontSize`（pt）、`color`、`accent`。ブロック`style`は`fontSize`、`bold`、`color`、`fill`、`align`（left / center / right）。色は`#RRGGBB`。`showLabel:false`は項目名の出力を省略する。
+
+| 形式 | 全体の設定 | 要素ごとの設定・出力 |
+| --- | --- | --- |
+| HTML / PDF | `css`を標準CSSの後へ追加。`useTemplate`と`template` | `cssClass`でCSS対象を指定。テンプレートはclass/idを保持。PDFはブラウザ印刷 |
+| Word | `pageSize`（A4/Letter）、`orientation`、`marginTop/Bottom/Left/Right`（mm）、`lineHeight`（倍率）、`header`、`footer`、`pageNumbers` | 段落の`style.spaceBefore/spaceAfter`（pt）、文字揃え、文字書式、表の`headerFill`、`columnWidths`（列幅比率）、`imageWidth`（最大mm）。表見出し行の繰返し・行の分割防止、RichTextの太字・斜体・下線を保持 |
+| Excel | `sheetName`、`columnWidths`（Excelの列幅単位、カンマ区切り）、`rowHeight`（pt）、`freezeRows`、`showGridLines`、印刷`orientation`、`headerFill` | `layout.cell`（開始セル）、`layout.span`（横結合の列数）、`layout.rowHeight`（pt）、`style.numberFormat`（Excel数値書式）。項目名を表示すると値は開始セルの右隣。表は開始セルから列を展開。数字は数値セル、文字列はinlineStr、画像はDrawingMLで埋込。重複セル・重複結合は出力エラー |
+| PPTX | `width` / `height`（cm）、`background` | `layout.slide`（1始まり）、`x` / `y` / `w` / `h`（cm）。テキスト・表・画像を指定位置へ配置。表の`headerFill`、`columnWidths`（列幅比率）。長文はテキスト枠に合わせて縮小 |
+
+CSSは外部読込・url()・HTMLタグ・式評価を許可しない。HTML成果物はCSPでも外部接続とスクリプト実行を禁止する。フォントは利用するPCにインストールされたものを使う。HTML/PDF以外でHTMLテンプレートを有効にした定義は検証エラー。
+
+プレビューは形式別の配置・書式をHTMLで表示する。Officeのレイアウトエンジンとは異なるため、Wordの自動改ページ・文字の折返し、Excelの複雑な数値書式、PowerPointの文字縮小・表の行高まで完全一致を保証しない。Excelプレビューは先頭300行・60列。出力定義画面の「出力して確認」で実ファイルを確認できる。
 
 ## Document Data
 
@@ -105,7 +140,7 @@ Dateは`YYYY-MM-DD`、DateTimeはブラウザのdatetime-localに対応した`YY
 {"id":"attachment-1","name":"note.txt","size":8,"type":"text/plain","content":"data:text/plain;base64,c2FtcGxlCg=="}
 ```
 
-内容をBase64 data URLで内包。画像はPNG/JPEG/GIF/WebPを許可し、HTMLには安全な画像形式のみ描画。Wordの埋込はPNG/JPEG。添付は1件10MB、JSONは展開後80MBまで。
+内容をBase64 data URLで内包。画像はPNG/JPEG/GIF/WebPを許可し、HTMLには安全な画像形式のみ描画。Officeの埋込はPNG/JPEG。GIF/WebPはブラウザでPNGへ変換して埋め込む（アニメーションは先頭フレーム）。添付は1件10MB、JSONは展開後80MBまで。
 
 ## Workspaceと履歴
 
