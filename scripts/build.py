@@ -28,7 +28,6 @@ def script(value):
  return '<script>'+re.sub(r'</script',r'<\\/script',ascii_js(value),flags=re.I)+'</script>'
 portable=source.replace('<link rel="stylesheet" href="src/style.css">','<style>'+css+'</style>')
 portable=re.sub(r'<script src="[^"]+"></script>','',portable)
-portable=portable.replace('href="docs/specification.md"','href="https://github.com/Zero-error-no-warning/docbench/blob/main/docs/specification.md"')
 portable=portable.replace('</footer>','<button id="portable-licenses" class="small">ライセンス</button></footer>')
 # Encode visible HTML as numeric references. Saving as ANSI does not damage JS.
 portable=portable.encode('ascii','xmlcharrefreplace').decode('ascii')
