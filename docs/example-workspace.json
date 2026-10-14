@@ -1,0 +1,480 @@
+{
+  "kind": "Workspace",
+  "formatVersion": 1,
+  "id": "id_573279b7-c6c1-4a9c-88c7-da5a519e1f0d",
+  "actor": "作成者",
+  "currentBranch": "main",
+  "branches": {
+    "main": "id_2adca7f7-6d5d-4a70-bf37-1adad3cde1f5"
+  },
+  "history": [
+    {
+      "id": "id_2adca7f7-6d5d-4a70-bf37-1adad3cde1f5",
+      "parents": [],
+      "author": "作成者",
+      "createdAt": "2026-10-13T23:55:21.941Z",
+      "message": "初期サンプル",
+      "comments": [],
+      "state": {
+        "definition": {
+          "kind": "Definition",
+          "formatVersion": 1,
+          "id": "id_07c6e26e-e8f0-48de-b4ce-852baf4ea682",
+          "title": "事業実施報告書",
+          "description": "事業の概要・成果と支出内訳を入力してください。",
+          "fields": [
+            {
+              "id": "id_7ac68031-aade-4fc9-9933-8be4b685f78a",
+              "key": "projectName",
+              "label": "事業名",
+              "type": "String",
+              "section": "基本情報",
+              "group": "",
+              "description": "",
+              "required": true,
+              "maxLength": 100
+            },
+            {
+              "id": "id_dafe288c-e378-449a-a5c4-8c245fddca13",
+              "key": "department",
+              "label": "担当部署",
+              "type": "String",
+              "section": "基本情報",
+              "group": "",
+              "description": "",
+              "required": true
+            },
+            {
+              "id": "id_493d9794-339f-4a7c-8e03-5076ca2b6b95",
+              "key": "budget",
+              "label": "予算額",
+              "type": "Integer",
+              "section": "基本情報",
+              "group": "",
+              "description": "円単位で入力",
+              "required": true,
+              "min": 0
+            },
+            {
+              "id": "id_99d165ec-81f8-4d3b-9e3f-905c5f815a18",
+              "key": "reportDate",
+              "label": "報告日",
+              "type": "Date",
+              "section": "基本情報",
+              "group": "",
+              "description": "",
+              "required": true
+            },
+            {
+              "id": "id_928fca22-3951-4996-90d6-b654cb70f323",
+              "key": "status",
+              "label": "実施状況",
+              "type": "Enum",
+              "section": "基本情報",
+              "group": "",
+              "description": "",
+              "required": true,
+              "options": [
+                "計画中",
+                "実施中",
+                "完了"
+              ]
+            },
+            {
+              "id": "id_1c728eaa-aa1b-4708-815f-8578f6ef938d",
+              "key": "summary",
+              "label": "成果概要",
+              "type": "Text",
+              "section": "成果",
+              "group": "",
+              "description": "",
+              "required": true,
+              "maxLength": 4000
+            },
+            {
+              "id": "id_1c8560c6-f6de-4441-9479-0a2080bbdd57",
+              "key": "expenses",
+              "label": "支出内訳",
+              "type": "Table",
+              "section": "支出",
+              "group": "",
+              "description": "",
+              "required": false,
+              "minItems": 1,
+              "maxItems": 30,
+              "initialRows": 1,
+              "rowLabel": "支出",
+              "allowAdd": true,
+              "allowDelete": true,
+              "allowDuplicate": true,
+              "allowReorder": true,
+              "businessKey": "category",
+              "uniqueBy": "category",
+              "sortBy": "",
+              "fields": [
+                {
+                  "id": "id_e5a0c0af-1b14-48eb-8248-78813f2bc3d3",
+                  "key": "category",
+                  "label": "区分",
+                  "type": "String",
+                  "section": "基本情報",
+                  "group": "",
+                  "description": "",
+                  "required": true
+                },
+                {
+                  "id": "id_edb12645-f8e2-407b-9514-dcc0a96ef288",
+                  "key": "amount",
+                  "label": "金額（円）",
+                  "type": "Integer",
+                  "section": "基本情報",
+                  "group": "",
+                  "description": "",
+                  "required": true,
+                  "min": 0
+                },
+                {
+                  "id": "id_224b7616-09ca-4957-9bec-2e9a0e47982f",
+                  "key": "note",
+                  "label": "説明",
+                  "type": "Text",
+                  "section": "基本情報",
+                  "group": "",
+                  "description": "",
+                  "required": false
+                }
+              ]
+            },
+            {
+              "id": "id_277e1a84-f731-4295-abb6-939864e6263c",
+              "key": "attachment",
+              "label": "参考資料",
+              "type": "File",
+              "section": "添付",
+              "group": "",
+              "description": "",
+              "required": false
+            }
+          ]
+        },
+        "render": {
+          "kind": "RenderDefinition",
+          "formatVersion": 1,
+          "id": "id_a008d2e9-fd33-48b0-8acb-27f8b2e673b2",
+          "definitionId": "id_07c6e26e-e8f0-48de-b4ce-852baf4ea682",
+          "title": "事業実施報告書",
+          "blocks": [
+            {
+              "id": "id_ade8b836-4869-43bb-8ff7-fc88e0a109c6",
+              "type": "heading",
+              "text": "事業実施報告書"
+            },
+            {
+              "id": "id_786a8cd7-1827-4e38-b750-cdeca0eecb7b",
+              "type": "field",
+              "field": "projectName"
+            },
+            {
+              "id": "id_1f67d5dd-f332-46a8-b322-37866e0ead73",
+              "type": "field",
+              "field": "department"
+            },
+            {
+              "id": "id_0e164db6-7ce7-4487-b4d4-980e1a0d6cd2",
+              "type": "field",
+              "field": "reportDate"
+            },
+            {
+              "id": "id_a1be6f66-f988-4ef9-8e96-266cf86d3bb3",
+              "type": "field",
+              "field": "status"
+            },
+            {
+              "id": "id_0eeda7e3-24d3-4003-9d8d-922de65cdcb0",
+              "type": "field",
+              "field": "budget"
+            },
+            {
+              "id": "id_84458a49-66b3-4e24-ac66-f0b7a1b29427",
+              "type": "field",
+              "field": "summary",
+              "appendixAfter": 600
+            },
+            {
+              "id": "id_2936c3e7-b390-46ef-b7d7-f174c97b7c6d",
+              "type": "table",
+              "field": "expenses",
+              "rowsPerPage": 12
+            },
+            {
+              "id": "id_2d86e233-40f9-4e94-8f24-37b99688c5b8",
+              "type": "field",
+              "field": "attachment"
+            }
+          ],
+          "template": "",
+          "useTemplate": false
+        },
+        "data": {
+          "kind": "DocumentData",
+          "formatVersion": 1,
+          "id": "id_aa2a8fe5-abda-463a-ac95-f1effbe99852",
+          "definitionId": "id_07c6e26e-e8f0-48de-b4ce-852baf4ea682",
+          "values": {
+            "projectName": "窓口業務の改善事業",
+            "department": "総務課",
+            "budget": 1200000,
+            "reportDate": "2026-10-13",
+            "status": "完了",
+            "summary": "申請書の入力項目を整理し、確認に必要な時間を短縮しました。\n職員からの意見を反映して、来年度も改善を継続します。",
+            "expenses": [
+              {
+                "_id": "id_86d7202c-c440-42d8-9a4a-5a2d1786f592",
+                "_meta": {
+                  "origin": null,
+                  "createdBy": "デモ作成者",
+                  "createdAt": "2026-10-13T23:55:21.940Z",
+                  "modifiedBy": "デモ作成者",
+                  "modifiedAt": "2026-10-13T23:55:21.940Z"
+                },
+                "category": "備品",
+                "amount": 350000,
+                "note": "窓口案内用の機器"
+              }
+            ],
+            "attachment": null
+          }
+        }
+      }
+    }
+  ],
+  "definition": {
+    "kind": "Definition",
+    "formatVersion": 1,
+    "id": "id_07c6e26e-e8f0-48de-b4ce-852baf4ea682",
+    "title": "事業実施報告書",
+    "description": "事業の概要・成果と支出内訳を入力してください。",
+    "fields": [
+      {
+        "id": "id_7ac68031-aade-4fc9-9933-8be4b685f78a",
+        "key": "projectName",
+        "label": "事業名",
+        "type": "String",
+        "section": "基本情報",
+        "group": "",
+        "description": "",
+        "required": true,
+        "maxLength": 100
+      },
+      {
+        "id": "id_dafe288c-e378-449a-a5c4-8c245fddca13",
+        "key": "department",
+        "label": "担当部署",
+        "type": "String",
+        "section": "基本情報",
+        "group": "",
+        "description": "",
+        "required": true
+      },
+      {
+        "id": "id_493d9794-339f-4a7c-8e03-5076ca2b6b95",
+        "key": "budget",
+        "label": "予算額",
+        "type": "Integer",
+        "section": "基本情報",
+        "group": "",
+        "description": "円単位で入力",
+        "required": true,
+        "min": 0
+      },
+      {
+        "id": "id_99d165ec-81f8-4d3b-9e3f-905c5f815a18",
+        "key": "reportDate",
+        "label": "報告日",
+        "type": "Date",
+        "section": "基本情報",
+        "group": "",
+        "description": "",
+        "required": true
+      },
+      {
+        "id": "id_928fca22-3951-4996-90d6-b654cb70f323",
+        "key": "status",
+        "label": "実施状況",
+        "type": "Enum",
+        "section": "基本情報",
+        "group": "",
+        "description": "",
+        "required": true,
+        "options": [
+          "計画中",
+          "実施中",
+          "完了"
+        ]
+      },
+      {
+        "id": "id_1c728eaa-aa1b-4708-815f-8578f6ef938d",
+        "key": "summary",
+        "label": "成果概要",
+        "type": "Text",
+        "section": "成果",
+        "group": "",
+        "description": "",
+        "required": true,
+        "maxLength": 4000
+      },
+      {
+        "id": "id_1c8560c6-f6de-4441-9479-0a2080bbdd57",
+        "key": "expenses",
+        "label": "支出内訳",
+        "type": "Table",
+        "section": "支出",
+        "group": "",
+        "description": "",
+        "required": false,
+        "minItems": 1,
+        "maxItems": 30,
+        "initialRows": 1,
+        "rowLabel": "支出",
+        "allowAdd": true,
+        "allowDelete": true,
+        "allowDuplicate": true,
+        "allowReorder": true,
+        "businessKey": "category",
+        "uniqueBy": "category",
+        "sortBy": "",
+        "fields": [
+          {
+            "id": "id_e5a0c0af-1b14-48eb-8248-78813f2bc3d3",
+            "key": "category",
+            "label": "区分",
+            "type": "String",
+            "section": "基本情報",
+            "group": "",
+            "description": "",
+            "required": true
+          },
+          {
+            "id": "id_edb12645-f8e2-407b-9514-dcc0a96ef288",
+            "key": "amount",
+            "label": "金額（円）",
+            "type": "Integer",
+            "section": "基本情報",
+            "group": "",
+            "description": "",
+            "required": true,
+            "min": 0
+          },
+          {
+            "id": "id_224b7616-09ca-4957-9bec-2e9a0e47982f",
+            "key": "note",
+            "label": "説明",
+            "type": "Text",
+            "section": "基本情報",
+            "group": "",
+            "description": "",
+            "required": false
+          }
+        ]
+      },
+      {
+        "id": "id_277e1a84-f731-4295-abb6-939864e6263c",
+        "key": "attachment",
+        "label": "参考資料",
+        "type": "File",
+        "section": "添付",
+        "group": "",
+        "description": "",
+        "required": false
+      }
+    ]
+  },
+  "render": {
+    "kind": "RenderDefinition",
+    "formatVersion": 1,
+    "id": "id_a008d2e9-fd33-48b0-8acb-27f8b2e673b2",
+    "definitionId": "id_07c6e26e-e8f0-48de-b4ce-852baf4ea682",
+    "title": "事業実施報告書",
+    "blocks": [
+      {
+        "id": "id_ade8b836-4869-43bb-8ff7-fc88e0a109c6",
+        "type": "heading",
+        "text": "事業実施報告書"
+      },
+      {
+        "id": "id_786a8cd7-1827-4e38-b750-cdeca0eecb7b",
+        "type": "field",
+        "field": "projectName"
+      },
+      {
+        "id": "id_1f67d5dd-f332-46a8-b322-37866e0ead73",
+        "type": "field",
+        "field": "department"
+      },
+      {
+        "id": "id_0e164db6-7ce7-4487-b4d4-980e1a0d6cd2",
+        "type": "field",
+        "field": "reportDate"
+      },
+      {
+        "id": "id_a1be6f66-f988-4ef9-8e96-266cf86d3bb3",
+        "type": "field",
+        "field": "status"
+      },
+      {
+        "id": "id_0eeda7e3-24d3-4003-9d8d-922de65cdcb0",
+        "type": "field",
+        "field": "budget"
+      },
+      {
+        "id": "id_84458a49-66b3-4e24-ac66-f0b7a1b29427",
+        "type": "field",
+        "field": "summary",
+        "appendixAfter": 600
+      },
+      {
+        "id": "id_2936c3e7-b390-46ef-b7d7-f174c97b7c6d",
+        "type": "table",
+        "field": "expenses",
+        "rowsPerPage": 12
+      },
+      {
+        "id": "id_2d86e233-40f9-4e94-8f24-37b99688c5b8",
+        "type": "field",
+        "field": "attachment"
+      }
+    ],
+    "template": "",
+    "useTemplate": false
+  },
+  "data": {
+    "kind": "DocumentData",
+    "formatVersion": 1,
+    "id": "id_aa2a8fe5-abda-463a-ac95-f1effbe99852",
+    "definitionId": "id_07c6e26e-e8f0-48de-b4ce-852baf4ea682",
+    "values": {
+      "projectName": "窓口業務の改善事業",
+      "department": "総務課",
+      "budget": 1200000,
+      "reportDate": "2026-10-13",
+      "status": "完了",
+      "summary": "申請書の入力項目を整理し、確認に必要な時間を短縮しました。\n職員からの意見を反映して、来年度も改善を継続します。",
+      "expenses": [
+        {
+          "_id": "id_86d7202c-c440-42d8-9a4a-5a2d1786f592",
+          "_meta": {
+            "origin": null,
+            "createdBy": "デモ作成者",
+            "createdAt": "2026-10-13T23:55:21.940Z",
+            "modifiedBy": "デモ作成者",
+            "modifiedAt": "2026-10-13T23:55:21.940Z"
+          },
+          "category": "備品",
+          "amount": 350000,
+          "note": "窓口案内用の機器"
+        }
+      ],
+      "attachment": null
+    }
+  }
+}

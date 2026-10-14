@@ -1,0 +1,13 @@
+{
+  "sha256": "1b19cb6864f2b2d485470c7cdcffb1f7b765b6c49c4a2f2fa097962e6dfd8af8",
+  "bytes": 1142925,
+  "runtimeFiles": [
+    "docbench.html"
+  ],
+  "vendorLibraries": [
+    "jszip.min.js",
+    "pako.min.js",
+    "docx.js",
+    "pptxgen.min.js"
+  ]
+}

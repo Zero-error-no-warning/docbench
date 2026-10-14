@@ -1,4 +1,6 @@
-dist
-node_modules
+dist/
+node_modules/
+__pycache__/
+test-results/
 *.log
 .DS_Store

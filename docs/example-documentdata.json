@@ -1,0 +1,76 @@
+{
+  "kind": "DocumentData",
+  "formatVersion": 1,
+  "id": "id_aa2a8fe5-abda-463a-ac95-f1effbe99852",
+  "definitionId": "id_07c6e26e-e8f0-48de-b4ce-852baf4ea682",
+  "values": {
+    "projectName": "窓口業務の改善事業",
+    "department": "総務課",
+    "budget": 1200000,
+    "reportDate": "2026-10-13",
+    "status": "完了",
+    "summary": "申請書の入力項目を整理し、確認に必要な時間を短縮しました。\n職員からの意見を反映して、来年度も改善を継続します。",
+    "expenses": [
+      {
+        "_id": "id_86d7202c-c440-42d8-9a4a-5a2d1786f592",
+        "_meta": {
+          "origin": null,
+          "createdBy": "デモ作成者",
+          "createdAt": "2026-10-13T23:55:21.940Z",
+          "modifiedBy": "デモ作成者",
+          "modifiedAt": "2026-10-13T23:55:21.940Z"
+        },
+        "category": "備品",
+        "amount": 350000,
+        "note": "窓口案内用の機器"
+      }
+    ],
+    "attachment": null
+  },
+  "history": {
+    "currentBranch": "main",
+    "branches": {
+      "main": "id_2adca7f7-6d5d-4a70-bf37-1adad3cde1f5"
+    },
+    "nodes": [
+      {
+        "id": "id_2adca7f7-6d5d-4a70-bf37-1adad3cde1f5",
+        "parents": [],
+        "author": "作成者",
+        "createdAt": "2026-10-13T23:55:21.941Z",
+        "message": "初期サンプル",
+        "comments": [],
+        "state": {
+          "kind": "DocumentData",
+          "formatVersion": 1,
+          "id": "id_aa2a8fe5-abda-463a-ac95-f1effbe99852",
+          "definitionId": "id_07c6e26e-e8f0-48de-b4ce-852baf4ea682",
+          "values": {
+            "projectName": "窓口業務の改善事業",
+            "department": "総務課",
+            "budget": 1200000,
+            "reportDate": "2026-10-13",
+            "status": "完了",
+            "summary": "申請書の入力項目を整理し、確認に必要な時間を短縮しました。\n職員からの意見を反映して、来年度も改善を継続します。",
+            "expenses": [
+              {
+                "_id": "id_86d7202c-c440-42d8-9a4a-5a2d1786f592",
+                "_meta": {
+                  "origin": null,
+                  "createdBy": "デモ作成者",
+                  "createdAt": "2026-10-13T23:55:21.940Z",
+                  "modifiedBy": "デモ作成者",
+                  "modifiedAt": "2026-10-13T23:55:21.940Z"
+                },
+                "category": "備品",
+                "amount": 350000,
+                "note": "窓口案内用の機器"
+              }
+            ],
+            "attachment": null
+          }
+        }
+      }
+    ]
+  }
+}

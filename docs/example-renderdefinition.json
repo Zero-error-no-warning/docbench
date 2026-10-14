@@ -1,0 +1,132 @@
+{
+  "kind": "RenderDefinition",
+  "formatVersion": 1,
+  "id": "id_a008d2e9-fd33-48b0-8acb-27f8b2e673b2",
+  "definitionId": "id_07c6e26e-e8f0-48de-b4ce-852baf4ea682",
+  "title": "事業実施報告書",
+  "blocks": [
+    {
+      "id": "id_ade8b836-4869-43bb-8ff7-fc88e0a109c6",
+      "type": "heading",
+      "text": "事業実施報告書"
+    },
+    {
+      "id": "id_786a8cd7-1827-4e38-b750-cdeca0eecb7b",
+      "type": "field",
+      "field": "projectName"
+    },
+    {
+      "id": "id_1f67d5dd-f332-46a8-b322-37866e0ead73",
+      "type": "field",
+      "field": "department"
+    },
+    {
+      "id": "id_0e164db6-7ce7-4487-b4d4-980e1a0d6cd2",
+      "type": "field",
+      "field": "reportDate"
+    },
+    {
+      "id": "id_a1be6f66-f988-4ef9-8e96-266cf86d3bb3",
+      "type": "field",
+      "field": "status"
+    },
+    {
+      "id": "id_0eeda7e3-24d3-4003-9d8d-922de65cdcb0",
+      "type": "field",
+      "field": "budget"
+    },
+    {
+      "id": "id_84458a49-66b3-4e24-ac66-f0b7a1b29427",
+      "type": "field",
+      "field": "summary",
+      "appendixAfter": 600
+    },
+    {
+      "id": "id_2936c3e7-b390-46ef-b7d7-f174c97b7c6d",
+      "type": "table",
+      "field": "expenses",
+      "rowsPerPage": 12
+    },
+    {
+      "id": "id_2d86e233-40f9-4e94-8f24-37b99688c5b8",
+      "type": "field",
+      "field": "attachment"
+    }
+  ],
+  "template": "",
+  "useTemplate": false,
+  "history": {
+    "currentBranch": "main",
+    "branches": {
+      "main": "id_2adca7f7-6d5d-4a70-bf37-1adad3cde1f5"
+    },
+    "nodes": [
+      {
+        "id": "id_2adca7f7-6d5d-4a70-bf37-1adad3cde1f5",
+        "parents": [],
+        "author": "作成者",
+        "createdAt": "2026-10-13T23:55:21.941Z",
+        "message": "初期サンプル",
+        "comments": [],
+        "state": {
+          "kind": "RenderDefinition",
+          "formatVersion": 1,
+          "id": "id_a008d2e9-fd33-48b0-8acb-27f8b2e673b2",
+          "definitionId": "id_07c6e26e-e8f0-48de-b4ce-852baf4ea682",
+          "title": "事業実施報告書",
+          "blocks": [
+            {
+              "id": "id_ade8b836-4869-43bb-8ff7-fc88e0a109c6",
+              "type": "heading",
+              "text": "事業実施報告書"
+            },
+            {
+              "id": "id_786a8cd7-1827-4e38-b750-cdeca0eecb7b",
+              "type": "field",
+              "field": "projectName"
+            },
+            {
+              "id": "id_1f67d5dd-f332-46a8-b322-37866e0ead73",
+              "type": "field",
+              "field": "department"
+            },
+            {
+              "id": "id_0e164db6-7ce7-4487-b4d4-980e1a0d6cd2",
+              "type": "field",
+              "field": "reportDate"
+            },
+            {
+              "id": "id_a1be6f66-f988-4ef9-8e96-266cf86d3bb3",
+              "type": "field",
+              "field": "status"
+            },
+            {
+              "id": "id_0eeda7e3-24d3-4003-9d8d-922de65cdcb0",
+              "type": "field",
+              "field": "budget"
+            },
+            {
+              "id": "id_84458a49-66b3-4e24-ac66-f0b7a1b29427",
+              "type": "field",
+              "field": "summary",
+              "appendixAfter": 600
+            },
+            {
+              "id": "id_2936c3e7-b390-46ef-b7d7-f174c97b7c6d",
+              "type": "table",
+              "field": "expenses",
+              "rowsPerPage": 12
+            },
+            {
+              "id": "id_2d86e233-40f9-4e94-8f24-37b99688c5b8",
+              "type": "field",
+              "field": "attachment"
+            }
+          ],
+          "template": "",
+          "useTemplate": false
+        }
+      }
+    ]
+  }
+}

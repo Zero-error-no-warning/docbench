@@ -9,7 +9,10 @@
     "dev:form-runtime": "vite --config vite.config.ts --open /form-runtime/index.html",
     "build": "tsc --noEmit && vite build --config vite.config.ts",
     "preview": "vite preview --config vite.config.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:portable": "python3 scripts/build.py",
+    "test:offline": "node --test tests/*.test.cjs",
+    "test:browser": "node tests/browser.cjs"
   },
   "devDependencies": {
     "@vitejs/plugin-legacy": "^8.2.3",
