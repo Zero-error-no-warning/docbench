@@ -4,12 +4,15 @@ import base64, gzip, hashlib, json, re, textwrap
 from pathlib import Path
 import rjsmin
 ROOT=Path(__file__).resolve().parent.parent
+# Ship the same published specification in normal and portable apps; no runtime fetch.
+specification=(ROOT/'docs/specification.md').read_text()
+(ROOT/'src/specification.js').write_text('/* Generated from docs/specification.md by scripts/build.py. */\nDocBench.specification='+json.dumps(specification,ensure_ascii=False)+';\n',encoding='utf-8')
 libs=['jszip.min.js','pako.min.js','docx.js','pptxgen.min.js']
 source=(ROOT/'index.html').read_text()
 css=re.sub(r'\s+',' ',(ROOT/'src/style.css').read_text()).strip()
 # CSS uses its own escape syntax; HTML character entities do not apply inside style.
 css=''.join(c if ord(c)<128 else '\\'+format(ord(c),'x')+' ' for c in css)
-app=rjsmin.jsmin('\n;\n'.join((ROOT/'src'/p).read_text() for p in ['core.js','render.js','designer.js','app.js']))
+app=rjsmin.jsmin('\n;\n'.join((ROOT/'src'/p).read_text() for p in ['core.js','render.js','designer.js','specification.js','app.js']))
 # Preserve upstream pre-minified PptxGenJS, which contains nested templates.
 # pako is loaded in the bootstrap so gzip works without network / secure contexts.
 program_libraries=[p for p in libs if p!='pako.min.js']
