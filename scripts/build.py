@@ -9,7 +9,7 @@ source=(ROOT/'index.html').read_text()
 css=re.sub(r'\s+',' ',(ROOT/'src/style.css').read_text()).strip()
 # CSS uses its own escape syntax; HTML character entities do not apply inside style.
 css=''.join(c if ord(c)<128 else '\\'+format(ord(c),'x')+' ' for c in css)
-app=rjsmin.jsmin('\n;\n'.join((ROOT/'src'/p).read_text() for p in ['core.js','render.js','app.js']))
+app=rjsmin.jsmin('\n;\n'.join((ROOT/'src'/p).read_text() for p in ['core.js','render.js','designer.js','app.js']))
 # Preserve upstream pre-minified PptxGenJS, which contains nested templates.
 # pako is loaded in the bootstrap so gzip works without network / secure contexts.
 program_libraries=[p for p in libs if p!='pako.min.js']

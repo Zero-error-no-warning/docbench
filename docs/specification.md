@@ -107,12 +107,12 @@ HTMLテンプレートはHTML/印刷PDF用。Officeは形式別のブロック�
 | --- | --- | --- |
 | HTML / PDF | `css`を標準CSSの後へ追加。`useTemplate`と`template` | `cssClass`でCSS対象を指定。テンプレートはclass/idを保持。PDFはブラウザ印刷 |
 | Word | `pageSize`（A4/Letter）、`orientation`、`marginTop/Bottom/Left/Right`（mm）、`lineHeight`（倍率）、`header`、`footer`、`pageNumbers` | 段落の`style.spaceBefore/spaceAfter`（pt）、文字揃え、文字書式、表の`headerFill`、`columnWidths`（列幅比率）、`imageWidth`（最大mm）。表見出し行の繰返し・行の分割防止、RichTextの太字・斜体・下線を保持 |
-| Excel | `sheetName`、`columnWidths`（Excelの列幅単位、カンマ区切り）、`rowHeight`（pt）、`freezeRows`、`showGridLines`、印刷`orientation`、`headerFill` | `layout.cell`（開始セル）、`layout.span`（横結合の列数）、`layout.rowHeight`（pt、未指定は折返し量から自動調整）、`style.numberFormat`（Excel数値書式）。項目名を表示すると値は開始セルの右隣。表は開始セルから列を展開。数字は数値セル、文字列はinlineStr、画像はDrawingMLで埋込。重複セル・重複結合は出力エラー |
+| Excel | `sheetName`、`columnWidths`（Excelの列幅単位、カンマ区切り）、`rowHeight`（pt）、`freezeRows`、`showGridLines`、印刷`orientation`、`headerFill` | `layout.cell`（開始セル）、`layout.span`（横結合の列数）、`layout.rowSpan`（縦結合の行数）、`layout.rowHeight`（pt、未指定は折返し量から自動調整）、`style.numberFormat`（Excel数値書式）。項目名を表示すると値は開始セルの右隣。表は開始セルから列を展開。数字は数値セル、文字列はinlineStr、画像はDrawingMLで埋込。重複セル・重複結合は出力エラー |
 | PPTX | `width` / `height`（cm）、`background` | `layout.slide`（1始まり）、`x` / `y` / `w` / `h`（cm）。テキスト・表・画像を指定位置へ配置。表の`headerFill`、`columnWidths`（列幅比率）。長文はテキスト枠に合わせて縮小 |
 
 CSSは外部読込・url()・HTMLタグ・式評価を許可しない。HTML成果物はCSPでも外部接続とスクリプト実行を禁止する。フォントは利用するPCにインストールされたものを使う。HTML/PDF以外でHTMLテンプレートを有効にした定義は検証エラー。
 
-プレビューは形式別の配置・書式をHTMLで表示する。Officeのレイアウトエンジンとは異なるため、Wordの自動改ページ・文字の折返し、Excelの複雑な数値書式、PowerPointの文字縮小・表の行高まで完全一致を保証しない。Excelプレビューは先頭300行・60列。出力定義画面の「出力して確認」で実ファイルを確認できる。
+プレビューは形式別の配置・書式をHTMLで表示し、定義者の画面では選択・ドラッグ・サイズ変更・範囲選択・直接文章編集を既存のJSONモデルへの変更操作へ変換する。1回のドラッグは1回のUndo操作。ズーム・選択枠・ハンドルは出力ファイルやJSONに含めない。入力者のプレビューは読み取り専用。Officeのレイアウトエンジンとは異なるため、Wordの自動改ページ・文字の折返し、Excelの複雑な数値書式、PowerPointの文字縮小・表の行高まで完全一致を保証しない。Excelプレビューは先頭300行・60列。出力定義画面の「出力して確認」で実ファイルを確認できる。
 
 ## Document Data
 
