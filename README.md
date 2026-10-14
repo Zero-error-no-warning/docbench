@@ -4,7 +4,8 @@
 
 - **動作確認**: https://zero-error-no-warning.github.io/docbench/
 - **portable版HTML本体**: https://github.com/Zero-error-no-warning/docbench/blob/main/portable/docbench.html
-- **入力者画面**: https://zero-error-no-warning.github.io/docbench/?mode=user
+- **入力者画面**: https://zero-error-no-warning.github.io/docbench/
+- **編集者画面**: https://zero-error-no-warning.github.io/docbench/#editor
 - [公開JSON仕様](docs/specification.md) / [要件と実装範囲](docs/requirements.md) / [操作ガイド](docs/manual.md)
 
 ## できること
@@ -23,7 +24,7 @@
 
 リポジトリの`portable/docbench.html`を開き、**Rawで本体ソースを表示 → 全選択してコピー → テキストエディタに貼付 → UTF-8でdocbench.htmlとして保存**します。アプリの導入にファイルダウンロードは不要です。メモ帳ではファイルの種類を「すべてのファイル」にしてください。
 
-GitHub Pages版とportable版は同じソースから生成します。入力者モードにはURL末尾へ`?mode=user`を付けます。JSONをメール等で共有する際のファイル保存は、導入用コピーとは別の操作です。
+GitHub Pages版とportable版は同じソースから生成します。URL末尾に`#editor`を付けると編集者画面、付けないと入力者画面です。上部の切替ボタンで相互に移動できます。従来の`?mode=user`も入力者画面で開きます。JSONをメール等で共有する際のファイル保存は、導入用コピーとは別の操作です。
 
 ## 想定環境と初版の範囲
 

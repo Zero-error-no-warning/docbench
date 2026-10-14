@@ -1,7 +1,7 @@
 /* Real pointer / keyboard actions in the same preview used by the UI. */
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 module.exports=async function({page,out,url,root}){
- await page.goto(url);await page.waitForFunction(()=>window.DocBenchApp);
+ await page.goto(url+'/#editor');await page.waitForFunction(()=>window.DocBenchApp);
  const original=await page.evaluate(()=>DocBenchApp.getWorkspace());
  const frame=()=>page.frameLocator('#document-preview');
  const shape=id=>frame().locator('[data-block-id="'+id+'"].db-object');
@@ -60,5 +60,5 @@ module.exports=async function({page,out,url,root}){
  // Viewer content stays script-disabled, and the portable file exposes the same interaction layer.
  assert.equal(await page.locator('#document-preview').getAttribute('sandbox'),'allow-same-origin');
  await page.evaluate(w=>DocBenchApp.setWorkspace(w),original);await page.evaluate(()=>DocBenchApp.save());
- await page.goto('file://'+path.join(root,'portable/docbench.html'));await page.waitForFunction(()=>window.DocBenchApp);await fixture('pptx');const portableStart=await readBlock('drag');await drag(shape('drag'),30,0);await shape('drag').waitFor();assert((await readBlock('drag')).layout.x>portableStart.layout.x);
+ await page.goto('file://'+path.join(root,'portable/docbench.html')+'#editor');await page.waitForFunction(()=>window.DocBenchApp);await fixture('pptx');const portableStart=await readBlock('drag');await drag(shape('drag'),30,0);await shape('drag').waitFor();assert((await readBlock('drag')).layout.x>portableStart.layout.x);await page.locator('#mode-switch').click();assert.equal(new URL(page.url()).hash,'');assert(await page.locator('#mode-switch').isVisible());assert(!await page.locator('[data-view="definition"]').isVisible());await page.locator('#mode-switch').click();assert.equal(new URL(page.url()).hash,'#editor');assert(await page.locator('[data-view="render"]').isVisible());
 };

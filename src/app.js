@@ -2,7 +2,7 @@
 (function(){
 'use strict';
 const D=DocBench,$=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],e=D.esc;
-let ws,view='definition',selected,undo=[],redo=[],db,saveTimer,toastTimer,userMode=new URLSearchParams(location.search).get('mode')==='user',errors=[],dragId,mergeSession,canvasSelected=null,canvasRange=null,canvasZoom=100,canvasSnap=true,canvasController=null;
+let ws,view='definition',selected,undo=[],redo=[],db,saveTimer,toastTimer,userMode=location.hash.toLowerCase()!=='#editor',editorView='definition',errors=[],dragId,mergeSession,canvasSelected=null,canvasRange=null,canvasZoom=100,canvasSnap=true,canvasController=null;
 const icons={String:'Aa',Text:'¶',RichText:'B',Integer:'#',Float:'0.0',Boolean:'✓',Date:'日',DateTime:'時',Enum:'▾',MultiEnum:'☷',File:'↗',Image:'▧',Object:'{ }',Array:'[ ]',Table:'▦'};
 function notify(message){$('#toast').textContent=message;$('#toast').style.display='block';clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').style.display='none',4500);}
 function report(err){console.error(err);notify(err.message||String(err));}
@@ -14,12 +14,27 @@ function writeStore(key,value){if(db)return new Promise((resolve,reject)=>{const
 async function autoSave(){try{await writeStore('current',D.clone(ws));$('#save-status').textContent='このブラウザに保存済み';}catch(err){$('#save-status').textContent='自動保存できません';notify('自動保存できません。保存・読込からJSONを保存してください。');}}
 function scheduleSave(){clearTimeout(saveTimer);$('#save-status').textContent='保存中…';saveTimer=setTimeout(autoSave,350);}
 function mutate(fn,refresh=true){undo.push(D.clone(ws));if(undo.length>40)undo.shift();redo=[];fn();scheduleSave();if(refresh)render();else updatePreview();updateHeader();}
-function updateHeader(){$('#workspace-title').textContent=ws.definition.title;$('#branch-badge').textContent='⑂ '+ws.currentBranch;$('#actor').value=ws.actor;$('#undo').disabled=!undo.length;$('#redo').disabled=!redo.length;document.body.classList.toggle('only-user',userMode);$('#mode-switch').textContent=userMode?'定義者画面へ':'入力者画面へ';$$('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));}
+function updateHeader(){$('#workspace-title').textContent=ws.definition.title;$('#branch-badge').textContent='⑂ '+ws.currentBranch;$('#actor').value=ws.actor;$('#undo').disabled=!undo.length;$('#redo').disabled=!redo.length;document.body.classList.toggle('only-user',userMode);$('#mode-switch').textContent=userMode?'編集者画面へ':'入力者画面へ';$$('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));}
 $('#undo').onclick=()=>{if(!undo.length)return;redo.push(D.clone(ws));ws=undo.pop();scheduleSave();render();};$('#redo').onclick=()=>{if(!redo.length)return;undo.push(D.clone(ws));ws=redo.pop();scheduleSave();render();};
 document.addEventListener('keydown',ev=>{if((ev.ctrlKey||ev.metaKey)&&ev.key.toLowerCase()==='z'&&!['INPUT','TEXTAREA'].includes(ev.target.tagName)&&!ev.target.isContentEditable){ev.preventDefault();$(ev.shiftKey?'#redo':'#undo').click();}});
 $('#actor').onchange=ev=>mutate(()=>{ws.actor=ev.target.value.trim()||'作成者';},false);
-$('#mode-switch').onclick=()=>{userMode=!userMode;if(userMode)view='form';render();};
-$$('[data-view]').forEach(b=>b.onclick=()=>{view=b.dataset.view;render();});
+function syncModeFromURL(){
+ const nextUser=location.hash.toLowerCase()!=='#editor';
+ if(nextUser===userMode)return;
+ if(!userMode&&['definition','render'].includes(view))editorView=view;
+ userMode=nextUser;view=userMode?'form':editorView;
+ if(!ws)return;
+ if($('#modal').open)$('#modal').close();
+ render();
+}
+function switchMode(){
+ const target=new URL(location.href);target.hash=userMode?'editor':'';
+ try{history.pushState(null,'',target.href);syncModeFromURL();}catch{location.hash=userMode?'editor':'';}
+}
+$('#mode-switch').onclick=switchMode;
+window.addEventListener('hashchange',syncModeFromURL);
+window.addEventListener('popstate',syncModeFromURL);
+$$('[data-view]').forEach(b=>b.onclick=()=>{view=b.dataset.view;if(!userMode&&['definition','render'].includes(view))editorView=view;render();});
 function prop(name,label,value,type='text',extra=''){return '<label>'+e(label)+'<input data-prop="'+e(name)+'" type="'+type+'" value="'+e(value??'')+'" '+extra+'></label>';}
 function options(values,value,empty){return (empty?'<option value="">'+e(empty)+'</option>':'')+values.map(v=>{const val=typeof v==='object'?v.value:v,label=typeof v==='object'?v.label:v;return '<option value="'+e(val)+'" '+(val===value?'selected':'')+'>'+e(label)+'</option>';}).join('');}
 function fieldSelect(attr,value,empty='項目を選択'){return '<select '+attr+'>'+options(D.allFields(ws.definition).filter(x=>!D.allFields(ws.definition).some(p=>p.path!==x.path&&x.path.startsWith(p.path+'.')&&['Array','Table'].includes(p.field.type))).map(x=>({value:x.path,label:x.field.label+' · '+x.path})),value,empty)+'</select>';}
@@ -226,7 +241,7 @@ function showMerge(){const m=mergeSession,r=mergedResult();openModal('マージ�
 }
 async function init(){try{db=await new Promise((resolve,reject)=>{const request=indexedDB.open('docbench-workspace-v1',1);request.onupgradeneeded=()=>request.result.createObjectStore('workspaces');request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);request.onblocked=()=>reject(Error('保存領域が使用中です'));});}catch{db=null;}
  try{const saved=await readStore('current');ws=saved?D.assertImport(saved):D.sample();}catch(err){ws=D.sample();notify('保存済みデータを読み込めません。JSONから復元してください。');}
- if(userMode)view='form';selected=ws.definition.fields[0]?.id;render();await autoSave();
+ userMode=location.hash.toLowerCase()!=='#editor';view=userMode?'form':'definition';selected=ws.definition.fields[0]?.id;render();await autoSave();
  // Stable public API for offline integration and browser QA.
  rootAPI();
 }
