@@ -157,7 +157,7 @@
         handle.className = 'db-resize';
         handle.setAttribute('aria-label', 'サイズ変更');
         node.append(handle);
-        node.addEventListener('dblclick', () => editText(node, block));
+        node.addEventListener('dblclick', event => {if(!event.target.closest?.('.tiptap'))editText(node, block);});
         node.addEventListener('pointerdown', event => {
           if (event.button !== 0 || isEditing(event.target)) return;
           event.preventDefault();
@@ -271,7 +271,7 @@
           node.textContent = '改ページ';
         }
         node.addEventListener('click', event => {if(!isEditing(event.target)){config.onPart?.(event.target.closest('[data-style-part]')?.dataset.stylePart||'value');select(block.id);node.focus({preventScroll:true});}});
-        node.addEventListener('dblclick', () => editText(node, block));
+        node.addEventListener('dblclick', event => {if(!event.target.closest?.('.tiptap'))editText(node, block);});
         node.style.touchAction='none';
         node.addEventListener('pointerdown', event => {
           if(event.button!==0||isEditing(event.target))return;
