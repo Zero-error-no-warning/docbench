@@ -152,7 +152,29 @@ function diff(a,b,path='') {
 }
 function get(obj,path){return String(path||'').split('.').reduce((v,k)=>v&&Object.hasOwn(v,k)?v[k]:undefined,obj);}
 function fieldAt(def,path){let fields=def.fields;let found;for(const k of String(path||'').split('.')){found=(fields||[]).find(f=>f.key===k);if(!found)return null;fields=found.fields;}return found;}
-function allFields(def){const out=[];function visit(fs,p){for(const f of fs||[]){const path=p? p+'.'+f.key:f.key;out.push({field:f,path});visit(f.fields,path);}}visit(def.fields,'');return out;}
+function allFields(def){const out=[],seen=new WeakSet();function visit(fs,p){for(const f of Array.isArray(fs)?fs:[]){if(!f||typeof f!=='object'||seen.has(f))continue;seen.add(f);const path=p? p+'.'+f.key:f.key;out.push({field:f,path});visit(f.fields,path);}}visit(def.fields,'');return out;}
+const conditionTypes=['String','Text','Integer','Float','Boolean','Date','DateTime','Enum'];
+function schemaPath(path){return String(path).replace(/\[\d+\]/g,'').split('.').filter(p=>!/^\d+$/.test(p)).join('.');}
+function conditionFields(def){const all=allFields(def);return all.filter(x=>conditionTypes.includes(x.field.type)&&!all.some(p=>x.path.startsWith(p.path+'.')&&['Array','Table'].includes(p.field.type)));}
+function inputState(def,values){
+ const fields=new Map(allFields(def).map(x=>[x.path,x.field])),cache=new Map(),visiting=new Set();
+ function visible(path){path=schemaPath(path);if(cache.has(path))return cache.get(path);const f=fields.get(path);
+  if(!f){const parent=path.slice(0,path.lastIndexOf('.'));return path.endsWith('.value')&&fields.get(parent)?.type==='Array'?visible(parent):false;}
+  if(visiting.has(path))return false;
+  visiting.add(path);const parent=path.includes('.')?path.slice(0,path.lastIndexOf('.')):null;
+  const result=(!parent||visible(parent))&&(!f.visibleWhen||matches(f.visibleWhen));visiting.delete(path);cache.set(path,result);return result;
+ }
+ function matches(condition){return !!condition&&visible(condition.field)&&get(values,condition.field)!==undefined&&equal(get(values,condition.field),condition.equals);}
+ function required(f){return !!f.required||matches(f.requiredWhen);}
+ function project(fs,obj,prefix){if(!obj||typeof obj!=='object'||Array.isArray(obj))return clone(obj);const result={};
+  for(const [key,value] of Object.entries(obj))if(key.startsWith('_'))result[key]=clone(value);
+  for(const f of fs||[]){const path=prefix?prefix+'.'+f.key:f.key;if(!visible(path)||!Object.hasOwn(obj,f.key))continue;const value=obj[f.key];
+   result[f.key]=f.type==='Object'?project(f.fields,value,path):['Array','Table'].includes(f.type)&&Array.isArray(value)?value.map(row=>f.type==='Array'&&f.itemType!=='Object'?clone(row):project(f.fields,row,path)):clone(value);
+  }return result;
+ }
+ function schema(fs,prefix){return (fs||[]).filter(f=>visible(prefix?prefix+'.'+f.key:f.key)).map(f=>({...clone(f),...(f.fields?{fields:schema(f.fields,prefix?prefix+'.'+f.key:f.key)}:{})}));}
+ let projected;return {visible,matches,required,values:()=>projected??(projected=project(def.fields,values,'')),definition:()=>({...def,fields:schema(def.fields,'')})};
+}
 function validateDefinition(def,render) {
  const errors=[],warnings=[],ids=new Set(), seen=new WeakSet();
  const err=(path,message)=>errors.push({path,message});
@@ -164,11 +186,18 @@ function validateDefinition(def,render) {
   if(f.initialRows>1000)err(p,'初期行数の上限は1000です');
   for(const [lo,hi] of [['min','max'],['minLength','maxLength'],['minItems','maxItems'],['minDate','maxDate'],['minSelections','maxSelections']])if(f[lo]!==undefined&&f[lo]!==''&&f[hi]!==undefined&&f[hi]!==''&&f[lo]>f[hi])err(p,lo+'が'+hi+'を上回っています');
   if(['Enum','MultiEnum'].includes(f.type)&&(!Array.isArray(f.options)||!f.options.length||new Set(f.options).size!==f.options.length))err(p,'選択肢は1件以上・重複なしで定義してください');
-  if(f.requiredWhen&&!fieldAt(def,f.requiredWhen.field))err(p,'条件付き必須の参照項目がありません');
+  for(const name of ['visibleWhen','requiredWhen'])if(f[name]!=null){const c=f[name],ref=conditionFields(def).find(x=>x.path===c.field)?.field;
+   if(!c||typeof c!=='object'||Array.isArray(c)||!Object.hasOwn(c,'equals'))err(p+'.'+name,'条件はfieldとequalsを指定してください');
+   if(!ref)err(p+'.'+name,'条件の参照項目は配列外の文字列・数値・真偽値・日付・選択項目です');
+   else if(ref.type==='Boolean'?typeof c.equals!=='boolean':['Integer','Float'].includes(ref.type)?typeof c.equals!=='number'||!Number.isFinite(c.equals)||ref.type==='Integer'&&!Number.isInteger(c.equals):typeof c.equals!=='string'||ref.type==='Enum'&&!ref.options?.includes(c.equals))err(p+'.'+name,'条件の値が参照項目の型・選択肢と一致しません');
+  }
   if(['Object','Table'].includes(f.type)||(f.type==='Array'&&f.itemType==='Object'))walk(f.fields,p,depth+1);
   if(f.type==='Array'&&(!types.includes(f.itemType)||['Object','Array','Table'].includes(f.itemType)&&f.itemType!=='Object'))err(p,'Array要素型は単純型またはObjectです');
   if(['Array','Table'].includes(f.type)){for(const name of ['businessKey','uniqueBy','sortBy'])if(f[name]&&f[name]!=='value'&&!(f.fields||[]).some(c=>c.key===f[name]))err(p,name+'に未定義の列が指定されています');if((f.initialRows||0)<(f.minItems||0)||(f.maxItems!==undefined&&(f.initialRows||0)>f.maxItems))err(p,'初期行数が最小・最大要素数の範囲外です');}
  }}walk(def.fields,'');
+ const nodes=new Map(allFields(def).map(x=>[x.path,x.field])),active=new Set(),done=new Set();
+ function dependency(path){if(active.has(path)){err(path+'.visibleWhen','表示条件の循環参照を検出しました');return;}if(done.has(path))return;active.add(path);const f=nodes.get(path);if(f){if(path.includes('.'))dependency(path.slice(0,path.lastIndexOf('.')));if(f.visibleWhen?.field&&nodes.has(f.visibleWhen.field))dependency(f.visibleWhen.field);}active.delete(path);done.add(path);}
+ nodes.forEach((_,path)=>dependency(path));
  const used=new Set();
  function checkRender(r,prefix){
   const report=(path,message)=>err(prefix+'.'+path,message);
@@ -216,9 +245,9 @@ function validateDefinition(def,render) {
 
  return {errors,warnings};
 }
-function validateData(def,values){const errors=[],globalIds=new Set();const err=(p,m)=>errors.push({path:p,message:m});
+function validateData(def,values){const errors=[],globalIds=new Set(),input=inputState(def,values);const err=(p,m)=>errors.push({path:p,message:m});
  function check(fs,obj,path){if(!obj||typeof obj!=='object'||Array.isArray(obj)){err(path,'Object型の値が必要です');return;}
- for(const f of fs||[]){const p=path?path+'.'+f.key:f.key,v=obj[f.key];const required=f.required || (f.requiredWhen&&equal(get(values,f.requiredWhen.field),f.requiredWhen.equals));
+ for(const f of fs||[]){const p=path?path+'.'+f.key:f.key;if(!input.visible(p))continue;const v=obj[f.key],required=input.required(f);
  const empty=v===null||v===undefined||v===''||Array.isArray(v)&&v.length===0||f.type==='RichText'&&typeof v==='string'&&!v.replace(/<[^>]*>/g,'').replace(/&nbsp;/g,' ').trim();
  if(required&&empty){err(p,'必須項目です');continue;}if(empty)continue;
  if(['String','Text','RichText','Enum','Date','DateTime'].includes(f.type)&&typeof v!=='string'){err(p,'文字列で入力してください');continue;}
@@ -234,10 +263,10 @@ function validateData(def,values){const errors=[],globalIds=new Set();const err=
   if(!Array.isArray(v)){err(p,'配列で入力してください');continue;}
   if(v.length<(f.minItems||0))err(p,'最小要素数を下回っています');if(f.maxItems!==undefined&&v.length>f.maxItems)err(p,'最大要素数を超えています');const keys=new Set();
   v.forEach((r,i)=>{const rp=p+'['+(i+1)+']';if(!r||typeof r!=='object'){err(rp,'行データが不正です');return;}if(!r._id||globalIds.has(r._id))err(rp,'要素IDが未指定または重複');globalIds.add(r._id);
-   if(f.uniqueBy){const k=JSON.stringify(r[f.uniqueBy]);if(keys.has(k))err(rp,'業務キーが重複しています: '+f.uniqueBy);keys.add(k);}
+   if(f.uniqueBy&&input.visible(schemaPath(p)+'.'+f.uniqueBy)){const k=JSON.stringify(r[f.uniqueBy]);if(keys.has(k))err(rp,'業務キーが重複しています: '+f.uniqueBy);keys.add(k);}
    if(f.type==='Array'&&f.itemType!=='Object')check([{...f,type:f.itemType,key:'value',required:false}],r,rp);else check(f.fields,r,rp);
   });
-  if(f.sortBy)for(let i=1;i<v.length;i++){const a=v[i-1][f.sortBy],b=v[i][f.sortBy];if(f.sortDirection==='desc'?a<b:a>b)err(p,'並び順制約に違反しています: '+f.sortBy);}
+  if(f.sortBy&&input.visible(schemaPath(p)+'.'+f.sortBy))for(let i=1;i<v.length;i++){const a=v[i-1][f.sortBy],b=v[i][f.sortBy];if(f.sortDirection==='desc'?a<b:a>b)err(p,'並び順制約に違反しています: '+f.sortBy);}
  }
  }
  for(const k of Object.keys(obj))if(!k.startsWith('_')&&!(fs||[]).some(f=>f.key===k))err(path?path+'.'+k:k,'未定義の入力項目');
@@ -245,6 +274,6 @@ function validateData(def,values){const errors=[],globalIds=new Set();const err=
 }
 function envelope(ws,kind){if(kind==='Workspace')return clone(ws);const key=kind==='Definition'?'definition':kind==='RenderDefinition'?'render':'data';return {...clone(ws[key]),history:{currentBranch:ws.currentBranch,branches:clone(ws.branches),nodes:ws.history.map(n=>({...clone(n),state:clone(n.state[key])}))}};}
 function assertImport(v){if(!v||typeof v!=='object'||v.formatVersion!==1||!['Workspace','Definition','RenderDefinition','DocumentData'].includes(v.kind))throw Error('DocBench形式v1のJSONを選んでください');const check=JSON.stringify(v);if(/"(?:__proto__|constructor|prototype)"\s*:/.test(check))throw Error('予約プロパティを含むJSONは読み込めません');if(check.length>80*1024*1024)throw Error('読み込み上限は80MBです');if(v.kind==='Workspace'){if(!v.definition||!v.render||!v.data||!Array.isArray(v.history)||!v.branches||!Object.hasOwn(v.branches,v.currentBranch))throw Error('Workspaceの必須構造がありません');const ids=new Set(v.history.map(n=>n.id));if(ids.size!==v.history.length||v.history.some(n=>!n.state||!Array.isArray(n.parents)||n.parents.some(p=>!ids.has(p)))||Object.values(v.branches).some(id=>!ids.has(id)))throw Error('履歴IDまたは親状態の参照が不正です');const active=new Set(),done=new Set(),map=new Map(v.history.map(n=>[n.id,n]));function walk(id){if(active.has(id))throw Error('履歴の循環参照を検出');if(done.has(id))return;active.add(id);for(const p of map.get(id).parents)walk(p);active.delete(id);done.add(id);}ids.forEach(walk);}return normalizeOutputModels(v);}
-root.DocBench={types,clone,equal,uid,now,esc,safeKey,field,defaultValue,newRow,renderDocument,outputDocuments,outputDesigns,createOutputDocument,duplicateOutputDocument,normalizeRender,normalizeOutputModels,sample,state,snapshot,checkout,ancestor,merge,diff,get,fieldAt,allFields,validateDefinition,validateData,envelope,assertImport};
+root.DocBench={types,clone,equal,uid,now,esc,safeKey,field,defaultValue,newRow,renderDocument,outputDocuments,outputDesigns,createOutputDocument,duplicateOutputDocument,normalizeRender,normalizeOutputModels,sample,state,snapshot,checkout,ancestor,merge,diff,get,fieldAt,allFields,conditionTypes,schemaPath,conditionFields,inputState,validateDefinition,validateData,envelope,assertImport};
 if(typeof module!=='undefined')module.exports=root.DocBench;
 })(typeof globalThis!=='undefined'?globalThis:this);

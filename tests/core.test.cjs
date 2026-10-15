@@ -48,3 +48,26 @@ test('all output documents are validated and unused fields are aggregated across
  b.id=a.id;w.render.defaultDocumentId='absent';const errors=D.validateDefinition(w.definition,w.render).errors;assert(errors.some(x=>x.message.includes('書類ID')));assert(errors.some(x=>x.path==='render.defaultDocumentId'));
  w.render.documents=[];assert(D.validateDefinition(w.definition,w.render).errors.some(x=>x.path==='render.documents'));
 });
+
+test('visible fields alone participate in required and type validation, retained data restores after switching',()=>{
+ const def={fields:[D.field('kind','種別','Enum',{options:['A','B'],required:true}),D.field('x','項目X','Integer',{required:true,min:10,visibleWhen:{field:'kind',equals:'A'}})]},values={kind:'B',x:'以前の値'};
+ assert.deepEqual(D.validateDefinition(def).errors,[]);assert.deepEqual(D.validateData(def,values),[]);assert.deepEqual(D.inputState(def,values).values(),{kind:'B'});assert.equal(values.x,'以前の値');
+ values.kind='A';assert(D.validateData(def,values).some(e=>e.path==='x'));values.x='';assert(D.validateData(def,values).some(e=>e.message==='必須項目です'));values.x=12;assert.deepEqual(D.validateData(def,values),[]);
+ values.kind='B';assert(!Object.hasOwn(D.inputState(def,values).values(),'x'));values.kind='A';assert.equal(D.inputState(def,values).values().x,12);
+});
+test('hidden condition sources do not activate dependants and zero/false conditions retain their types',()=>{
+ const def={fields:[D.field('flag','有無','Boolean'),D.field('number','数','Integer'),D.field('source','条件元','String',{visibleWhen:{field:'flag',equals:true}}),D.field('x','X','String',{visibleWhen:{field:'source',equals:'yes'}}),D.field('zero','ゼロ','String',{requiredWhen:{field:'number',equals:0}}),D.field('falseField','いいえ','String',{visibleWhen:{field:'flag',equals:false}})]};
+ const values={flag:false,number:0,source:'yes',x:'古い値',zero:'',falseField:'表示'},input=D.inputState(def,values);assert.equal(input.visible('x'),false);assert.equal(input.visible('falseField'),true);assert(D.validateData(def,values).some(e=>e.path==='zero'));assert(!D.validateData(def,values).some(e=>e.path==='x'));
+ values.flag=true;assert.equal(D.inputState(def,values).visible('x'),true);values.number='0';assert.equal(D.inputState(def,values).required(def.fields[4]),false);
+});
+test('conditional Object and collection columns project nested values without changing row identity',()=>{
+ const condition={field:'kind',equals:'A'},def={fields:[D.field('kind','種別','Enum',{options:['A','B']}),D.field('object','詳細','Object',{visibleWhen:condition,fields:[D.field('note','説明','String',{required:true})]}),D.field('rows','表','Table',{uniqueBy:'secret',sortBy:'secret',fields:[D.field('name','名称'),D.field('secret','内部項目','String',{required:true,visibleWhen:condition})]})]},values={kind:'B',object:{note:''},rows:[{_id:'r1',name:'1',secret:'z',_meta:{origin:null}},{_id:'r2',name:'2',secret:'z'}]};
+ assert.deepEqual(D.validateData(def,values),[]);const active=D.inputState(def,values);assert.equal(active.visible('object.note'),false);assert.equal(active.visible('rows.0.secret'),false);assert.deepEqual(active.values(),{kind:'B',rows:[{_id:'r1',_meta:{origin:null},name:'1'},{_id:'r2',name:'2'}]});assert.deepEqual(active.definition().fields.find(f=>f.key==='rows').fields.map(f=>f.key),['name']);assert.equal(values.rows[0].secret,'z');
+ values.kind='A';assert(D.validateData(def,values).some(e=>e.path==='object.note'));assert(D.validateData(def,values).some(e=>e.message.includes('業務キー')));
+});
+test('condition references, value types and direct/ancestor visibility cycles are validated',()=>{
+ const def={fields:[D.field('kind','種別','Enum',{options:['A','B']}),D.field('x','X','String',{visibleWhen:{field:'kind',equals:'C'}})]};assert(D.validateDefinition(def).errors.some(e=>e.path==='x.visibleWhen'));def.fields[1].visibleWhen={field:'missing',equals:'A'};assert(D.validateDefinition(def).errors.length);
+ def.fields[0].visibleWhen={field:'x',equals:'value'};def.fields[1].visibleWhen={field:'kind',equals:'A'};assert(D.validateDefinition(def).errors.some(e=>e.message.includes('循環参照')));assert.equal(D.inputState(def,{kind:'A',x:'value'}).visible('x'),false);
+ const parent={fields:[D.field('object','親','Object',{visibleWhen:{field:'object.enabled',equals:true},fields:[D.field('enabled','表示','Boolean')]})]};assert(D.validateDefinition(parent).errors.some(e=>e.message.includes('循環参照')));
+ const array={fields:[D.field('rows','行','Table',{initialRows:0,fields:[D.field('enabled','有無','Boolean')]}),D.field('x','X','String',{visibleWhen:{field:'rows.enabled',equals:true}})]};assert(D.validateDefinition(array).errors.some(e=>e.path==='x.visibleWhen'));
+});

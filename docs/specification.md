@@ -31,12 +31,13 @@
 
 | 項目 | 意味 |
 | --- | --- |
-| required | 空値を許可しない。Booleanはfalseも有効な値 |
+| required | 表示されているとき、空値を許可しない。Booleanはfalseも有効な値 |
 | minLength / maxLength | 文字数。RichTextはタグを除いた文字数 |
 | min / max | 数値範囲 |
 | minDate / maxDate | ISO日付文字列での範囲 |
 | options | Enum/MultiEnumの文字列選択肢、重複不可 |
 | minSelections / maxSelections | MultiEnum選択数 |
+| visibleWhen | `{ "field":"kind", "equals":"A" }`。条件に一致する場合だけ、入力・検証・書類出力の対象にする |
 | requiredWhen | `{ "field":"status", "equals":"完了" }`。ルートの入力値を参照し、型を含めて一致したら必須 |
 | section / group | フォーム内の見出し。配列順で表示 |
 | description | 入力者向け説明 |
@@ -52,6 +53,31 @@
 | sortBy / sortDirection | 並び順の単一列とasc/desc。手動で整列し、検証時にチェック |
 
 Objectは子項目で構成する。Arrayは全要素を行ラッパーで持ち、単純値を`value`に格納する。TableとObject要素Arrayは列値を行直下に格納する。複合キー・任意式の要素間整合性は今後の拡張。
+
+### 条件による入力項目の切替
+
+```json
+{
+  "fields": [
+    {"id":"kind-field","key":"kind","label":"種別","type":"Enum","options":["A","B"],"required":true},
+    {"id":"x-field","key":"x","label":"項目X","type":"String","required":true,"visibleWhen":{"field":"kind","equals":"A"}}
+  ]
+}
+```
+
+種別Aでは項目Xを表示し必須にする。Bでは項目Xを表示しない。Definitionの項目構造は維持し、その入力値に対する有効な項目の集合を計算する。表示条件なしは常に表示する。`requiredWhen`は表示とは独立で、表示されている項目だけに適用する。`required:true`と`requiredWhen`はORとして扱う。
+
+条件は単一項目への型を含む等値比較。参照元はルートまたはObject内のString/Text/Integer/Float/Boolean/Date/DateTime/Enum。配列内の各行・複合型は条件元に使用しない。Enum値は定義済み選択肢、Boolean値はtrue/false、数値は数値型で指定する。画面では項目を選び、Enumは選択肢、Booleanははい/いいえ、数値・日付は対応する入力欄で設定する。AND/OR・大小比較・行ごとの条件は未実装。
+
+Object・Array・Table全体や内部の項目にも`visibleWhen`を設定できる。親が非表示なら子も非表示。表の条件付き列は全行共通の条件で列全体を切り替える。非表示の条件元の保存値は条件評価に使わず、依存項目も非表示になる。表示条件の自己参照・相互参照・親子間の循環を検証する。未定義項目・対応外の型・等値の型不一致も定義エラー。
+
+非表示中は必須・型・範囲・選択・要素数の入力検証を行わない。非表示の列を使う重複・並び順制約は適用しない。条件が再び一致すると保存値を復元し、検証も再開する。未知のルート項目は非表示とはみなさず未定義項目として検証する。
+
+入力値・添付・行IDは非表示になっても削除しない。Document Data、Workspace、履歴、Undo/Redo、JSON/gzipには非表示の値も保持する。JSONから値を除去する機能やアクセス制御ではない。現在有効な値は`DocBench.inputState(definition, values).values()`、有効な項目定義は`.definition()`で取得できる。これらはコピーを生成し、元データを変更しない。`visible(path)`は親条件も含む表示可否、`required(field)`は必須判定、`matches(condition)`は共通の条件判定。
+
+書類のfield/tableブロックは非表示項目を出力せず、Object・表の内部も非表示項目を除外する。HTMLテンプレートの非表示参照とWordのリッチ文書内の値・ラベル参照は空文字になる。固定文章や手書きのラベルは自動削除しない。HTML・Word・Excel・PPTX・印刷PDFおよびプレビューで同じ条件を使い、複数書類でも同じ入力状態を共有する。書類出力定義のブロック`when`も非表示の条件元の値では成立しない。
+
+入力変更で表示・必須の状態が変わったときに入力欄を更新し、操作中の入力欄のフォーカス・カーソルとスクロール位置を可能な範囲で維持する。表示状態が変わらない通常の入力では入力欄を作り直さない。
 
 ## Render Definition
 
