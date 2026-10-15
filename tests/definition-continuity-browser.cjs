@@ -1,0 +1,17 @@
+const assert=require('node:assert/strict'),path=require('node:path');
+module.exports=async function({page,url,root}){
+ await page.goto(url+'/#editor');await page.waitForFunction(()=>window.DocBenchApp);
+ const original=await page.evaluate(()=>DocBenchApp.getWorkspace());
+ const fixture=async()=>{await page.evaluate(()=>{const w=DocBench.sample();for(let i=0;i<70;i++){const f=DocBench.field('extra'+i,'追加項目 '+i,'Text');w.definition.fields.push(f);w.data.values[f.key]='';}DocBenchApp.setWorkspace(w);});await page.locator('[data-view="definition"]').click();const id=await page.evaluate(()=>DocBenchApp.getWorkspace().definition.fields.find(f=>f.key==='expenses').id);await page.locator('[data-select="'+id+'"]').click();await page.locator('summary').filter({hasText:'配置・削除',exact:true}).click();await page.locator('summary').filter({hasText:'列の定義',exact:true}).click();};
+ const scroll=()=>page.evaluate(()=>({y:window.scrollY,fields:document.querySelector('.field-tree').scrollTop,preview:document.querySelector('.form-preview').scrollTop}));
+ const prepareScroll=async()=>page.evaluate(()=>{document.querySelector('.field-tree').scrollTop=400;document.querySelector('.form-preview').scrollTop=450;window.scrollTo(0,250);});
+ await fixture();await page.locator('[data-prop="rowLabel"]').focus();await prepareScroll();const before=await scroll();assert(before.fields>0&&before.preview>0&&before.y>0);
+ await page.locator('[data-prop="rowLabel"]').evaluate(el=>{el.value='明細';el.setSelectionRange(1,1);el.dispatchEvent(new Event('change',{bubbles:true}));});assert.deepEqual(await scroll(),before);assert.equal(await page.locator('[data-prop="rowLabel"]').evaluate(el=>el===document.activeElement&&el.selectionStart===1),true);
+ assert.equal(await page.locator('details').filter({has:page.locator('summary').filter({hasText:'配置・削除',exact:true})}).getAttribute('open'),'');assert.equal(await page.locator('details').filter({has:page.locator('summary').filter({hasText:'列の定義',exact:true})}).getAttribute('open'),null);
+ await page.locator('#undo').evaluate(el=>el.click());assert.deepEqual(await scroll(),before);await page.locator('#redo').evaluate(el=>el.click());assert.deepEqual(await scroll(),before);
+ const id=await page.evaluate(()=>DocBenchApp.getWorkspace().definition.fields.find(f=>f.key==='extra40').id);await page.locator('[data-select="'+id+'"]').evaluate(el=>el.click());const switched=await scroll(),limit=await page.evaluate(()=>Math.max(0,document.scrollingElement.scrollHeight-innerHeight));assert.equal(switched.fields,before.fields);assert.equal(switched.preview,before.preview);assert.equal(switched.y,Math.min(before.y,limit));
+ // Changing documents must not reuse an unrelated field's expanded settings.
+ await page.evaluate(()=>DocBenchApp.setWorkspace(DocBench.sample()));assert.equal(await page.locator('.field-tree').evaluate(el=>el.scrollTop),0);
+ await page.evaluate(w=>DocBenchApp.setWorkspace(w),original);await page.evaluate(()=>DocBenchApp.save());
+ await page.goto('file://'+path.join(root,'portable/docbench.html')+'#editor');await page.waitForFunction(()=>window.DocBenchApp);await fixture();await prepareScroll();const portable=await scroll();await page.locator('[data-prop="rowLabel"]').evaluate(el=>{el.value='明細';el.dispatchEvent(new Event('change',{bubbles:true}));});assert.deepEqual(await scroll(),portable);await page.evaluate(w=>DocBenchApp.setWorkspace(w),original);await page.evaluate(()=>DocBenchApp.save());
+};
