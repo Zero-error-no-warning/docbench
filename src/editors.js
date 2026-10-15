@@ -4,13 +4,13 @@
 function attachWordEditor(surface,config,doc){
  let editor=null;const editors=new Map(),lib=root.DocBenchEditorLib;let emptyBlock=null;if(!(config.design.blocks||[]).length){emptyBlock={id:D.uid(),type:'rich',content:D.identifyRich(D.plainRich(''))};const node=doc.createElement('section');node.dataset.blockId=emptyBlock.id;node.className='word-empty';doc.querySelector('main').insertBefore(node,doc.querySelector('main>footer'));config={...config,design:{...config.design,blocks:[emptyBlock]}};}
  const activate=(id,e)=>{editor=e;base.select(id,false);config.onSelect(id);config.onSelectionStyle?.();};
- function syncSelection(){
-  if(!editor||editor.view.composing||!(editor.state.selection instanceof lib.TextSelection))return;
-  const view=editor.view,selection=view.root.getSelection?.();
+ function syncSelection(view=editor?.view){
+  if(!view||view.isDestroyed||view.composing||!(view.state.selection instanceof lib.TextSelection))return;
+  const selection=view.root.getSelection?.();
   if(!selection?.anchorNode||!selection.focusNode||!view.dom.contains(selection.anchorNode)||!view.dom.contains(selection.focusNode))return;
   // A toolbar command can precede the browser's asynchronous selectionchange.
   // Convert the current DOM range through the library before refocusing it.
-  try{const anchor=view.posAtDOM(selection.anchorNode,selection.anchorOffset),head=view.posAtDOM(selection.focusNode,selection.focusOffset),next=lib.TextSelection.between(editor.state.doc.resolve(anchor),editor.state.doc.resolve(head));if(!next.eq(editor.state.selection))view.dispatch(editor.state.tr.setSelection(next));}catch{}
+  try{const anchor=view.posAtDOM(selection.anchorNode,selection.anchorOffset),head=view.posAtDOM(selection.focusNode,selection.focusOffset),next=lib.TextSelection.between(view.state.doc.resolve(anchor),view.state.doc.resolve(head));if(!next.eq(view.state.selection))view.dispatch(view.state.tr.setSelection(next));}catch{}
  }
 
  function start(node,block,focus=true){
@@ -20,7 +20,7 @@ function attachWordEditor(surface,config,doc){
    const host=doc.createElement('div');host.className='word-edit';host.style.cssText=D.styleCSS(D.blockStyle(block,D.settings({...config.design,outputFormat:'docx'})));
    node.replaceChildren(host);node.classList.add('word-flow-block');
    const handle=doc.createElement('button');handle.className='word-flow-handle';handle.title='ドラッグして段落・表を移動';handle.setAttribute('aria-label','段落・表を移動');handle.textContent='⋮⋮';node.prepend(handle);
-   current=new lib.Editor({element:host,extensions:[lib.StarterKit.configure({link:false,code:false,codeBlock:false}),lib.TextStyleKit,lib.Subscript,lib.Superscript,lib.TableBorders,lib.ParagraphFormat,lib.Identity,lib.Table.configure({resizable:true,allowTableNodeSelection:true}),lib.TableRow,lib.Cell,lib.CellHeader,lib.FieldRef.configure({resolve:attrs=>{const f=D.fieldAt(config.definition,attrs.field);return (attrs.part==='label'?'項目名：':'入力値：')+(f?.label||attrs.field);}})],content:D.identifyRich(block.content||D.plainRich(block.text)),editorProps:{attributes:{class:'tiptap db-editing','aria-label':'文章・表の編集'},handleDOMEvents:{keydown:(view,event)=>{if((event.ctrlKey||event.metaKey)&&['z','y'].includes(event.key.toLowerCase()))event.stopPropagation();return false;}}},onFocus:({editor:e})=>activate(block.id,e),onSelectionUpdate:({editor:e})=>{if(editor===e)config.onSelectionStyle?.();},onUpdate:({editor:e})=>{config.onSelectionStyle?.();node.classList.toggle('word-empty',!!emptyBlock&&e.state.doc.content.size<=2);config.onChange({kind:'rich',id:block.id,content:e.getJSON(),live:true});}});
+   current=new lib.Editor({element:host,extensions:[lib.StarterKit.configure({link:false,code:false,codeBlock:false}),lib.TextStyleKit,lib.Subscript,lib.Superscript,lib.TableBorders,lib.ParagraphFormat,lib.Identity,lib.Table.configure({resizable:true,allowTableNodeSelection:true}),lib.TableRow,lib.Cell,lib.CellHeader,lib.FieldRef.configure({resolve:attrs=>{const f=D.fieldAt(config.definition,attrs.field);return (attrs.part==='label'?'項目名：':'入力値：')+(f?.label||attrs.field);}})],content:D.identifyRich(block.content||D.plainRich(block.text)),editorProps:{attributes:{class:'tiptap db-editing','aria-label':'文章・表の編集'},handleDOMEvents:{keydown:(view,event)=>{syncSelection(view);if((event.ctrlKey||event.metaKey)&&['z','y'].includes(event.key.toLowerCase()))event.stopPropagation();return false;},keyup:view=>{syncSelection(view);return false;}}},onFocus:({editor:e})=>activate(block.id,e),onSelectionUpdate:({editor:e})=>{if(editor===e)config.onSelectionStyle?.();},onUpdate:({editor:e})=>{config.onSelectionStyle?.();node.classList.toggle('word-empty',!!emptyBlock&&e.state.doc.content.size<=2);config.onChange({kind:'rich',id:block.id,content:e.getJSON(),live:true});}});
    editors.set(block.id,current);
   }
   if(focus){activate(block.id,current);current.commands.setTextSelection(Math.max(1,current.state.doc.content.size-1));current.view.focus();}
