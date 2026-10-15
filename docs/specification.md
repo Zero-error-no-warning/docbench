@@ -2,6 +2,23 @@
 
 本仕様は複数書類・形式別デザイン対応版の実装に対応する。UTF-8 JSONを使用し、共有時は全体をgzipで圧縮できる。ランタイムにはAI機能・外部通信・サーバ処理を持たせない。
 
+## 外部LLMでJSONを作成・修正する手順
+
+本仕様全体を外部LLM（Microsoft Copilot等）へ渡す。既存の書類を修正する場合は、左サイドバーの「項目定義（Definition）」から現在のDefinitionをコピーまたは保存し、出力デザインを修正する場合は「保存・読込」で現在のRenderDefinitionも保存して一緒に渡す。項目定義には共通条件グラフも含まれる。入力値は出力定義へ埋め込まず、参照として指定する。
+
+LLMへの指示例：
+
+> 添付したDocBench JSON仕様と現在のDefinition・RenderDefinitionに従い、指定する書類を作成・修正してください。現在のdefinitionId、既存の書類・項目・ブロック・リッチ文書ノードのIDを維持し、新規要素だけに一意なIDを付けてください。使用する項目はDefinitionに存在するものに限り、未対応の機能や独自プロパティを追加しないでください。各ファイルを部分差分ではなく、読み込める完全なJSONとして返してください。変更したファイルの種類と、読み込む順序も説明してください。
+
+- デザインだけを変更する場合は、`kind:"RenderDefinition"`の完全なJSONを生成する。`definitionId`は現在のDefinitionの`id`と一致させる。`documents[]`と`defaultDocumentId`を指定し、各書類の`outputFormat`に対応する`designs`へ配置・書式を記述する。
+- 新しい入力項目や条件ノードが必要な場合は、完全なDefinitionも生成する。`ruleGraph`はDefinitionに置き、出力定義の`generateWhen` / `when`はそのノードを参照する。既存条件を変えずにデザインだけを変える場合、Definitionを書き換える必要はない。
+- 新規作成でサンプル入力値も作る場合は、DocumentDataを別の完全なJSONとして生成する。同じDefinitionの`id`を`definitionId`に使い、配列・表の行には`_id`と`_meta`を付ける。
+- 新規作成・複数種類の変更では、Definition → RenderDefinition → DocumentData（必要な場合）の順で読み込む。編集者画面の「保存・読込 → JSONを貼り付けて読み込む」へ、JSON本文だけを1種類ずつ貼り付けて読み込む。Markdownのコードフェンスや説明文を入力欄へ含めない。既存内容を置き換えるため、変更対象外の項目・書類も生成JSONに残す。
+- Workspaceを生成・修正する場合は、アプリで保存した全体JSONを基にし、`branches`・`currentBranch`・`history`の参照を維持する。新規の出力デザインを作るために履歴や親状態を捏造しない。通常の新規作成は上記の単独ファイルで行い、読込後にアプリから全体Workspaceを保存する。
+- 読込時のエラーはメッセージと生成JSONをLLMへ戻して修正する。読込後は画面の検証とプレビュー、Office形式では実ファイルの出力も確認する。仕様に沿うよう依頼しても、LLMの生成結果が必ず正しくなるわけではない。
+
+この文書には完全なファイル例と、属性だけを示す部分例が混在する。部分例やWorkspaceの疑似構造を、そのまま読込用ファイルとして返さない。後述の未実装項目を、記法の工夫だけで実現できる機能として扱わない。アプリ内にLLM呼出し・生成処理は持たせない。
+
 ## 共通形式
 
 `kind`は`Definition` / `RenderDefinition` / `DocumentData` / `Workspace`、`formatVersion`は`1`。ルートと定義項目・出力書類・出力ブロックに一意な`id`を持つ。`constructor` / `prototype` / `__proto__`をプロパティ名に使用しない。対応していない版のファイルは自動解釈しない。
@@ -15,6 +32,8 @@
   "fields": [
     {"id":"field-name","key":"projectName","label":"事業名","type":"String","required":true,"maxLength":100,"section":"基本情報","group":"","description":""},
     {"id":"field-budget","key":"budget","label":"予算","type":"Integer","min":0},
+    {"id":"field-status","key":"status","label":"状況","type":"Enum","options":["予定","進行中","完了"]},
+    {"id":"field-summary","key":"summary","label":"成果概要","type":"Text"},
     {"id":"field-table","key":"expenses","label":"支出","type":"Table",
       "minItems":1,"maxItems":30,"initialRows":1,"rowLabel":"支出",
       "allowAdd":true,"allowDelete":true,"allowDuplicate":true,"allowReorder":true,
@@ -218,7 +237,7 @@ ruleGraphはDefinitionに保存するため、Render Definitionの条件を編�
 
 `formatVersion`は1を継続するが、複数書類を保存したファイルはこの拡張に対応したDocBenchで開くこと。従来版への逆変換は行わない。
 
-この例のsummary/statusは対応するDefinitionに定義する必要がある。未定義参照はエラー。
+この例は最初のDefinition例（`definition-1`）と組み合わせて使用できる。`summary` / `status`を含め、すべての参照項目を対応するDefinitionに定義する。未定義参照はエラー。
 
 ブロック型は`heading` / `text` / `field` / `table` / `pagebreak` / `rich`（Word）/ `shape`（PPTX）。`field`はルート項目、またはObject内のドット区切りパス。配列内の複数行を直接のドット参照で展開せず、配列全体を`table`ブロックに渡す。
 
@@ -330,7 +349,7 @@ doc/text/hardBreak以外のノードは一意で不変の`attrs.id`を持つ。�
 {
   "kind":"DocumentData","formatVersion":1,"id":"document-1","definitionId":"definition-1",
   "values":{
-    "projectName":"窓口改善","budget":100000,
+    "projectName":"窓口改善","budget":100000,"status":"完了","summary":"窓口の案内を改善しました。",
     "expenses":[
       {"_id":"row-immutable-1","_meta":{"origin":null,"createdBy":"担当者","createdAt":"2026-10-14T00:00:00Z","modifiedBy":"担当者","modifiedAt":"2026-10-14T00:00:00Z"},"category":"備品","amount":100000}
     ]
@@ -339,6 +358,8 @@ doc/text/hardBreak以外のノードは一意で不変の`attrs.id`を持つ。�
 ```
 
 `values`のキーはDefinitionの項目キーに対応する。数値はJSON number、真偽値はboolean、未入力の単純型は`""`、File/Imageの空値はnull、MultiEnumは文字列配列、Objectはオブジェクト。
+
+入力項目の`RichText`は許可されたHTMLの文字列として保存する。Word出力設計の`rich.content`は公開ノードJSONであり、入力値のRichTextとは別形式。LLMは入力値へTiptap JSONを入れたり、`rich.content`へHTML文字列を入れたりしない。
 
 Dateは`YYYY-MM-DD`、DateTimeはブラウザのdatetime-localに対応した`YYYY-MM-DDTHH:mm`文字列。タイムゾーン変換は初版で行わない。
 

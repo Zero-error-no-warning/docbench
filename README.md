@@ -22,6 +22,10 @@
 
 配列位置で同一性を判断せず、不変の`_id`で行を識別します。複製時はIDを振り直し、作成元IDを残します。異なる項目への変更を自動統合し、同一項目への異なる変更、削除対変更、同一要素の異なる移動先などは競合として表示します。
 
+## 外部LLMからの作成
+
+[公開JSON仕様](docs/specification.md)を、現在のDefinition・RenderDefinitionと一緒に外部LLMへ渡せます。完全なJSONを生成し、「保存・読込 → JSONを貼り付けて読み込む」から取り込みます。入力項目・条件も変更するときはDefinitionを先に読み込みます。仕様の冒頭に依頼文と生成・読込の手順を掲載しています。
+
 ## Portable版
 
 アプリ本体は **`portable/docbench.html`**、ライブラリは **`vendor/`** に分けています。両方をリポジトリと同じ位置関係で保存してください。HTMLだけでは起動しません。必要なファイル一覧は`portable/build-manifest.json`の`runtimeFiles`にあります。
