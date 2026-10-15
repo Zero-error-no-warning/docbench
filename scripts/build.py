@@ -7,12 +7,12 @@ ROOT=Path(__file__).resolve().parent.parent
 # Ship the same published specification in normal and portable apps; no runtime fetch.
 specification=(ROOT/'docs/specification.md').read_text()
 (ROOT/'src/specification.js').write_text('/* Generated from docs/specification.md by scripts/build.py. */\nDocBench.specification='+json.dumps(specification,ensure_ascii=False)+';\n',encoding='utf-8')
-libs=['jszip.min.js','pako.min.js','docx.js','pptxgen.min.js','exceljs.min.js','jsuites.js','jspreadsheet.js','konva.min.js','tiptap.min.js']
+libs=['jszip.min.js','pako.min.js','docx.js','pptxgen.min.js','exceljs.min.js','jsuites.js','jspreadsheet.js','konva.min.js','tiptap.min.js','rete.min.js']
 source=(ROOT/'index.html').read_text()
 css=re.sub(r'\s+',' ',(ROOT/'src/style.css').read_text()).strip()
 # CSS uses its own escape syntax; HTML character entities do not apply inside style.
 css=''.join(c if ord(c)<128 else '\\'+format(ord(c),'x')+' ' for c in css)
-app=rjsmin.jsmin('\n;\n'.join((ROOT/'src'/p).read_text() for p in ['core.js','layout.js','render.js','designer.js','editors.js','specification.js','app.js']))
+app=rjsmin.jsmin('\n;\n'.join((ROOT/'src'/p).read_text() for p in ['core.js','rules.js','layout.js','render.js','designer.js','editors.js','specification.js','rule-editor.js','app.js']))
 # Vendor libraries remain separate; local pako loads before the bootstrap.
 program=app
 licenses='\n\n'.join(p.name+'\n'+p.read_text() for p in sorted((ROOT/'vendor').glob('*LICENSE*')))

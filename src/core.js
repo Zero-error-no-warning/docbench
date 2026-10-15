@@ -157,14 +157,14 @@ const conditionTypes=['String','Text','Integer','Float','Boolean','Date','DateTi
 function schemaPath(path){return String(path).replace(/\[\d+\]/g,'').split('.').filter(p=>!/^\d+$/.test(p)).join('.');}
 function conditionFields(def){const all=allFields(def);return all.filter(x=>conditionTypes.includes(x.field.type)&&!all.some(p=>x.path.startsWith(p.path+'.')&&['Array','Table'].includes(p.field.type)));}
 function inputState(def,values){
- const fields=new Map(allFields(def).map(x=>[x.path,x.field])),cache=new Map(),visiting=new Set();
+ const fields=new Map(allFields(def).map(x=>[x.path,x.field])),cache=new Map(),visiting=new Set(),runtime=root.DocBench.ruleRuntime?.(def,values,path=>visible(path));
  function visible(path){path=schemaPath(path);if(cache.has(path))return cache.get(path);const f=fields.get(path);
   if(!f){const parent=path.slice(0,path.lastIndexOf('.'));return path.endsWith('.value')&&fields.get(parent)?.type==='Array'?visible(parent):false;}
   if(visiting.has(path))return false;
   visiting.add(path);const parent=path.includes('.')?path.slice(0,path.lastIndexOf('.')):null;
   const result=(!parent||visible(parent))&&(!f.visibleWhen||matches(f.visibleWhen));visiting.delete(path);cache.set(path,result);return result;
  }
- function matches(condition){return !!condition&&visible(condition.field)&&get(values,condition.field)!==undefined&&equal(get(values,condition.field),condition.equals);}
+ function matches(condition){if(condition?.nodeId){const result=runtime?.evaluate(condition.nodeId);return result?.status==='known'&&result.valueType==='boolean'&&result.value===true;}return !!condition&&visible(condition.field)&&get(values,condition.field)!==undefined&&equal(get(values,condition.field),condition.equals);}
  function required(f){return !!f.required||matches(f.requiredWhen);}
  function project(fs,obj,prefix){if(!obj||typeof obj!=='object'||Array.isArray(obj))return clone(obj);const result={};
   for(const [key,value] of Object.entries(obj))if(key.startsWith('_'))result[key]=clone(value);
@@ -186,7 +186,7 @@ function validateDefinition(def,render) {
   if(f.initialRows>1000)err(p,'初期行数の上限は1000です');
   for(const [lo,hi] of [['min','max'],['minLength','maxLength'],['minItems','maxItems'],['minDate','maxDate'],['minSelections','maxSelections']])if(f[lo]!==undefined&&f[lo]!==''&&f[hi]!==undefined&&f[hi]!==''&&f[lo]>f[hi])err(p,lo+'が'+hi+'を上回っています');
   if(['Enum','MultiEnum'].includes(f.type)&&(!Array.isArray(f.options)||!f.options.length||new Set(f.options).size!==f.options.length))err(p,'選択肢は1件以上・重複なしで定義してください');
-  for(const name of ['visibleWhen','requiredWhen'])if(f[name]!=null){const c=f[name],ref=conditionFields(def).find(x=>x.path===c.field)?.field;
+  for(const name of ['visibleWhen','requiredWhen'])if(f[name]!=null&&!f[name].nodeId){const c=f[name],ref=conditionFields(def).find(x=>x.path===c.field)?.field;
    if(!c||typeof c!=='object'||Array.isArray(c)||!Object.hasOwn(c,'equals'))err(p+'.'+name,'条件はfieldとequalsを指定してください');
    if(!ref)err(p+'.'+name,'条件の参照項目は配列外の文字列・数値・真偽値・日付・選択項目です');
    else if(ref.type==='Boolean'?typeof c.equals!=='boolean':['Integer','Float'].includes(ref.type)?typeof c.equals!=='number'||!Number.isFinite(c.equals)||ref.type==='Integer'&&!Number.isInteger(c.equals):typeof c.equals!=='string'||ref.type==='Enum'&&!ref.options?.includes(c.equals))err(p+'.'+name,'条件の値が参照項目の型・選択肢と一致しません');
@@ -196,9 +196,10 @@ function validateDefinition(def,render) {
   if(['Array','Table'].includes(f.type)){for(const name of ['businessKey','uniqueBy','sortBy'])if(f[name]&&f[name]!=='value'&&!(f.fields||[]).some(c=>c.key===f[name]))err(p,name+'に未定義の列が指定されています');if((f.initialRows||0)<(f.minItems||0)||(f.maxItems!==undefined&&(f.initialRows||0)>f.maxItems))err(p,'初期行数が最小・最大要素数の範囲外です');}
  }}walk(def.fields,'');
  const nodes=new Map(allFields(def).map(x=>[x.path,x.field])),active=new Set(),done=new Set();
- function dependency(path){if(active.has(path)){err(path+'.visibleWhen','表示条件の循環参照を検出しました');return;}if(done.has(path))return;active.add(path);const f=nodes.get(path);if(f){if(path.includes('.'))dependency(path.slice(0,path.lastIndexOf('.')));if(f.visibleWhen?.field&&nodes.has(f.visibleWhen.field))dependency(f.visibleWhen.field);}active.delete(path);done.add(path);}
+ function dependency(path){if(active.has(path)){err(path+'.visibleWhen','表示条件の循環参照を検出しました');return;}if(done.has(path))return;active.add(path);const f=nodes.get(path);if(f){if(path.includes('.'))dependency(path.slice(0,path.lastIndexOf('.')));for(const ref of root.DocBench.conditionReferences?.(def,f.visibleWhen)||[f.visibleWhen?.field])if(nodes.has(ref))dependency(ref);}active.delete(path);done.add(path);}
  nodes.forEach((_,path)=>dependency(path));
- const used=new Set();
+ if(root.DocBench.validateRuleGraph)errors.push(...root.DocBench.validateRuleGraph(def,render));
+ const used=new Set();for(const target of root.DocBench.ruleTargets?.({definition:def,render},true)||[])for(const ref of root.DocBench.conditionReferences?.(def,target.owner[target.property])||[])used.add(ref);
  function checkRender(r,prefix){
   const report=(path,message)=>err(prefix+'.'+path,message);
   const object=v=>v&&typeof v==='object'&&!Array.isArray(v);

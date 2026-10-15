@@ -15,7 +15,7 @@ function fail(error) {
  console.error(error);
 }
 try {
- const missing=['JSZip','pako','docx','PptxGenJS','ExcelJS','jSuites','jspreadsheet','Konva','DocBenchEditorLib'].filter(name=>!globalThis[name]);
+ const missing=['JSZip','pako','docx','PptxGenJS','ExcelJS','jSuites','jspreadsheet','Konva','DocBenchEditorLib','DocBenchRuleLib'].filter(name=>!globalThis[name]);
  if(missing.length){const error=Error(missing.join(', '));error.dependencies=true;throw error;}
  const encoded = packet.textContent.replace(/\s/g, '');
  if (!encoded || encoded.length % 4) throw Error('Portable data is incomplete.');

@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@retejs/lit-plugin": "2.0.8",
     "@tiptap/core": "3.32.0",
     "@tiptap/extension-subscript": "3.32.0",
     "@tiptap/extension-superscript": "3.32.0",
@@ -13,6 +14,12 @@
     "exceljs": "4.4.0",
     "jspreadsheet-ce": "5.0.4",
     "jsuites": "5.12.0",
-    "konva": "10.0.12"
+    "konva": "10.0.12",
+    "lit": "3.3.3",
+    "rete": "2.0.6",
+    "rete-area-plugin": "2.3.2",
+    "rete-connection-plugin": "2.0.5",
+    "rete-engine": "2.1.1",
+    "rete-render-utils": "2.0.3"
   }
 }

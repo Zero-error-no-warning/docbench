@@ -65,9 +65,9 @@ Objectは子項目で構成する。Arrayは全要素を行ラッパーで持ち
 }
 ```
 
-種別Aでは項目Xを表示し必須にする。Bでは項目Xを表示しない。Definitionの項目構造は維持し、その入力値に対する有効な項目の集合を計算する。表示条件なしは常に表示する。`requiredWhen`は表示とは独立で、表示されている項目だけに適用する。`required:true`と`requiredWhen`はORとして扱う。
+種別Aでは項目Xを表示し必須にする。Bでは項目Xを表示しない。Definitionの項目構造は維持し、その入力値に対する有効な項目の集合を計算する。表示条件なしは常に表示する。`requiredWhen`は表示とは独立で、表示されている項目だけに適用する。旧ファイルで両方が指定されている場合は`required:true`を優先する。画面では常時必須または条件付き必須のどちらかを設定する。
 
-条件は単一項目への型を含む等値比較。参照元はルートまたはObject内のString/Text/Integer/Float/Boolean/Date/DateTime/Enum。配列内の各行・複合型は条件元に使用しない。Enum値は定義済み選択肢、Boolean値はtrue/false、数値は数値型で指定する。画面では項目を選び、Enumは選択肢、Booleanははい/いいえ、数値・日付は対応する入力欄で設定する。AND/OR・大小比較・行ごとの条件は未実装。
+上記は互換用の単一等値比較の記法。複合条件は後述の共通条件グラフを使う。参照元はルートまたはObject内のString/Text/Integer/Float/Boolean/Date/DateTime/Enum。配列内の各行・複合型は条件元に使用しない。Enum値は定義済み選択肢、Boolean値はtrue/false、数値は数値型で指定する。画面では項目を選び、Enumは選択肢、Booleanははい/いいえ、数値・日付は対応する入力欄で設定する。AND/OR/NOT・大小比較はノードエディタに対応し、行ごとの条件は未実装。
 
 Object・Array・Table全体や内部の項目にも`visibleWhen`を設定できる。親が非表示なら子も非表示。表の条件付き列は全行共通の条件で列全体を切り替える。非表示の条件元の保存値は条件評価に使わず、依存項目も非表示になる。表示条件の自己参照・相互参照・親子間の循環を検証する。未定義項目・対応外の型・等値の型不一致も定義エラー。
 
@@ -78,6 +78,98 @@ Object・Array・Table全体や内部の項目にも`visibleWhen`を設定でき
 書類のfield/tableブロックは非表示項目を出力せず、Object・表の内部も非表示項目を除外する。HTMLテンプレートの非表示参照とWordのリッチ文書内の値・ラベル参照は空文字になる。固定文章や手書きのラベルは自動削除しない。HTML・Word・Excel・PPTX・印刷PDFおよびプレビューで同じ条件を使い、複数書類でも同じ入力状態を共有する。書類出力定義のブロック`when`も非表示の条件元の値では成立しない。
 
 入力変更で表示・必須の状態が変わったときに入力欄を更新し、操作中の入力欄のフォーカス・カーソルとスクロール位置を可能な範囲で維持する。表示状態が変わらない通常の入力では入力欄を作り直さない。
+
+## 共通条件グラフとノードエディタ
+
+表示・必須・出力ブロック・書類生成の条件は、Definitionの`ruleGraph`を共通に参照できる。条件の指定は`{"nodeId":"条件結果のノードID"}`。適用先ごとの入力は1つで、複数条件を使うときはAND/OR/NOTノードで明示して合成する。同じ結果は複数の適用先へ接続できる。
+
+次は「（種別AまたはB）かつ（金額が1,000以上）」で項目Xを表示・必須にする完全なDefinition例。
+
+```json
+{
+  "kind":"Definition","formatVersion":1,"id":"definition-rules","title":"条件付き書類",
+  "fields":[
+    {"id":"field-kind","key":"kind","label":"種別","type":"Enum","options":["A","B","C"],"required":true},
+    {"id":"field-amount","key":"amount","label":"金額","type":"Integer","min":0},
+    {"id":"field-x","key":"x","label":"項目X","type":"String","visibleWhen":{"nodeId":"eligible"},"requiredWhen":{"nodeId":"eligible"}}
+  ],
+  "ruleGraph":{
+    "nodes":[
+      {"id":"kind-value","type":"field","field":"kind","position":{"x":40,"y":40}},
+      {"id":"a","type":"literal","valueType":"string","value":"A","position":{"x":40,"y":220}},
+      {"id":"b","type":"literal","valueType":"string","value":"B","position":{"x":40,"y":400}},
+      {"id":"is-a","type":"compare","operator":"eq","position":{"x":350,"y":40}},
+      {"id":"is-b","type":"compare","operator":"eq","position":{"x":350,"y":250}},
+      {"id":"a-or-b","type":"or","position":{"x":660,"y":40}},
+      {"id":"amount-value","type":"field","field":"amount","position":{"x":40,"y":600}},
+      {"id":"minimum","type":"literal","valueType":"number","value":1000,"position":{"x":40,"y":780}},
+      {"id":"large-enough","type":"compare","operator":"gte","position":{"x":350,"y":600}},
+      {"id":"eligible","type":"and","label":"生成対象","position":{"x":970,"y":250}}
+    ],
+    "connections":[
+      {"id":"c1","source":"kind-value","target":"is-a","input":"left"},
+      {"id":"c2","source":"a","target":"is-a","input":"right"},
+      {"id":"c3","source":"kind-value","target":"is-b","input":"left"},
+      {"id":"c4","source":"b","target":"is-b","input":"right"},
+      {"id":"c5","source":"is-a","target":"a-or-b","input":"items"},
+      {"id":"c6","source":"is-b","target":"a-or-b","input":"items"},
+      {"id":"c7","source":"amount-value","target":"large-enough","input":"left"},
+      {"id":"c8","source":"minimum","target":"large-enough","input":"right"},
+      {"id":"c9","source":"a-or-b","target":"eligible","input":"items"},
+      {"id":"c10","source":"large-enough","target":"eligible","input":"items"}
+    ],
+    "targetPositions":{}
+  }
+}
+```
+
+`nodes`と`connections`は不変・一意なIDを持ち、履歴・差分・三者マージはIDで比較する。ノードIDの`target:`/`binding:`接頭辞、および接続IDの`binding:`接頭辞は画面用の予約領域。上限は500ノード・1500接続。ノードの任意名は`label`、位置は`position:{x,y}`。位置を省略して読み込める。位置は論理評価に影響しない。
+
+| type | 設定 | 入力ポート | 出力 |
+| --- | --- | --- | --- |
+| field | `field`はDefinition内のドットパス | なし | 項目の値 |
+| literal | `valueType`と`value` | なし | 固定値 |
+| compare | `operator` | `left`と`right`にそれぞれ1本 | 条件結果 |
+| and | 任意の`label` | `items`に1本以上、複数可 | すべて成立なら成立 |
+| or | 任意の`label` | `items`に1本以上、複数可 | いずれか成立なら成立 |
+| not | 任意の`label` | `value`に1本 | 成立と不成立を反転 |
+
+保存形式では各ノードの出力は1つで、接続の`source`にノードID、`target`に接続先ノードID、`input`に入力ポート名を指定する。Rete画面上の出力ポート名は`result`。Boolean型の項目や固定値は直接AND/OR/NOT・適用先へ接続できる。
+
+`field`の参照元は配列外のString/Text/Enum/Integer/Float/Boolean/Date/DateTime。String/Text/Enumの型は`string`、Integer/Floatは`number`として評価する。`literal.valueType`は`string` / `number` / `boolean` / `date` / `datetime`。`value`は対応するJSONの文字列・数値・真偽値。比較の左右は同じ型を使い、自動で文字列と数値を変換しない。
+
+`operator`は`eq`（等しい）/ `ne`（等しくない）/ `gt`（より大きい）/ `gte`（以上）/ `lt`（より小さい）/ `lte`（以下）。等値は型を含むJSON値で比較する。大小比較は数値・日付・日時に限定し、日付・日時は有効なISO値を時刻に変換して比較する。
+
+評価結果は`{status:"known",value,valueType}`または`{status:"unknown",reason}`。参照先が非表示、値が未入力・型不一致、入力ポートが未接続なら未確定。空のEnum・数値・日付は未入力で、Stringの空文字は比較可能。Booleanのfalseと数値の0は入力済みとして扱う。NOTの入力が未確定なら結果も未確定。ANDは1つでも不成立なら不成立、ORは1つでも成立なら成立。それ以外で未確定の入力が残る場合は結果も未確定。適用先はBoolean型の成立（true）だけを採用する。
+
+出力のない作業ノードは未接続のまま保存できる。適用先が参照している条件の必要入力が未接続なら定義エラー。ノード・接続のID重複、存在しない参照、入力ポートの重複、値と条件の接続間違い、比較型の不一致、グラフの循環、項目の表示条件を経由した循環も検証する。
+
+項目は`visibleWhen` / `requiredWhen`、書類は`generateWhen`、出力ブロックは`when`で条件結果を参照する。適用先はグラフのノード配列へ保存せず、それぞれの項目・書類・ブロックのプロパティへ保存する。Reteでは適用先のノードを生成して表示する。適用先の位置は`ruleGraph.targetPositions`に画面IDをキーとして保存し、参照対象が現在のファイルにない位置情報は無視する。
+
+`requiredWhen`をノードで接続すると`required`をfalseにして、接続された結果だけで必須を決める。「入力必須」をオンにすると`requiredWhen`を解除して常に必須にする。読み込み互換用に`required:true`と条件が共存するファイルでは常に必須を優先する。
+
+書類生成条件の例（対応するDefinitionは上のグラフを含むものを使用）：
+
+```json
+{
+  "kind":"RenderDefinition","formatVersion":1,"id":"render-rules","definitionId":"definition-rules",
+  "defaultDocumentId":"report",
+  "documents":[
+    {"id":"report","title":"対象報告書","outputFormat":"docx","generateWhen":{"nodeId":"eligible"},"designs":{"docx":{"blocks":[{"id":"title","type":"heading","text":"対象報告書"}]}}},
+    {"id":"appendix","title":"補助書類","outputFormat":"html","generateWhen":{"nodeId":"a-or-b"},"designs":{"html":{"blocks":[{"id":"appendix-title","type":"heading","text":"補助書類"}]}}}
+  ]
+}
+```
+
+`generateWhen`なしは常に生成候補。複数成立ならすべて候補に含め、排他的な選択とはしない。入力変更で候補を再評価し、選択中の書類が候補外になれば既定または先頭の候補へ切り替える。候補が0件なら出力ボタンを無効にする。編集者は条件不成立のデザインも編集でき、出力は成立時に行う。`DocBench.availableDocuments(definition,render,values)`で候補一覧、`canGenerate(definition,document,values)`で単一書類の可否を得る。低レベルの各形式レンダラーはプレビューにも使うため、生成対象の選択は呼出側で行う。
+
+「条件を設計」画面ではRete.jsのノード・接続・移動・拡大縮小を使用する。右ペインで項目・固定値・比較方法・名前・接続を編集し、判定理由を表示する。端子から端子への接続と、右ペインの選択操作での接続に対応する。整列・全体表示・接続解除・削除、全体のUndo/Redo、JSON/gzip、自動保存・履歴に対応する。入力項目ノードのサンプル値はDocument Dataを編集し、Definitionへ入力値や判定結果を保存しない。
+
+簡易条件UIも同じグラフを作成する。非共有の単一比較はIDを保って更新し、共有条件の一方だけを簡易UIで変更する場合は新しい比較へ分ける。ノード画面で共有元を変更した場合はすべての適用先へ反映する。複合条件は簡易UIに単一比較として展開せず「複合条件をノードで編集」から開く。
+
+旧形式`{field,equals}`も引き続き読み込み・評価できる。ノード画面を開く際、対応する単純型条件を決定的なIDの項目・固定値・等値比較へ変換する。既存の履歴ノードは書き換えない。旧出力条件の複合型比較など、変換対象外の条件は保持する。新規の条件はグラフ参照を推奨する。グラフ参照を含むファイルはこの拡張対応版で開くこと。
+
+ruleGraphはDefinitionに保存するため、Render Definitionの条件を編集した場合も対応するDefinitionと組で共有する。Workspaceなら両方をまとめて保存できる。外部LLMは本仕様のJSONを生成でき、アプリ自体にAI機能や任意JavaScriptの評価機能は持たせない。計算ノード・配列行ごとの条件・条件付き書式・図形生成・一括ZIP出力は未実装。
 
 ## Render Definition
 
@@ -114,7 +206,7 @@ Object・Array・Table全体や内部の項目にも`visibleWhen`を設定でき
 
 入力者は書類を選択してプレビュー・個別出力する。編集者と入力者の選択中の書類IDは画面内の状態であり、JSONや履歴へ保存しない。選択操作はUndo対象にしない。書類の追加・編集・複製・削除・既定の指定はUndo/Redo・スナップショット・差分・派生・三者マージの対象。異なる書類への変更はID単位でマージする。
 
-全書類と保持している全形式のデザインを参照・配置・書式検証する。未選択の書類も不正な定義を含む場合は読込・出力を止める。不要項目の警告は全書類・全形式での利用をまとめて判定する。書類の生成条件・一括生成・ノードエディタは未実装。
+全書類と保持している全形式のデザインを参照・配置・書式検証する。未選択の書類も不正な定義を含む場合は読込・出力を止める。不要項目の警告は全書類・全形式での利用をまとめて判定する。書類の生成条件は共通条件グラフで設定する。一括生成は未実装。
 
 ### 単一書類ファイルとの互換性
 
@@ -311,12 +403,14 @@ IndexedDBの`docbench-workspace-v1`へWorkspaceを自動保存し、利用でき
 | jSuites | 5.12.0 | https://github.com/jsuites/jsuites | MIT |
 | ExcelJS | 4.4.0 | https://github.com/exceljs/exceljs | MIT |
 | Konva | 10.0.12 | https://github.com/konvajs/konva | MIT |
+| Rete / Area / Connection / Engine / Render utils / Lit plugin | 2.0.6 / 2.3.2 / 2.0.5 / 2.1.1 / 2.0.3 / 2.0.8 | https://retejs.org/ | MIT |
+| Lit（Lit HTML・ReactiveElementを含む） | 3.3.3（依存版はlock参照） | https://lit.dev/ | BSD-3-Clause |
 | rJSmin（ビルドのみ） | 1.3.0 | https://github.com/ndparker/rjsmin | Apache-2.0 |
 
-ライセンス本文はvendorに保存し、portableにも内包する。ライブラリは固定版を同梱する。TiptapはMITのコア拡張だけを使用し、商用ページレイアウト機能やAI機能は使用しない。再生成用の依存ロックはscripts/editor-buildにある。
+ライセンス本文はvendorに保存し、portableにも内包する。ライブラリは固定版を同梱する。TiptapはMITのコア拡張だけを使用し、商用ページレイアウト機能やAI機能は使用しない。再生成用の依存ロックはscripts/editor-buildにある。Reteのnpm配布にライセンス本文がないパッケージは、固定版の上流ソース等からscripts/editor-build/licensesへ保持し、Rete-LICENSE.txtへまとめる。Lit pluginはMIT宣言と同作者のフレームワーク通知の出典を併記する。
 
 ## Portableの格納形式
 
-`portable/docbench.html`にアプリ本体・CSS・仕様書・ライセンスを持ち、第三者JS/CSSは`../vendor/`から読み込む。配置は`配置先/portable/docbench.html`と`配置先/vendor/`。必要な実行ファイル一覧はportable/build-manifest.jsonのruntimeFilesを参照する。HTMLだけ移動すると起動できず、ライブラリ配置の確認エラーを表示する。
+`portable/docbench.html`にアプリ本体・CSS・仕様書・ライセンスを持ち、第三者JS/CSSは`../vendor/`から読み込む。条件ノード編集には追加の`vendor/rete.min.js`も必要。配置は`配置先/portable/docbench.html`と`配置先/vendor/`。必要な実行ファイル一覧はportable/build-manifest.jsonのruntimeFilesを参照する。HTMLだけ移動すると起動できず、ライブラリ配置の確認エラーを表示する。
 
 アプリJavaScriptをライセンス本文とともにJSONへ格納し、gzip + Base64のASCIIデータとしてHTMLへ内包する。展開後はscript要素のtextContentへ設定するため、プログラム中のHTML文字列をHTMLパーサーへ直接渡さない。HTML本体とローダーはASCIIのみ。日本語はHTML数値文字参照またはJavaScriptのUnicodeエスケープで保持する。LF/CRLF変換を許容し、圧縮データが欠けた場合は起動エラーを表示する。展開は別ファイルのローカルpakoを使い、CDN・fetch・eval・CompressionStreamを必要としない。

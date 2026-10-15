@@ -22,3 +22,10 @@ for(const [name,files] of [['Tiptap',tiptapLicenses],['ExcelJS',['exceljs/LICENS
  let text='';for(const file of files){text+=file+'\n'+(await readFile(path.join(dir,'node_modules',file),'utf8')).replace(/\r\n/g,'\n')+'\n\n';}await writeFile(path.join(vendor,name+'-LICENSE.txt'),text);
 }
 console.log('Local editor libraries built. No network is used by the application.');
+
+const reteBuild=await build({metafile:true,entryPoints:[path.join(dir,'rete.js')],bundle:true,minify:true,format:'iife',platform:'browser',target:'es2020',outfile:path.join(vendor,'rete.min.js'),legalComments:'eof'});
+const rulePackages=new Set();
+for(const input of Object.keys(reteBuild.metafile.inputs)){const m=input.replaceAll('\\','/').match(/node_modules\/((?:@[^/]+\/)?[^/]+)/);if(m)rulePackages.add(m[1]);}
+let ruleLicenses='';
+for(const pkg of [...rulePackages].sort()){const names=await readdir(path.join(dir,'node_modules',pkg)),file=names.find(x=>/^licen[cs]e(?:\.|$)/i.test(x));const version=JSON.parse(await readFile(path.join(dir,'node_modules',pkg,'package.json'),'utf8')).version,source=file?path.join(dir,'node_modules',pkg,file):path.join(dir,'licenses',pkg.replace('@','').replace('/','_')+'-'+version+'.txt');ruleLicenses+=pkg+'@'+version+'\n'+(await readFile(source,'utf8')).replace(/\r\n/g,'\n')+'\n\n';}
+await writeFile(path.join(vendor,'Rete-LICENSE.txt'),ruleLicenses.trimEnd()+'\n');

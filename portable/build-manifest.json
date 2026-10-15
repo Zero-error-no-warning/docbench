@@ -1,6 +1,6 @@
 {
-  "sha256": "1009f9a1c4fa6595857ddb8cd24c934fbe4874388d34c414c9b6bd33b7eaf87a",
-  "bytes": 163652,
+  "sha256": "2722f54c8674116125b0401b55f821a59d3a037648fb8c956f578b80254eae10",
+  "bytes": 190331,
   "runtimeFiles": [
     "docbench.html",
     "../vendor/jszip.min.js",
@@ -12,6 +12,7 @@
     "../vendor/jspreadsheet.js",
     "../vendor/konva.min.js",
     "../vendor/tiptap.min.js",
+    "../vendor/rete.min.js",
     "../vendor/jsuites.css",
     "../vendor/jspreadsheet.css"
   ],
@@ -24,9 +25,10 @@
     "jsuites.js",
     "jspreadsheet.js",
     "konva.min.js",
-    "tiptap.min.js"
+    "tiptap.min.js",
+    "rete.min.js"
   ],
   "payloadEncoding": "gzip+base64",
   "sourceEncoding": "ASCII",
-  "programSha256": "7d354ef0a3b59b9f7c4aba1f26743a450ee936e9598dd9143d3c21c7198aa0b0"
+  "programSha256": "4f8d6f123575e1c308a770df191fb8676c1f13576f4fdb16812bc20526c79a95"
 }
