@@ -4,13 +4,15 @@
   "type": "module",
   "dependencies": {
     "@tiptap/core": "3.32.0",
-    "@tiptap/starter-kit": "3.32.0",
+    "@tiptap/extension-subscript": "3.32.0",
+    "@tiptap/extension-superscript": "3.32.0",
     "@tiptap/extension-table": "3.32.0",
     "@tiptap/extension-text-style": "3.32.0",
+    "@tiptap/starter-kit": "3.32.0",
+    "esbuild": "0.25.12",
     "exceljs": "4.4.0",
     "jspreadsheet-ce": "5.0.4",
     "jsuites": "5.12.0",
-    "konva": "10.0.12",
-    "esbuild": "0.25.12"
+    "konva": "10.0.12"
   }
 }

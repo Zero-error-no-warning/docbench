@@ -1,6 +1,6 @@
 {
-  "sha256": "5fc96daa2ec0d1be1446f43e5d0780e755c1a7ed8e27c668605058bccb53e2c0",
-  "bytes": 142829,
+  "sha256": "ab2b6c37f4494ce609c0af01e87e7b5d84d89599575714493e2aef79eda40e4c",
+  "bytes": 150418,
   "runtimeFiles": [
     "docbench.html",
     "../vendor/jszip.min.js",
@@ -28,5 +28,5 @@
   ],
   "payloadEncoding": "gzip+base64",
   "sourceEncoding": "ASCII",
-  "programSha256": "57692f1845aa5e4960476f60e2b0119b798e3c6f6ba518a2d025a38dd3594b95"
+  "programSha256": "065a24332964bc16c54519458551cc8ae176a56575c513008d003b3f40612367"
 }

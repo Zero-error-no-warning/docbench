@@ -49,3 +49,18 @@ test('Word horizontal and vertical merged cells remain native table spans',async
 test('malformed rich marks and unbounded table spans are reported without crashing',()=>{
  for(const content of [{type:'doc',content:[{type:'paragraph',marks:{},content:[]}]},{type:'doc',content:[{type:'table',content:[{type:'tableRow',content:[{type:'tableCell',attrs:{colspan:1e12},content:[]}]}]}]},{type:'doc',content:[{type:'table',content:[{type:'tableRow',content:[null]}]}]}])assert(D.validateRich(content).length>0);
 });
+test('per-side table borders and script marks agree in HTML and native Word export',async()=>{
+ const w=D.sample(),d=D.ensureDesign(w.render,'docx'),tree=D.identifyRich(D.tableRich(1,2)),cells=tree.content[0].content[0].content;
+ cells[0].attrs.borders={top:{color:'#112233',width:1.5,style:'double'},left:{color:'#112233',width:1.5,style:'double'},bottom:'none',right:'none'};
+ cells[1].attrs.borders={top:'none',left:'none',bottom:{color:'#445566',width:1,style:'dashed'},right:{color:'#778899',width:.5,style:'dotted'}};
+ cells[0].content[0].content=[{type:'text',text:'Raised',marks:[{type:'superscript'}]},{type:'text',text:'Lowered',marks:[{type:'subscript'}]}];d.blocks=[{id:'sides',type:'rich',content:tree}];
+ assert.equal(D.validateRich(tree).length,0);const html=D.previewHTML(w.definition,{...w.render,outputFormat:'docx'},w.data.values);assert(html.includes('border-top:1.5pt double #112233'));assert(html.includes('border-right:0.5pt dotted #778899'));assert(html.includes('vertical-align:super'));assert(html.includes('vertical-align:sub'));
+ const zip=await JSZip.loadAsync(await(await D.word(w.definition,w.render,w.data.values)).arrayBuffer()),xml=await zip.file('word/document.xml').async('string');
+ assert(xml.includes('<w:top w:val="double" w:color="112233" w:sz="12"'));assert(xml.includes('<w:right w:val="dotted" w:color="778899" w:sz="4"'));assert(xml.includes('w:val="superscript"'));assert(xml.includes('w:val="subscript"'));
+ for(const borders of [[],{center:'none'},{top:{color:'red',width:1,style:'single'}},{top:{color:'#112233',width:-1,style:'single'}},{top:{color:'#112233',width:1,style:'bogus'}}]){const bad=D.clone(tree);bad.content[0].content[0].content[0].attrs.borders=borders;assert(D.validateRich(bad).some(e=>e.includes('罫線')));}
+});
+test('Word ordered lists have native numbering, start values and nested levels',async()=>{
+ const w=D.sample(),d=D.ensureDesign(w.render,'docx'),p=text=>({type:'paragraph',content:[{type:'text',text}]});
+ d.blocks=[{id:'list',type:'rich',content:D.identifyRich({type:'doc',content:[{type:'orderedList',attrs:{start:3},content:[{type:'listItem',content:[p('First'),{type:'orderedList',content:[{type:'listItem',content:[p('Nested')]}]}]},{type:'listItem',content:[p('Second')]}]}]})}];
+ const zip=await JSZip.loadAsync(await(await D.word(w.definition,w.render,w.data.values)).arrayBuffer()),xml=await zip.file('word/document.xml').async('string'),numbering=await zip.file('word/numbering.xml').async('string');assert.equal((xml.match(/<w:numPr>/g)||[]).length,3);assert(xml.includes('<w:ilvl w:val="1"'));assert(numbering.includes('<w:start w:val="3"'));assert(D.richHTML(d.blocks[0].content,w.definition,w.data.values).includes('<ol start="3">'));
+});

@@ -139,12 +139,16 @@ CSSは外部読込・url()・HTMLタグ・式評価を許可しない。HTML成�
 | `doc.content` | 段落・見出し・表・リスト等の配列 |
 | `paragraph` / `heading` | `attrs.textAlign`、`lineHeight`、`spaceBefore/spaceAfter`（pt）、`bottomBorder`。headingは`level:1..6` |
 | `text` / `hardBreak` | 文字列`text` / 明示改行。`marks`で文字範囲の書式を指定 |
-| `marks` | `bold`、`italic`、`underline`、`strike`、`textStyle`。textStyle.attrsは`fontFamily`、`fontSize`（例16pt）、`color`、`backgroundColor` |
+| `marks` | `bold`、`italic`、`underline`、`strike`、`subscript`、`superscript`、`textStyle`。textStyle.attrsは`fontFamily`、`fontSize`（例16pt）、`color`、`backgroundColor` |
 | `fieldRef` | `attrs.field`はDefinitionのルートキーまたはObjectのドットパス。`part:value/label`で入力値/項目名を差込。未定義参照は拒否 |
 | `table` / `tableRow` | 行配列/セル配列。`tableCell`または`tableHeader`を使う |
-| セル属性 | `colspan/rowspan`（1..100）、`colwidth`（列ごとのpx配列）、`fill`（色/null）、`border`（色/none）、`borderWidth`（pt）、`padding`（px）、`valign` |
+| セル属性 | `colspan/rowspan`（1..100）、`colwidth`（列ごとのpx配列）、`fill`（色/null）、`border`（色/none）、`borderWidth`（pt）、`borders`（下記）、`padding`（px）、`valign` |
 | セル内content | 段落・見出し・表（入れ子）・リスト等。結合済み領域の重複セルは置かない |
 | その他のノード | `bulletList`、`orderedList`（listItem配列）、`listItem`、`blockquote`、`horizontalRule` |
+
+セルの`attrs.borders`は任意の辺ごとの上書き。`top/right/bottom/left`に`"none"`または`{"color":"#172b39","width":0.5,"style":"single"}`を指定する。widthは0.1..10pt、styleは`single/dashed/dotted/double`。省略した辺は従来のborder/borderWidthを使う。画面とDOCXは同じ辺属性を使う。外枠/内側/すべて/なしのプリセットは対象内の4辺を設定し直す。辺指定は該当する辺だけを変更する。対象は表全体または選択セルの矩形。入れ子の場合はカーソルのある内側の表が対象。罫線は結合セルの辺単位で設定し、辺の途中に分割した罫線は設定しない。セル内余白や縦位置の変更で罫線を変更しない。
+
+orderedListの`attrs.start`（省略時1）は開始番号。番号はDOCXのネイティブ番号定義として出力し、手入力した番号文字ではない。
 
 doc/text/hardBreak以外のノードは一意で不変の`attrs.id`を持つ。画面での新規作成・複製・貼付はIDを生成/再生成する。LLMからはIDを明示して渡す。構造は最大5000ノード・入れ子16段まで。セルの重複結合や表の範囲外結合は拒否する。列幅は先頭行を基準に全幅に対する比率へ換算し、Wordのページ余白内へ配置する。見出しセルの行は繰返し行として出力する。
 
@@ -165,7 +169,7 @@ doc/text/hardBreak以外のノードは一意で不変の`attrs.id`を持つ。�
 
 ### 編集とプレビュー
 
-定義者画面はWordにTiptap、ExcelにJspreadsheet CE、PowerPointにKonvaを使用する。Wordの文章・セルはクリックして直接編集し、移動には左端のつまみを使用する。表の編集ガイドと行列操作欄は出力しない。Excelはセル/範囲のアドレスと内容欄を持ち、書式変更時はグリッドを再作成せず選択を保持する。Word・Excelの用紙・全体書式・要素一覧は「ページ・要素の設定」から開く。操作は上記JSONモデルの変更へ変換し、ライブラリ内部オブジェクト・DOM・Canvas画像を保存しない。1回のドラッグは1回のUndo操作。HTML/PDFはCSSとブロック配置で編集する。入力者のプレビューは読み取り専用HTML。
+定義者画面はWordにTiptap、ExcelにJspreadsheet CE、PowerPointにKonvaを使用する。Wordの文章・セルはクリックして直接編集し、移動には左端のつまみを使用する。文字/段落/挿入のツールバーを常時表示し、文字選択と書式ボタンの状態を同期する。見出し、リスト、リスト階層、上下付き文字、書式解除、編集履歴を操作できる。入力項目は編集中のカーソル位置（セル内を含む）へ参照として挿入する。固定レイアウト表はマス目または行列数で挿入し、表を選択すると行列・結合・セル設定・罫線の操作欄が表示される。表の編集ガイドと行列操作欄は出力しない。Excelはセル/範囲のアドレスと内容欄を持ち、書式変更時はグリッドを再作成せず選択を保持する。Word・Excelの用紙・全体書式・要素一覧は「ページ・要素の設定」から開く。操作は上記JSONモデルの変更へ変換し、ライブラリ内部オブジェクト・DOM・Canvas画像を保存しない。1回のドラッグは1回のUndo操作。HTML/PDFはCSSとブロック配置で編集する。入力者のプレビューは読み取り専用HTML。
 
 設定できる文字・背景・罫線・位置を出力へ反映するが、Officeのレイアウトエンジンとは異なる。Wordの自動改ページ・折返し、Excelの複雑な数値書式、PowerPointの文字縮小・表の行高の完全一致は保証しない。「出力して確認」で実ファイルを確認する。出力されたDOCX/XLSX/PPTXは画像化された画面ではなく、編集可能なネイティブ文字・表・図形を含む。
 
@@ -247,7 +251,7 @@ IndexedDBの`docbench-workspace-v1`へWorkspaceを自動保存し、利用でき
 | pako | 1.0.11 | https://github.com/nodeca/pako | MIT |
 | docx | 9.6.1 | https://github.com/dolanmiu/docx | MIT |
 | PptxGenJS | 4.0.1 | https://github.com/gitbrent/PptxGenJS | MIT |
-| Tiptap core / StarterKit / Table / TextStyleKit | 3.32.0 | https://github.com/ueberdosis/tiptap | MIT（使用するProseMirror依存も同梱） |
+| Tiptap core / StarterKit / Table / TextStyleKit / Subscript / Superscript | 3.32.0 | https://github.com/ueberdosis/tiptap | MIT（使用するProseMirror依存も同梱） |
 | Jspreadsheet CE | 5.0.4 | https://github.com/jspreadsheet/ce | MIT |
 | jSuites | 5.12.0 | https://github.com/jsuites/jsuites | MIT |
 | ExcelJS | 4.4.0 | https://github.com/exceljs/exceljs | MIT |
