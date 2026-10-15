@@ -13,14 +13,14 @@ test('Word arbitrary layout tables, nested tables, field references and marks su
  tree.content[0].content[2].content[2].content=D.tableRich(1,2).content;
  d.blocks=[{id:'layout',type:'rich',content:D.identifyRich(tree)}];
  assert.equal(D.validateDefinition(w.definition,w.render).errors.length,0);
- const html=D.previewHTML(w.definition,{...w.render,outputFormat:'docx'},w.data.values);assert(html.includes('width:50%'));assert(html.includes('text-decoration:underline'));assert(html.includes('border:none'));assert(html.includes('background:#abcdef'));assert.equal((html.match(/class="layout-table"/g)||[]).length,2);
+ const html=D.previewHTML(w.definition,{...D.renderDocument(w.render),outputFormat:'docx'},w.data.values);assert(html.includes('width:50%'));assert(html.includes('text-decoration:underline'));assert(html.includes('border:none'));assert(html.includes('background:#abcdef'));assert.equal((html.match(/class="layout-table"/g)||[]).length,2);
  const z=await JSZip.loadAsync(await(await D.word(w.definition,w.render,w.data.values)).arrayBuffer()),xml=await z.file('word/document.xml').async('string');
  assert.equal((xml.match(/<w:tbl>/g)||[]).length,2);assert(xml.includes('Fixed text'));assert(xml.includes('窓口業務の改善事業'));assert(xml.includes('w:u'));assert(xml.includes('112233'));assert(xml.includes('w:sz w:val="34"'));assert(xml.includes('w:fill="ABCDEF"'));assert(xml.includes('w:val="none"'));assert(!xml.includes('w:color="auto"'));
  const exported=JSON.stringify(D.envelope(w,'RenderDefinition'));assert(!exported.includes('窓口業務の改善事業'));assert(exported.includes('projectName'));
 });
 test('label and value styles are independent, and headings have no implicit underline',async()=>{
  const w=D.sample(),d=D.ensureDesign(w.render,'docx');d.blocks=[{id:'head',type:'heading',text:'Plain heading'},{id:'field',type:'field',field:'budget',labelStyle:{fill:'#abcdef',underline:true,bold:false},valueStyle:{fill:null,color:'#112233'}}];
- const html=D.previewHTML(w.definition,{...w.render,outputFormat:'docx'},w.data.values);assert(!html.includes('border-bottom:3px'));assert(html.includes('data-style-part="label"'));assert(html.includes('background:#abcdef'));assert(html.includes('color:#112233'));
+ const html=D.previewHTML(w.definition,{...D.renderDocument(w.render),outputFormat:'docx'},w.data.values);assert(!html.includes('border-bottom:3px'));assert(html.includes('data-style-part="label"'));assert(html.includes('background:#abcdef'));assert(html.includes('color:#112233'));
  const z=await JSZip.loadAsync(await(await D.word(w.definition,w.render,w.data.values)).arrayBuffer()),xml=await z.file('word/document.xml').async('string');assert(xml.includes('w:fill="ABCDEF"'));assert(xml.includes('112233'));assert(xml.includes('w:u'));
 });
 test('Excel free cells, rectangular merges, styles and sizes survive ExcelJS readback',async()=>{
@@ -54,7 +54,7 @@ test('per-side table borders and script marks agree in HTML and native Word expo
  cells[0].attrs.borders={top:{color:'#112233',width:1.5,style:'double'},left:{color:'#112233',width:1.5,style:'double'},bottom:'none',right:'none'};
  cells[1].attrs.borders={top:'none',left:'none',bottom:{color:'#445566',width:1,style:'dashed'},right:{color:'#778899',width:.5,style:'dotted'}};
  cells[0].content[0].content=[{type:'text',text:'Raised',marks:[{type:'superscript'}]},{type:'text',text:'Lowered',marks:[{type:'subscript'}]},{type:'fieldRef',attrs:{field:'projectName',part:'value'},marks:[{type:'superscript'}]}];d.blocks=[{id:'sides',type:'rich',content:tree}];
- assert.equal(D.validateRich(tree).length,0);const html=D.previewHTML(w.definition,{...w.render,outputFormat:'docx'},w.data.values);assert(html.includes('border-top:1.5pt double #112233'));assert(html.includes('border-right:0.5pt dotted #778899'));assert(html.includes('vertical-align:super'));assert(html.includes('vertical-align:sub'));assert(/data-field-ref="projectName"[^>]*vertical-align:super/.test(html));
+ assert.equal(D.validateRich(tree).length,0);const html=D.previewHTML(w.definition,{...D.renderDocument(w.render),outputFormat:'docx'},w.data.values);assert(html.includes('border-top:1.5pt double #112233'));assert(html.includes('border-right:0.5pt dotted #778899'));assert(html.includes('vertical-align:super'));assert(html.includes('vertical-align:sub'));assert(/data-field-ref="projectName"[^>]*vertical-align:super/.test(html));
  const zip=await JSZip.loadAsync(await(await D.word(w.definition,w.render,w.data.values)).arrayBuffer()),xml=await zip.file('word/document.xml').async('string');
  assert(xml.includes('<w:top w:val="double" w:color="112233" w:sz="12"'));assert(xml.includes('<w:right w:val="dotted" w:color="778899" w:sz="4"'));assert(xml.includes('w:val="superscript"'));assert(xml.includes('w:val="subscript"'));
  for(const borders of [[],{center:'none'},{top:{color:'red',width:1,style:'single'}},{top:{color:'#112233',width:-1,style:'single'}},{top:{color:'#112233',width:1,style:'bogus'}}]){const bad=D.clone(tree);bad.content[0].content[0].content[0].attrs.borders=borders;assert(D.validateRich(bad).some(e=>e.includes('罫線')));}

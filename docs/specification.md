@@ -1,10 +1,10 @@
 # DocBench JSON形式 v1
 
-本仕様は形式別デザイン対応版の実装に対応する。UTF-8 JSONを使用し、共有時は全体をgzipで圧縮できる。ランタイムにはAI機能・外部通信・サーバ処理を持たせない。
+本仕様は複数書類・形式別デザイン対応版の実装に対応する。UTF-8 JSONを使用し、共有時は全体をgzipで圧縮できる。ランタイムにはAI機能・外部通信・サーバ処理を持たせない。
 
 ## 共通形式
 
-`kind`は`Definition` / `RenderDefinition` / `DocumentData` / `Workspace`、`formatVersion`は`1`。ルートと定義項目・出力ブロックに一意な`id`を持つ。`constructor` / `prototype` / `__proto__`をプロパティ名に使用しない。対応していない版のファイルは自動解釈しない。
+`kind`は`Definition` / `RenderDefinition` / `DocumentData` / `Workspace`、`formatVersion`は`1`。ルートと定義項目・出力書類・出力ブロックに一意な`id`を持つ。`constructor` / `prototype` / `__proto__`をプロパティ名に使用しない。対応していない版のファイルは自動解釈しない。
 
 ## Definition
 
@@ -55,19 +55,46 @@ Objectは子項目で構成する。Arrayは全要素を行ラッパーで持ち
 
 ## Render Definition
 
+1つのRender Definitionに複数の出力書類を保持する。DefinitionとDocument Dataは共通で、書類ごとに名前・出力形式・デザインを持つ。
+
 ```json
 {
   "kind":"RenderDefinition","formatVersion":1,"id":"render-1","definitionId":"definition-1",
-  "title":"報告書","useTemplate":false,"template":"<h1>{{projectName}}</h1>",
-  "blocks":[
-    {"id":"b1","type":"heading","text":"事業報告書"},
-    {"id":"b2","type":"field","field":"projectName"},
-    {"id":"b3","type":"field","field":"summary","appendixAfter":600,"when":{"field":"status","equals":"完了"}},
-    {"id":"b4","type":"table","field":"expenses","rowsPerPage":12},
-    {"id":"b5","type":"pagebreak"}
+  "title":"事業提出書類","defaultDocumentId":"document-report",
+  "documents":[
+    {
+      "id":"document-report","title":"事業報告書","outputFormat":"docx",
+      "designs":{"docx":{"useTemplate":false,"settings":{"pageSize":"A4"},"blocks":[
+        {"id":"b1","type":"heading","text":"事業報告書"},
+        {"id":"b2","type":"field","field":"projectName"},
+        {"id":"b3","type":"field","field":"summary","appendixAfter":600,"when":{"field":"status","equals":"完了"}},
+        {"id":"b4","type":"table","field":"expenses","rowsPerPage":12}
+      ]}}
+    },
+    {
+      "id":"document-budget","title":"予算明細","outputFormat":"xlsx",
+      "designs":{"xlsx":{"useTemplate":false,"settings":{"sheetName":"予算明細"},"blocks":[
+        {"id":"budget-title","type":"heading","text":"予算明細","layout":{"cell":"A1","span":3}},
+        {"id":"budget-table","type":"table","field":"expenses","layout":{"cell":"A3","span":3}}
+      ]}}
+    }
   ]
 }
 ```
+
+`documents`は1件以上。書類の`id`はRender Definition内で一意かつ不変で、配列位置・書類名を同一性判定に使わない。書類名は空欄不可、同名は許可。`defaultDocumentId`は存在する書類のIDを指定し、新しく画面を開くときの選択に使用する。ルートの`title`は出力定義全体の名称、各書類の`title`は成果物のタイトル・ファイル名に使用する。
+
+編集者は書類の追加・切替・複製・削除・既定の指定を行える。新規書類は出力形式を選んで空のデザインから開始する。複製は全形式のデザインを深くコピーし、書類・ブロック・リッチ文書ノード・セル結合のIDを再発行する。項目参照は共通Definitionを引き続き参照する。最後の1件は削除できない。既定の書類を削除すると残りの先頭を既定にする。入力値・添付は書類の削除でも保持する。
+
+入力者は書類を選択してプレビュー・個別出力する。編集者と入力者の選択中の書類IDは画面内の状態であり、JSONや履歴へ保存しない。選択操作はUndo対象にしない。書類の追加・編集・複製・削除・既定の指定はUndo/Redo・スナップショット・差分・派生・三者マージの対象。異なる書類への変更はID単位でマージする。
+
+全書類と保持している全形式のデザインを参照・配置・書式検証する。未選択の書類も不正な定義を含む場合は読込・出力を止める。不要項目の警告は全書類・全形式での利用をまとめて判定する。書類の生成条件・一括生成・ノードエディタは未実装。
+
+### 単一書類ファイルとの互換性
+
+`documents`がない従来のRender Definitionは、ルートの`title`・`outputFormat`・`blocks`・`template`・`useTemplate`・`css`・`settings`・`designs`などを1件の書類へ移す。書類IDは旧Render Definitionの`id`に`_document`を付けた値とし、既定もそのIDとする。Workspace内の全履歴、および単独Render Definitionの履歴内のstateも同じ規則で変換するため、同じ旧ファイルを別々に読み込んでも履歴の同一性が保たれる。既存のブロックID・デザイン・値は保持する。`documents`があるファイルの不正なIDや既定値は自動修復せず検証する。
+
+`formatVersion`は1を継続するが、複数書類を保存したファイルはこの拡張に対応したDocBenchで開くこと。従来版への逆変換は行わない。
 
 この例のsummary/statusは対応するDefinitionに定義する必要がある。未定義参照はエラー。
 
@@ -81,7 +108,7 @@ HTMLテンプレートはHTML/印刷PDF用。Officeは形式別のブロック�
 
 ### 形式別デザイン
 
-`outputFormat`で設計・出力する形式を先に選ぶ。値は`html` / `docx` / `xlsx` / `pptx` / `pdf`。入力者は定義された形式で出力する。`designs`に形式ごとのレイアウトを独立して保存する。形式を初めて作成するときは互換用ルート`blocks`から要素構成を引き継ぎ、その形式の初期配置を作成する。既存デザインの切替では再変換しない。
+各`documents[]`の`outputFormat`で設計・出力する形式を先に選ぶ。値は`html` / `docx` / `xlsx` / `pptx` / `pdf`。入力者は定義された形式で出力する。`designs`に形式ごとのレイアウトを独立して保存する。形式を初めて作成するときは書類内の初期構成用`blocks`から要素構成を引き継ぎ、その形式の初期配置を作成する。既存デザインの切替では再変換しない。
 
 ```json
 {
@@ -99,7 +126,7 @@ HTMLテンプレートはHTML/印刷PDF用。Officeは形式別のブロック�
 }
 ```
 
-従来ファイルのルート`blocks` / `template` / `useTemplate`も読込可能。`designs`がない形式の初期構成に使用する。形式別デザインが存在する場合、ルート`blocks`は互換用データとして保持し、参照検証・出力には形式別の要素を使用する。選択中以外のデザインも参照・書式・位置を検証する。各形式内のブロックIDは一意であり、履歴・マージの項目識別に使用する。
+従来ファイルのルート`blocks` / `template` / `useTemplate`は書類内へ移して読込可能。`designs`がない形式の初期構成に使用する。形式別デザインが存在する場合、書類内の`blocks`は新しい形式の初期構成用データとして保持する。出力には形式別の要素を使用し、初期構成と全デザインを参照検証する。選択中以外のデザインも参照・書式・位置を検証する。各形式内のブロックIDは一意であり、履歴・マージの項目識別に使用する。
 
 共通`settings`は`font`、`fontSize`（pt）、`color`、`accent`。ブロック`style`は`font`、`fontSize`（pt）、`bold`、`italic`、`underline`、`strike`、`color`、`fill`（nullは透明）、`align`（left / center / right / justify）、`valign`（top / middle / bottom）、`border`、`borderWidth`（pt）、`bottomBorder`、`bottomBorderWidth`（pt）、`lineHeight`（倍率）、`spaceBefore/spaceAfter`（pt）、`wrap`、`numberFormat`。罫線色は`#RRGGBB`または`none`。`labelStyle`と`valueStyle`は同じ書式プロパティを使い、項目名・入力値を別々に上書きする。見出しや項目名に暗黙の下線・背景を付けない。文字の下線と段落/セルの下罫線は別設定。色は`#RRGGBB`。`showLabel:false`は項目名の出力を省略する。
 

@@ -27,6 +27,36 @@ function newRow(f,actor,source) {
  if(source) Object.keys(row).filter(k=>!k.startsWith('_')).forEach(k=>reidentify(row[k]));
  return row;
 }
+// Output documents share Definition and DocumentData, but own their designs.
+function renderDocument(render,id=render.defaultDocumentId){
+ if(!Object.hasOwn(render,'documents'))return render; // Legacy callers/files.
+ const document=render.documents.find(d=>d.id===id);
+ if(!document)throw Error('出力書類が見つかりません');
+ return document;
+}
+function outputDocuments(render){return Object.hasOwn(render,'documents')?render.documents:[render];}
+function outputDesigns(render){return outputDocuments(render).flatMap(d=>[d,...Object.values(d.designs||{})]);}
+function createOutputDocument(title='新しい書類',outputFormat='docx'){
+ return {id:uid(),title,outputFormat,blocks:[],template:'',useTemplate:false,designs:{}};
+}
+function duplicateOutputDocument(document){
+ const copy=clone(document);
+ function reidentify(value){if(!value||typeof value!=='object')return;if(Object.hasOwn(value,'id'))value.id=uid();Object.values(value).forEach(reidentify);}
+ reidentify(copy);copy.title+='（コピー）';return copy;
+}
+function normalizeRender(render){
+ if(!render||Object.hasOwn(render,'documents'))return render;
+ // Deterministic across imports and history snapshots: migration must not create changes.
+ const document={id:render.id+'_document',title:render.title||'書類',outputFormat:render.outputFormat||'html'};
+ for(const key of ['blocks','template','useTemplate','css','settings','designs','cellStyles','cellValues','cellMerges','columnWidths','rowHeights'])if(Object.hasOwn(render,key)){document[key]=render[key];delete render[key];}
+ delete render.outputFormat;
+ render.documents=[document];render.defaultDocumentId=document.id;return render;
+}
+function normalizeOutputModels(value){
+ if(value.kind==='Workspace'){normalizeRender(value.render);for(const node of value.history||[])normalizeRender(node.state?.render);}
+ if(value.kind==='RenderDefinition'){normalizeRender(value);for(const node of value.history?.nodes||[])normalizeRender(node.state);}
+ return value;
+}
 function sample() {
  const definition={kind:'Definition',formatVersion:1,id:uid(),title:'事業実施報告書',description:'事業の概要・成果と支出内訳を入力してください。',fields:[
  field('projectName','事業名','String',{required:true,maxLength:100}),
@@ -48,7 +78,7 @@ function sample() {
  Object.assign(values.expenses[0],{category:'備品',amount:350000,note:'窓口案内用の機器'});
  const data={kind:'DocumentData',formatVersion:1,id:uid(),definitionId:definition.id,values};
  const ws={kind:'Workspace',formatVersion:1,id:uid(),actor:'作成者',currentBranch:'main',branches:{main:null},history:[],definition,render,data};
- snapshot(ws,'初期サンプル'); return ws;
+ normalizeRender(render);snapshot(ws,'初期サンプル'); return ws;
 }
 function state(ws){return clone({definition:ws.definition,render:ws.render,data:ws.data});}
 function snapshot(ws,message,parents) {
@@ -139,10 +169,51 @@ function validateDefinition(def,render) {
   if(f.type==='Array'&&(!types.includes(f.itemType)||['Object','Array','Table'].includes(f.itemType)&&f.itemType!=='Object'))err(p,'Array要素型は単純型またはObjectです');
   if(['Array','Table'].includes(f.type)){for(const name of ['businessKey','uniqueBy','sortBy'])if(f[name]&&f[name]!=='value'&&!(f.fields||[]).some(c=>c.key===f[name]))err(p,name+'に未定義の列が指定されています');if((f.initialRows||0)<(f.minItems||0)||(f.maxItems!==undefined&&(f.initialRows||0)>f.maxItems))err(p,'初期行数が最小・最大要素数の範囲外です');}
  }}walk(def.fields,'');
- if(render){if(root.DocBench.validateRender)errors.push(...root.DocBench.validateRender(render));const activeFormat=render.outputFormat||'html';for(const [format,design] of Object.entries(render.designs||{})){if(format===activeFormat)continue;const checked=validateDefinition(def,{...design,outputFormat:format});errors.push(...checked.errors.map(x=>({...x,path:'designs.'+format+'.'+x.path})));}if(render.designs?.[activeFormat])render={...render,...render.designs[activeFormat],designs:undefined};const bid=new Set();for(const b of render.blocks||[]){if(!b.id||bid.has(b.id))err('render','出力ブロックIDが重複');bid.add(b.id);if(b.type==='shape'&&(!['rect','ellipse','line'].includes(b.shape)||render.outputFormat!=='pptx'))err('render.'+b.id,'図形はPowerPointのrect/ellipse/lineです');if(b.content){for(const msg of root.DocBench.validateRich?.(b.content)||[])err('render.'+b.id,msg);for(const ref of root.DocBench.richReferences?.(b.content)||[])if(!fieldAt(def,ref))err('render.'+b.id,'未定義項目参照: '+ref);}if(!['heading','text','rich','field','table','shape','pagebreak'].includes(b.type))err('render','未対応ブロック');if(b.type==='table'&&b.field&&fieldAt(def,b.field)&&!['Table','Array'].includes(fieldAt(def,b.field).type))err('render.'+b.id,'表の出力にはTableまたはArray項目を指定してください');if(b.field&&!fieldAt(def,b.field))err('render.'+b.id,'未定義項目参照: '+b.field);if(b.when?.field&&!fieldAt(def,b.when.field))err('render.'+b.id,'条件の参照項目がありません');}
- if(render.useTemplate){const t=String(render.template||'');for(const m of t.matchAll(/{{\s*([^{}]+?)\s*}}/g))if(!fieldAt(def,m[1]))err('template','未定義項目参照: '+m[1]);if(t.replace(/{{\s*[A-Za-z][\w.]*\s*}}/g,'').includes('{{')||t.replace(/{{\s*[A-Za-z][\w.]*\s*}}/g,'').includes('}}'))err('template','無効なテンプレート構文');}
- const used=new Set((render.blocks||[]).flatMap(b=>[b.field,...(root.DocBench.richReferences?.(b.content)||[])]));if(render.useTemplate)for(const m of String(render.template).matchAll(/{{\s*([^{}]+?)\s*}}/g))used.add(m[1]);for(const f of def.fields||[])if(![...used].some(p=>p===f.key||p?.startsWith(f.key+'.')))warnings.push({path:f.key,message:'出力で使われていない項目'});
+ const used=new Set();
+ function checkRender(r,prefix){
+  const report=(path,message)=>err(prefix+'.'+path,message);
+  const object=v=>v&&typeof v==='object'&&!Array.isArray(v);
+  if(r.designs!==undefined&&!object(r.designs)){report('designs','形式別デザインはオブジェクトです');return;}
+  for(const [key,design] of [['',r],...Object.entries(r.designs||{})]){
+   if(!object(design)){report('designs.'+key,'デザインはオブジェクトです');return;}
+   if(design.blocks!==undefined&&(!Array.isArray(design.blocks)||design.blocks.some(b=>!object(b)))){report((key?'designs.'+key+'.':'')+'blocks','出力ブロックはオブジェクトの配列です');return;}
+  }
+  if(root.DocBench.validateRender)errors.push(...root.DocBench.validateRender(r).map(x=>({...x,path:prefix+'.'+x.path.replace(/^render\./,'')})));
+  const activeFormat=r.outputFormat||'html';
+  const designs=r.designs||{};
+  for(const [format,design] of Object.entries(designs))checkDesign({...design,outputFormat:format},prefix+'.designs.'+format);
+  if(!designs[activeFormat])checkDesign(r,prefix);
+  // The seed blocks/template remain relevant when creating another format.
+  if(r.designs&&r.blocks)checkDesign({...r,designs:undefined},prefix+'.seed');
+  function checkDesign(design,path){const bid=new Set(),issue=(p,m)=>report(path.slice(prefix.length+1)+(path===prefix?'':'.')+p,m);
+   for(const b of design.blocks||[]){if(!b||typeof b!=='object'){issue('blocks','出力ブロックが不正です');continue;}
+    if(!b.id||bid.has(b.id))issue('blocks','出力ブロックIDが未指定または重複');bid.add(b.id);
+    if(b.type==='shape'&&(!['rect','ellipse','line'].includes(b.shape)||design.outputFormat!=='pptx'))issue(b.id,'図形はPowerPointのrect/ellipse/lineです');
+    if(b.content){for(const msg of root.DocBench.validateRich?.(b.content)||[])issue(b.id,msg);for(const ref of root.DocBench.richReferences?.(b.content)||[]){used.add(ref);if(!fieldAt(def,ref))issue(b.id,'未定義項目参照: '+ref);}}
+    if(!['heading','text','rich','field','table','shape','pagebreak'].includes(b.type))issue(b.id,'未対応ブロック');
+    if(b.type==='table'&&b.field&&fieldAt(def,b.field)&&!['Table','Array'].includes(fieldAt(def,b.field).type))issue(b.id,'表の出力にはTableまたはArray項目を指定してください');
+    if(b.field){used.add(b.field);if(!fieldAt(def,b.field))issue(b.id,'未定義項目参照: '+b.field);}
+    if(b.when?.field){used.add(b.when.field);if(!fieldAt(def,b.when.field))issue(b.id,'条件の参照項目がありません');}
+   }
+   if(design.useTemplate){const t=String(design.template||'');for(const m of t.matchAll(/{{\s*([^{}]+?)\s*}}/g)){used.add(m[1]);if(!fieldAt(def,m[1]))issue('template','未定義項目参照: '+m[1]);}if(t.replace(/{{\s*[A-Za-z][\w.]*\s*}}/g,'').includes('{{')||t.replace(/{{\s*[A-Za-z][\w.]*\s*}}/g,'').includes('}}'))issue('template','無効なテンプレート構文');}
+  }
  }
+ if(render){
+  if(Object.hasOwn(render,'documents')){
+   if(!Array.isArray(render.documents)||!render.documents.length)err('render.documents','出力書類を1件以上定義してください');
+   else {const documentIds=new Set();for(const document of render.documents){
+    if(!document||typeof document!=='object'){err('render.documents','書類の定義が不正です');continue;}
+    const path='render.documents.'+(document.id||'?');
+    if(typeof document.id!=='string'||!document.id||documentIds.has(document.id))err(path,'書類IDが未指定または重複');documentIds.add(document.id);
+    if(typeof document.title!=='string'||!document.title.trim())err(path+'.title','書類名を入力してください');
+    if(!document.outputFormat)err(path+'.outputFormat','出力形式を指定してください');
+    if(document.kind||document.documents)err(path,'書類内にRenderDefinitionを入れることはできません');
+    checkRender(document,path);
+   }if(!documentIds.has(render.defaultDocumentId))err('render.defaultDocumentId','既定の書類IDが見つかりません');}
+  }else checkRender(render,'render');
+  for(const f of def.fields||[])if(![...used].some(p=>p===f.key||p?.startsWith(f.key+'.')))warnings.push({path:f.key,message:'出力で使われていない項目'});
+ }
+
  return {errors,warnings};
 }
 function validateData(def,values){const errors=[],globalIds=new Set();const err=(p,m)=>errors.push({path:p,message:m});
@@ -173,7 +244,7 @@ function validateData(def,values){const errors=[],globalIds=new Set();const err=
  }check(def.fields,values,'');return errors;
 }
 function envelope(ws,kind){if(kind==='Workspace')return clone(ws);const key=kind==='Definition'?'definition':kind==='RenderDefinition'?'render':'data';return {...clone(ws[key]),history:{currentBranch:ws.currentBranch,branches:clone(ws.branches),nodes:ws.history.map(n=>({...clone(n),state:clone(n.state[key])}))}};}
-function assertImport(v){if(!v||typeof v!=='object'||v.formatVersion!==1||!['Workspace','Definition','RenderDefinition','DocumentData'].includes(v.kind))throw Error('DocBench形式v1のJSONを選んでください');const check=JSON.stringify(v);if(/"(?:__proto__|constructor|prototype)"\s*:/.test(check))throw Error('予約プロパティを含むJSONは読み込めません');if(check.length>80*1024*1024)throw Error('読み込み上限は80MBです');if(v.kind==='Workspace'){if(!v.definition||!v.render||!v.data||!Array.isArray(v.history)||!v.branches||!Object.hasOwn(v.branches,v.currentBranch))throw Error('Workspaceの必須構造がありません');const ids=new Set(v.history.map(n=>n.id));if(ids.size!==v.history.length||v.history.some(n=>!n.state||!Array.isArray(n.parents)||n.parents.some(p=>!ids.has(p)))||Object.values(v.branches).some(id=>!ids.has(id)))throw Error('履歴IDまたは親状態の参照が不正です');const active=new Set(),done=new Set(),map=new Map(v.history.map(n=>[n.id,n]));function walk(id){if(active.has(id))throw Error('履歴の循環参照を検出');if(done.has(id))return;active.add(id);for(const p of map.get(id).parents)walk(p);active.delete(id);done.add(id);}ids.forEach(walk);}return v;}
-root.DocBench={types,clone,equal,uid,now,esc,safeKey,field,defaultValue,newRow,sample,state,snapshot,checkout,ancestor,merge,diff,get,fieldAt,allFields,validateDefinition,validateData,envelope,assertImport};
+function assertImport(v){if(!v||typeof v!=='object'||v.formatVersion!==1||!['Workspace','Definition','RenderDefinition','DocumentData'].includes(v.kind))throw Error('DocBench形式v1のJSONを選んでください');const check=JSON.stringify(v);if(/"(?:__proto__|constructor|prototype)"\s*:/.test(check))throw Error('予約プロパティを含むJSONは読み込めません');if(check.length>80*1024*1024)throw Error('読み込み上限は80MBです');if(v.kind==='Workspace'){if(!v.definition||!v.render||!v.data||!Array.isArray(v.history)||!v.branches||!Object.hasOwn(v.branches,v.currentBranch))throw Error('Workspaceの必須構造がありません');const ids=new Set(v.history.map(n=>n.id));if(ids.size!==v.history.length||v.history.some(n=>!n.state||!Array.isArray(n.parents)||n.parents.some(p=>!ids.has(p)))||Object.values(v.branches).some(id=>!ids.has(id)))throw Error('履歴IDまたは親状態の参照が不正です');const active=new Set(),done=new Set(),map=new Map(v.history.map(n=>[n.id,n]));function walk(id){if(active.has(id))throw Error('履歴の循環参照を検出');if(done.has(id))return;active.add(id);for(const p of map.get(id).parents)walk(p);active.delete(id);done.add(id);}ids.forEach(walk);}return normalizeOutputModels(v);}
+root.DocBench={types,clone,equal,uid,now,esc,safeKey,field,defaultValue,newRow,renderDocument,outputDocuments,outputDesigns,createOutputDocument,duplicateOutputDocument,normalizeRender,normalizeOutputModels,sample,state,snapshot,checkout,ancestor,merge,diff,get,fieldAt,allFields,validateDefinition,validateData,envelope,assertImport};
 if(typeof module!=='undefined')module.exports=root.DocBench;
 })(typeof globalThis!=='undefined'?globalThis:this);

@@ -14,8 +14,37 @@ test('diff uses stable ID and explicit order, not position',()=>{const a=rows(['
 test('types, business keys, sizes and sort order are checked after merge',()=>{const w=D.sample(),f=w.definition.fields.find(f=>f.key==='expenses');w.data.values.budget='100';w.data.values.expenses.push({...D.clone(w.data.values.expenses[0]),_id:D.uid()});f.maxItems=1;f.sortBy='amount';w.data.values.expenses[0].amount=9;w.data.values.expenses[1].amount=2;const msgs=D.validateData(w.definition,w.data.values).map(x=>x.message);assert(msgs.some(x=>x.includes('数値型')));assert(msgs.some(x=>x.includes('業務キー')));assert(msgs.some(x=>x.includes('最大要素数')));assert(msgs.some(x=>x.includes('並び順')));});
 test('conditional required and enum selection rules are checked',()=>{const f=D.field('note','説明','Text',{requiredWhen:{field:'enabled',equals:true}}),def={fields:[D.field('enabled','有効','Boolean'),f,D.field('choices','選択','MultiEnum',{options:['A','B'],minSelections:2})]};const es=D.validateData(def,{enabled:true,note:'',choices:['A']});assert.equal(es.length,2);});
 test('invalid calendar dates do not pass normalization',()=>{assert.equal(D.validateData({fields:[D.field('date','日付','Date')]},{date:'2026-02-30'}).length,1);});
-test('missing references, duplicate field IDs and malformed templates are reported',()=>{const w=D.sample();w.definition.fields[1].id=w.definition.fields[0].id;w.render.blocks.push({id:D.uid(),type:'field',field:'missing'});w.render.useTemplate=true;w.render.template='<h1>{{missing}}</h1>{{broken';assert(D.validateDefinition(w.definition,w.render).errors.length>=4);});
+test('missing references, duplicate field IDs and malformed templates are reported',()=>{const w=D.sample();w.definition.fields[1].id=w.definition.fields[0].id;w.render.documents[0].blocks.push({id:D.uid(),type:'field',field:'missing'});w.render.documents[0].useTemplate=true;w.render.documents[0].template='<h1>{{missing}}</h1>{{broken';assert(D.validateDefinition(w.definition,w.render).errors.length>=4);});
 test('history common ancestor includes merge parents',()=>{const w=D.sample(),base=w.branches.main;w.branches.revised=base;D.snapshot(w,'L');const left=w.branches.main;D.checkout(w,'revised');D.snapshot(w,'R');const right=w.branches.revised;assert.equal(D.ancestor(w,left,right),base);D.snapshot(w,'M',[left,right]);assert.equal(D.ancestor(w,w.branches.revised,left),left);});
 test('import rejects bad versions, reserved keys and cyclic history',()=>{assert.throws(()=>D.assertImport({kind:'Definition',formatVersion:2}));assert.throws(()=>D.assertImport(JSON.parse('{"kind":"Definition","formatVersion":1,"__proto__":{}}')));const w=D.sample();w.history[0].parents=[w.history[0].id];assert.throws(()=>D.assertImport(w),/循環/);});
 test('all three independent files carry history and attachments',()=>{const w=D.sample();for(const kind of ['Definition','RenderDefinition','DocumentData']){const v=D.envelope(w,kind);assert.equal(v.history.nodes.length,1);assert.equal(v.kind,kind);}});
 test('cyclic combined order requires a choice and can restore parent order',()=>{const b=rows(['a','b','c']),l=rows(['b','a','c']),r=rows(['a','c','b']);const m=D.merge(b,l,r);assert.equal(m.conflicts.length,1);assert.deepEqual(D.merge(b,l,r,{'/~order':{mode:'base'}}).value.map(x=>x._id),['a','b','c']);});
+
+test('legacy output models migrate deterministically including complete and independent histories',()=>{
+ const w=D.sample();function legacy(r){const document=D.clone(r.documents[0]),result={...r,...document,id:r.id};delete result.documents;delete result.defaultDocumentId;return result;}
+ w.render=legacy(w.render);w.history.forEach(n=>n.state.render=legacy(n.state.render));
+ const before=D.clone(w),a=D.assertImport(D.clone(w)),b=D.assertImport(D.clone(w));
+ assert.deepEqual(a,b);assert.deepEqual(a.data,before.data);assert.equal(a.render.defaultDocumentId,before.render.id+'_document');
+ assert.deepEqual(a.render.documents[0].blocks,before.render.blocks);assert.equal(a.history[0].state.render.defaultDocumentId,a.render.defaultDocumentId);assert.equal(D.diff(a.history[0].state,D.state(a)).length,0);
+ const independent={...before.render,history:{nodes:before.history.map(n=>({...n,state:n.state.render}))}};
+ const migrated=D.assertImport(independent);assert.equal(migrated.history.nodes[0].state.documents[0].id,migrated.documents[0].id);assert(!Object.hasOwn(migrated,'blocks'));
+});
+test('multiple documents merge and diff by immutable identity and keep shared input intact',()=>{
+ const w=D.sample();w.render.documents.push(D.createOutputDocument('予算明細','xlsx'));
+ const b=D.state(w),l=D.clone(b),r=D.clone(b),first=b.render.documents[0].id,second=b.render.documents[1].id;
+ l.render.documents[0].title='報告書修正';r.render.documents[1].title='明細修正';r.render.documents.reverse();
+ const result=D.merge(b,l,r);assert.equal(result.conflicts.length,0);assert.equal(result.value.render.documents.find(d=>d.id===first).title,'報告書修正');assert.equal(result.value.render.documents[0].id,second);assert.deepEqual(result.value.data,w.data);
+ assert(D.diff(b,l).some(d=>d.path==='/render/documents/'+first+'/title'));
+ const deleted=D.clone(b);deleted.render.documents.shift();const edited=D.clone(b);edited.render.documents[0].title='競合';assert(D.merge(b,deleted,edited).conflicts.some(c=>c.path==='/render/documents/'+first));
+});
+test('document duplicates have fresh nested identity while preserving field references and source data',()=>{
+ const document=D.createOutputDocument('報告書','docx');document.designs.docx={blocks:[{id:'block',type:'rich',content:{type:'doc',content:[{type:'paragraph',attrs:{id:'paragraph'},content:[{type:'fieldRef',attrs:{field:'projectName'}}]}]}}]};document.designs.xlsx={cellMerges:[{id:'merge',cell:'A1',span:2,rowSpan:1}]};
+ const before=D.clone(document),copy=D.duplicateOutputDocument(document);assert.deepEqual(document,before);assert.notEqual(copy.id,document.id);assert.notEqual(copy.designs.docx.blocks[0].id,'block');assert.notEqual(copy.designs.docx.blocks[0].content.content[0].attrs.id,'paragraph');assert.equal(copy.designs.docx.blocks[0].content.content[0].content[0].attrs.field,'projectName');assert.notEqual(copy.designs.xlsx.cellMerges[0].id,'merge');
+});
+test('all output documents are validated and unused fields are aggregated across documents',()=>{
+ const w=D.sample(),a=w.render.documents[0];a.blocks=[{id:'name',type:'field',field:'projectName'}];const b=D.createOutputDocument('明細','html');b.blocks=[{id:'budget',type:'field',field:'budget'}];w.render.documents.push(b);
+ assert(!D.validateDefinition(w.definition,w.render).warnings.some(x=>['projectName','budget'].includes(x.path)));
+ b.blocks.push({id:'bad',type:'field',field:'missing'});assert(D.validateDefinition(w.definition,w.render).errors.some(x=>x.path.includes(b.id)&&x.message.includes('missing')));
+ b.id=a.id;w.render.defaultDocumentId='absent';const errors=D.validateDefinition(w.definition,w.render).errors;assert(errors.some(x=>x.message.includes('書類ID')));assert(errors.some(x=>x.path==='render.defaultDocumentId'));
+ w.render.documents=[];assert(D.validateDefinition(w.definition,w.render).errors.some(x=>x.path==='render.documents'));
+});
