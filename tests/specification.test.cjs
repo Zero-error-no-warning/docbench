@@ -6,3 +6,5 @@ test('published Definition, RenderDefinition and DocumentData examples are a com
  assert.equal(render.definitionId,definition.id);assert.equal(data.definitionId,definition.id);assert.deepEqual(D.validateDefinition(definition,render).errors,[]);assert.deepEqual(D.validateData(definition,data.values),[]);
  const layout=examples.find(v=>v.type==='rich'&&v.id==='layout-1');assert(layout);render.documents[0].designs.docx.blocks.push(layout);assert.deepEqual(D.validateDefinition(definition,render).errors,[]);
 });
+
+test('published registered-type example is self-contained and validates pinned schemas',()=>{const text=fs.readFileSync(path.join(__dirname,'../docs/specification.md'),'utf8'),examples=[...text.matchAll(/```json\n([\s\S]*?)\n```/g)].map(m=>JSON.parse(m[1])),definition=examples.find(v=>v.id==='definition-types-1');assert(definition);assert.deepEqual(D.validateDefinition(D.assertImport(definition)).errors,[]);assert.deepEqual(D.validateData(definition,{budget:100}),[]);const library=D.envelope({definition},'TypeLibrary');const imported=D.importTypeLibrary({fields:[]},library);assert(imported.some(t=>t.id==='money-type'));});

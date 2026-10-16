@@ -1,6 +1,6 @@
 # DocBench JSON形式 v1
 
-本仕様は複数書類・形式別デザイン対応版の実装に対応する。UTF-8 JSONを使用し、共有時は全体をgzipで圧縮できる。ランタイムにはAI機能・外部通信・サーバ処理を持たせない。
+本仕様は型ライブラリ・複数書類・形式別デザイン対応版の実装に対応する。UTF-8 JSONを使用し、共有時は全体をgzipで圧縮できる。ランタイムにはAI機能・外部通信・サーバ処理を持たせない。
 
 ## 外部LLMでJSONを作成・修正する手順
 
@@ -11,6 +11,7 @@ LLMへの指示例：
 > 添付したDocBench JSON仕様と現在のDefinition・RenderDefinitionに従い、指定する書類を作成・修正してください。現在のdefinitionId、既存の書類・項目・ブロック・リッチ文書ノードのIDを維持し、新規要素だけに一意なIDを付けてください。使用する項目はDefinitionに存在するものに限り、未対応の機能や独自プロパティを追加しないでください。各ファイルを部分差分ではなく、読み込める完全なJSONとして返してください。変更したファイルの種類と、読み込む順序も説明してください。
 
 - デザインだけを変更する場合は、`kind:"RenderDefinition"`の完全なJSONを生成する。`definitionId`は現在のDefinitionの`id`と一致させる。`documents[]`と`defaultDocumentId`を指定し、各書類の`outputFormat`に対応する`designs`へ配置・書式を記述する。
+- 型を作成・改訂する場合は、下記の`typeDefinitions`と`typeRef`に従う。公開済みの版を書き換えず、新しい版を追加する。`type`は基本型のまま、登録型のIDと版を`typeRef`で指定し、対応する構造・入力規則・表示設定を項目内へ展開する。独自の`type:"FiscalYear"`等は作らない。型だけを共有する場合は`kind:"TypeLibrary"`を使う。
 - 新しい入力項目や条件ノードが必要な場合は、完全なDefinitionも生成する。`ruleGraph`はDefinitionに置き、出力定義の`generateWhen` / `when`はそのノードを参照する。既存条件を変えずにデザインだけを変える場合、Definitionを書き換える必要はない。
 - 新規作成でサンプル入力値も作る場合は、DocumentDataを別の完全なJSONとして生成する。同じDefinitionの`id`を`definitionId`に使い、配列・表の行には`_id`と`_meta`を付ける。
 - 新規作成・複数種類の変更では、Definition → RenderDefinition → DocumentData（必要な場合）の順で読み込む。編集者画面の「保存・読込 → JSONを貼り付けて読み込む」へ、JSON本文だけを1種類ずつ貼り付けて読み込む。Markdownのコードフェンスや説明文を入力欄へ含めない。既存内容を置き換えるため、変更対象外の項目・書類も生成JSONに残す。
@@ -72,6 +73,45 @@ LLMへの指示例：
 | sortBy / sortDirection | 並び順の単一列とasc/desc。手動で整列し、検証時にチェック |
 
 Objectは子項目で構成する。Arrayは全要素を行ラッパーで持ち、単純値を`value`に格納する。TableとObject要素Arrayは列値を行直下に格納する。複合キー・任意式の要素間整合性は今後の拡張。
+
+### 型ライブラリと登録型
+
+「型を定義」は要件定義の前に利用できる独立した編集画面。標準の「和暦年度」「和暦年」を用意し、独自の型を構造・規則・表示設定の組合せとして追加できる。基本型15種はそのまま保持する。
+
+Definitionの任意の`typeDefinitions`配列に型を同梱する。各型は`id`、同一ライブラリ内で一意な英字キー`key`、名前`name`、任意の説明`description`、公開済みの`versions`配列、任意の編集中`draft`を持つ。登録型は100件以内、各型の公開版は100件以内。
+
+公開版は`{id,version,schema,author?,createdAt?}`。`version`は1以上の安全な整数で、配列内は昇順・重複不可。`id`は版内で一意な版識別子。`schema`はルートキーを`value`とする通常の入力項目定義。Object・Array・Tableの内部も基本型で構成する。型の定義内には`typeRef`・`typeFieldId`・`visibleWhen`・`requiredWhen`を置かず、表示・必須条件は書類の項目側に設定する。子項目の通常の`required`は型に含められる。
+
+`draft`は同じschema形式で保存する。下書きの検証不備は警告として扱い、公開・利用はできない。公開時に検証済みschemaを新しい版へコピーし、下書きを削除する。公開済みのschemaは編集画面から変更しない。新しい版を公開しても既存の項目は更新しない。
+
+登録型を使用する項目には`typeRef:{id,version}`を付け、指定されたschemaの基本型・構造・規則・表示設定を展開する。ルートの`id`・`key`・`label`・`description`・`section`・`group`・`required`・表示/必須条件は書類の項目固有の設定。型に含まれる子項目には新しい一意な`id`を付け、元のschemaの項目IDを`typeFieldId`に保持する。子項目にも書類固有の表示/必須条件を設定できる。子項目の必須を個別に上書きする場合は`requiredOverride`（真偽値）に同じ値を保存し、`required`へ反映する。条件付き必須は通常の必須をfalseにし、この上書きを保持する。新版適用時は明示的な上書き・条件を維持し、上書きのない子項目には新版の必須設定を適用する。それ以外の構造が公開版と一致しない場合は検証エラーにする。参照する版がDefinitionにない場合もエラー。標準型も利用時にDefinitionへコピーするため、入力者側で型ライブラリを別途読み込む必要はない。
+
+単純な登録型を含む完全なDefinition例：
+
+```json
+{
+  "kind":"Definition","formatVersion":1,"id":"definition-types-1","title":"予算入力","fields":[
+    {"id":"budget-field","key":"budget","label":"予算額","type":"Integer","required":true,"min":0,"presentation":{"suffix":"円"},"typeRef":{"id":"money-type","version":1}}
+  ],
+  "typeDefinitions":[
+    {"id":"money-type","key":"money","name":"金額","description":"円単位の非負整数","versions":[
+      {"id":"money-version-1","version":1,"schema":{"id":"money-schema","key":"value","label":"金額","type":"Integer","min":0,"presentation":{"suffix":"円"}}}
+    ]}
+  ]
+}
+```
+
+要件定義のデータ型選択に登録型を表示する。「この項目を型として登録」では構造・規則・表示設定をコピーしてv1を公開し、その項目で使用する。項目のルート名・必須・条件は維持するが、書類を参照する条件は型のschemaへコピーしない。「通常の項目に展開」で参照を解除し、項目構造と入力値を保持したまま直接編集へ戻せる。
+
+「新版への更新を確認」では定義と入力値の差分を表示し、明示的な適用前に履歴を記録する。型内の元項目IDに基づき子項目の識別子を維持し、名前の変更時も値を引き継ぐ。出力・リッチ文書の参照・テンプレート・条件ノード・簡易条件のパスも更新する。追加項目には初期値を入れ、削除項目や基本型が変わる値は変更内容に表示する。削除項目への既存参照は検証エラーとして修正する。配列行の`_id`・`_meta`を維持する。Undo/Redoで適用を戻せる。
+
+型を登録する機能は入力構造・規則・表示の再利用を対象とする。独自JavaScript、関数によるEnum生成、独自の比較・変換処理、他の登録型へのschema内参照は扱わない。例えば和暦年度全体の前後比較や西暦変換は未実装で、現段階の条件は展開された元号・年数の子項目を参照する。
+
+### TypeLibraryファイル
+
+型だけを別の書類へ持ち込むための追加形式。`{kind:"TypeLibrary",formatVersion:1,typeDefinitions:[...]}`。Definitionで説明した型の公開版だけを含み、書類の入力値・出力デザイン・下書き・履歴を含めない。「型を定義 → 保存・読込」または編集者の保存対象から選べる。JSON貼付け・gzipも通常ファイルと同様に利用できる。
+
+読み込みは現在のライブラリへ追加・統合し、既存の項目・入力値・使用版を保持する。同じ型ID・版番号で内容が異なる場合は上書きせずエラーとする。既存の型名・キー・下書きも保持する。標準型を含む全ての参照先は、使用する時点でDefinitionに同梱する。
 
 ### 複合入力と表示設定
 

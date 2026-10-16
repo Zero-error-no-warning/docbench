@@ -4,6 +4,7 @@
 
 | 要件 | 現行の実装 | 拡張事項 |
 | --- | --- | --- |
+| 型定義フェーズ・登録型 | 構造・入力規則・表示設定の版付きライブラリ、標準の和暦年度・和暦年、項目から登録、差分確認付き版更新、Definition同梱・TypeLibrary共有 | 独自の比較・変換処理、型内の登録型参照 |
 | 3ツールとManager/Userの分離 | 工程タブと入力者モード、独立JSON | 配置先による権限管理 |
 | String/Text/RichText/Integer/Float/Boolean/Date/DateTime/Enum/MultiEnum/File/Image/Object/Array/Table | 全15型をフォーム生成・検証 | 高度なRichTextのOffice表現 |
 | 必須・文字数・数値・日付・選択・条件付き必須 | 画面で定義、出力前検証 | 複合条件、任意式 |
