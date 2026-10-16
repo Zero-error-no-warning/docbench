@@ -2,7 +2,10 @@
 (function(root){
 'use strict';const D=root.DocBench,px=96/2.54;
 function attachWordEditor(surface,config,doc){
- let editor=null;const editors=new Map(),lib=root.DocBenchEditorLib;let emptyBlock=null;if(!(config.design.blocks||[]).length){emptyBlock={id:D.uid(),type:'rich',content:D.identifyRich(D.plainRich(''))};const node=doc.createElement('section');node.dataset.blockId=emptyBlock.id;node.className='word-empty';doc.querySelector('main').insertBefore(node,doc.querySelector('main>footer'));config={...config,design:{...config.design,blocks:[emptyBlock]}};}
+ const lib=root.DocBenchEditorLib,required={TextSelection:['between','near'],Selection:['fromJSON'],StepMap:[]};
+ const missing=Object.entries(required).filter(([name,methods])=>typeof lib?.[name]!=='function'||methods.some(method=>typeof lib[name][method]!=='function')||name==='StepMap'&&!lib[name].empty).map(([name])=>name);
+ if(missing.length){const error=Error('Word編集用ライブラリの必要なAPIがありません（'+missing.join(', ')+'）。vendor/tiptap.min.js をHTMLと同じ配布版のファイルに差し替え、ページを再読み込みしてください。');error.code='WORD_EDITOR_DEPENDENCY';throw error;}
+ let editor=null;const editors=new Map();let emptyBlock=null;if(!(config.design.blocks||[]).length){emptyBlock={id:D.uid(),type:'rich',content:D.identifyRich(D.plainRich(''))};const node=doc.createElement('section');node.dataset.blockId=emptyBlock.id;node.className='word-empty';doc.querySelector('main').insertBefore(node,doc.querySelector('main>footer'));config={...config,design:{...config.design,blocks:[emptyBlock]}};}
  const activate=(id,e)=>{editor=e;base.select(id,false);config.onSelect(id);config.onSelectionStyle?.();};
  function syncSelection(view=editor?.view){
   if(!view||view.isDestroyed||view.composing||!(view.state.selection instanceof lib.TextSelection))return;

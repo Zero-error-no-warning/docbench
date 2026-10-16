@@ -446,7 +446,7 @@ IndexedDBの`docbench-workspace-v1`へWorkspaceを自動保存し、利用でき
 
 ## 第三者ライブラリ
 
-ランタイムは以下をvendorに同梱する。portable版も別ファイルのvendorを参照し、CDNへアクセスしない。
+ランタイムは以下をvendorに同梱する。portable版も別ファイルのvendorを参照し、CDNへアクセスしない。 HTMLとvendorは同じ配布版を組み合わせる。Word編集は`DocBenchEditorLib.TextSelection`、`Selection`、`StepMap`の存在と必要なメソッドを開始時に確認し、不足時は`vendor/tiptap.min.js`の差替え・再読込を編集領域に案内する。
 
 | ライブラリ | 版 | 出典 | ライセンス |
 | --- | --- | --- | --- |
