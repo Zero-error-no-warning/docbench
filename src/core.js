@@ -9,6 +9,17 @@ const now = () => new Date().toISOString();
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const safeKey = k => /^[A-Za-z][A-Za-z0-9_]*$/.test(k) && !['constructor','prototype','__proto__'].includes(k);
 const field = (key,label,type='String',extra={}) => ({id:uid(),key,label,type,section:'基本情報',group:'',description:'',required:false,...extra});
+const numberTypes=['Integer','Float'];
+function inputLabel(f,value){const labels=f.presentation?.valueLabels;return typeof value==='number'&&labels&&Object.hasOwn(labels,String(value))?labels[String(value)]:value===null||value===undefined?'':String(value);}
+function parseNumberInput(f,raw){const value=String(raw).trim();if(!value)return '';for(const [number,label]of Object.entries(f.presentation?.valueLabels||{}))if(value===label)return Number(number);if(!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(value)||!Number.isFinite(Number(value)))return raw;return Number(value);}
+function numberInputError(f,v){if(v===null||v===undefined||v==='')return '';if(typeof v!=='number'||!Number.isFinite(v)||f.type==='Integer'&&!Number.isInteger(v))return '数値型が一致しません';if(f.min!==undefined&&v<f.min)return '最小値を下回っています';if(f.max!==undefined&&v>f.max)return '最大値を上回っています';return '';}
+function yearInputExample(){return {presentation:{layout:'inline',separator:'',hideChildLabels:true},fields:[field('era','元号','Enum',{options:['令和','平成','昭和','大正','明治'],default:'令和',required:true}),field('year','年数','Integer',{min:1,required:true,presentation:{suffix:'年',valueLabels:{'1':'元'}}})]};}
+function validatePresentation(f,err,path){const p=f.presentation;if(p===undefined)return;if(!p||typeof p!=='object'||Array.isArray(p)){err(path,'表示設定はオブジェクトです');return;}for(const k of Object.keys(p))if(!['layout','separator','hideChildLabels','prefix','suffix','valueLabels'].includes(k))err(path+'.'+k,'未対応の表示設定です');
+ for(const k of ['layout','separator','hideChildLabels'])if(p[k]!==undefined&&f.type!=='Object')err(path+'.'+k,'Objectの表示設定です');
+ if(p.layout!==undefined&&!['stacked','inline'].includes(p.layout))err(path+'.layout','stackedまたはinlineを指定してください');if(p.separator!==undefined&&(typeof p.separator!=='string'||p.separator.length>40))err(path+'.separator','区切りは40文字以内の文字列です');if(p.hideChildLabels!==undefined&&typeof p.hideChildLabels!=='boolean')err(path+'.hideChildLabels','真偽値を指定してください');
+ for(const k of ['prefix','suffix'])if(p[k]!==undefined){if(!['String','Text','Integer','Float','Date','DateTime','Enum'].includes(f.type))err(path+'.'+k,'単純な文字列・数値・日付・選択項目に指定してください');if(typeof p[k]!=='string'||p[k].length>100)err(path+'.'+k,'接辞は100文字以内の文字列です');}
+ if(p.valueLabels!==undefined){const labels=p.valueLabels;if(!numberTypes.includes(f.type))err(path+'.valueLabels','数値項目の表示名です');if(!labels||typeof labels!=='object'||Array.isArray(labels)||Object.keys(labels).length>100){err(path+'.valueLabels','表示名は100件以内のオブジェクトです');return;}const used=new Set();for(const [k,label]of Object.entries(labels)){const n=Number(k);if(!k||!Number.isFinite(n)||String(n)!==k||f.type==='Integer'&&!Number.isInteger(n)||numberInputError(f,n))err(path+'.valueLabels.'+k,'項目の型・範囲に一致する数値を指定してください');if(typeof label!=='string'||!label.trim()||label!==label.trim()||label.length>100||used.has(label)||label!==''&&Number.isFinite(Number(label))&&Number(label)!==n)err(path+'.valueLabels.'+k,'表示名は前後空白なし・重複なしの1〜100文字で、別の数値と重ならないようにしてください');used.add(label);}}
+}
 function defaultValue(f,actor='作成者') {
  if(f.type==='Object') return Object.fromEntries((f.fields||[]).map(c=>[c.key,defaultValue(c,actor)]));
  if(['Array','Table'].includes(f.type)) return Array.from({length:f.initialRows||0},()=>newRow(f,actor));
@@ -182,6 +193,7 @@ function validateDefinition(def,render) {
   if(!f.id||ids.has(f.id))err(p,'項目IDが未指定または重複');ids.add(f.id);
   if(!safeKey(f.key)||keys.has(f.key))err(p,'項目キーは半角英字から始まる英数字・_で、同階層で一意にしてください');keys.add(f.key);
   if(!types.includes(f.type))err(p,'未対応の型');if(!f.label)err(p,'表示名がありません');
+  validatePresentation(f,err,p+'.presentation');
   for(const k of ['min','max','minLength','maxLength','minItems','maxItems','initialRows','minSelections','maxSelections'])if(f[k]!==undefined&&(typeof f[k]!=='number'||!Number.isFinite(f[k])||!['min','max'].includes(k)&&(!Number.isInteger(f[k])||f[k]<0)))err(p,k+'の数値が不正です');
   if(f.initialRows>1000)err(p,'初期行数の上限は1000です');
   for(const [lo,hi] of [['min','max'],['minLength','maxLength'],['minItems','maxItems'],['minDate','maxDate'],['minSelections','maxSelections']])if(f[lo]!==undefined&&f[lo]!==''&&f[hi]!==undefined&&f[hi]!==''&&f[lo]>f[hi])err(p,lo+'が'+hi+'を上回っています');
@@ -253,7 +265,7 @@ function validateData(def,values){const errors=[],globalIds=new Set(),input=inpu
  if(required&&empty){err(p,'必須項目です');continue;}if(empty)continue;
  if(['String','Text','RichText','Enum','Date','DateTime'].includes(f.type)&&typeof v!=='string'){err(p,'文字列で入力してください');continue;}
  if(['String','Text','RichText'].includes(f.type)){const count=Array.from(v.replace(/<[^>]*>/g,'')).length;if(f.minLength!==undefined&&count<f.minLength)err(p,'文字数が不足しています');if(f.maxLength!==undefined&&count>f.maxLength)err(p,'文字数が上限を超えています');}
- if(['Integer','Float'].includes(f.type)){if(typeof v!=='number'||!Number.isFinite(v)||f.type==='Integer'&&!Number.isInteger(v))err(p,'数値型が一致しません');if(f.min!==undefined&&v<f.min)err(p,'最小値を下回っています');if(f.max!==undefined&&v>f.max)err(p,'最大値を上回っています');}
+ if(numberTypes.includes(f.type)){const message=numberInputError(f,v);if(message)err(p,message);}
  if(f.type==='Boolean'&&typeof v!=='boolean')err(p,'真偽値で入力してください');
  if(['Date','DateTime'].includes(f.type)){const pattern=f.type==='Date'?/^\d{4}-\d{2}-\d{2}$/:/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;if(!pattern.test(v)||!Number.isFinite(Date.parse(v))||f.type==='Date'&&new Date(v).toISOString().slice(0,10)!==v)err(p,'無効な日付です');if(f.minDate&&v<f.minDate)err(p,'日付が下限より前です');if(f.maxDate&&v>f.maxDate)err(p,'日付が上限より後です');}
  if(f.type==='Enum'&&!f.options?.includes(v))err(p,'選択肢にない値です');
@@ -275,6 +287,6 @@ function validateData(def,values){const errors=[],globalIds=new Set(),input=inpu
 }
 function envelope(ws,kind){if(kind==='Workspace')return clone(ws);const key=kind==='Definition'?'definition':kind==='RenderDefinition'?'render':'data';return {...clone(ws[key]),history:{currentBranch:ws.currentBranch,branches:clone(ws.branches),nodes:ws.history.map(n=>({...clone(n),state:clone(n.state[key])}))}};}
 function assertImport(v){if(!v||typeof v!=='object'||v.formatVersion!==1||!['Workspace','Definition','RenderDefinition','DocumentData'].includes(v.kind))throw Error('DocBench形式v1のJSONを選んでください');const check=JSON.stringify(v);if(/"(?:__proto__|constructor|prototype)"\s*:/.test(check))throw Error('予約プロパティを含むJSONは読み込めません');if(check.length>80*1024*1024)throw Error('読み込み上限は80MBです');if(v.kind==='Workspace'){if(!v.definition||!v.render||!v.data||!Array.isArray(v.history)||!v.branches||!Object.hasOwn(v.branches,v.currentBranch))throw Error('Workspaceの必須構造がありません');const ids=new Set(v.history.map(n=>n.id));if(ids.size!==v.history.length||v.history.some(n=>!n.state||!Array.isArray(n.parents)||n.parents.some(p=>!ids.has(p)))||Object.values(v.branches).some(id=>!ids.has(id)))throw Error('履歴IDまたは親状態の参照が不正です');const active=new Set(),done=new Set(),map=new Map(v.history.map(n=>[n.id,n]));function walk(id){if(active.has(id))throw Error('履歴の循環参照を検出');if(done.has(id))return;active.add(id);for(const p of map.get(id).parents)walk(p);active.delete(id);done.add(id);}ids.forEach(walk);}return normalizeOutputModels(v);}
-root.DocBench={types,clone,equal,uid,now,esc,safeKey,field,defaultValue,newRow,renderDocument,outputDocuments,outputDesigns,createOutputDocument,duplicateOutputDocument,normalizeRender,normalizeOutputModels,sample,state,snapshot,checkout,ancestor,merge,diff,get,fieldAt,allFields,conditionTypes,schemaPath,conditionFields,inputState,validateDefinition,validateData,envelope,assertImport};
+root.DocBench={inputLabel,parseNumberInput,numberInputError,yearInputExample,types,clone,equal,uid,now,esc,safeKey,field,defaultValue,newRow,renderDocument,outputDocuments,outputDesigns,createOutputDocument,duplicateOutputDocument,normalizeRender,normalizeOutputModels,sample,state,snapshot,checkout,ancestor,merge,diff,get,fieldAt,allFields,conditionTypes,schemaPath,conditionFields,inputState,validateDefinition,validateData,envelope,assertImport};
 if(typeof module!=='undefined')module.exports=root.DocBench;
 })(typeof globalThis!=='undefined'?globalThis:this);

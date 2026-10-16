@@ -73,6 +73,37 @@ LLMへの指示例：
 
 Objectは子項目で構成する。Arrayは全要素を行ラッパーで持ち、単純値を`value`に格納する。TableとObject要素Arrayは列値を行直下に格納する。複合キー・任意式の要素間整合性は今後の拡張。
 
+### 複合入力と表示設定
+
+`presentation`は任意の表示設定。Objectの子項目を横並びにしたり、数値に単位・表示名を付けられる。値の型や条件判定の意味は変わらない。
+
+| 設定 | 対象・意味 |
+| --- | --- |
+| layout | Object。`stacked`（既定・縦並び）または`inline`（横並び・幅不足時に折返し） |
+| hideChildLabels | Object。子項目の表示名を隠す。入力欄のアクセシブル名は保持 |
+| separator | Objectのinline出力で子項目をつなぐ文字列。既定は空文字、最大40文字 |
+| prefix / suffix | String / Text / Integer / Float / Date / DateTime / Enum。入力欄・成果物の前後に表示する文字列。各100文字以内。保存値には含めない |
+| valueLabels | Integer / Float。保存する数値と表示名の対応。例：`{"1":"元"}`。100件以内 |
+
+表示名のキーは項目の型・範囲に一致する有限数値の標準文字列（`1`は可、`01`は不可）。表示名は前後空白なし・重複なしの1〜100文字とし、別の数値に見える名前は不可。表示名がある数値欄では、数値・表示名のどちらを入力しても数値として保存する。未入力は空文字のままで0にはしない。不正な入力は検証エラーとなる。
+
+和暦の「年だけ」を入力する例（項目定義の断片）：
+
+```json
+{
+  "id":"year-only","key":"targetYear","label":"対象年","type":"Object",
+  "presentation":{"layout":"inline","hideChildLabels":true,"separator":""},
+  "fields":[
+    {"id":"year-era","key":"era","label":"元号","type":"Enum","options":["令和","平成","昭和","大正","明治"],"default":"令和","required":true},
+    {"id":"year-number","key":"year","label":"年数","type":"Integer","min":1,"required":true,"presentation":{"suffix":"年","valueLabels":{"1":"元"}}}
+  ]
+}
+```
+
+入力データは`{"targetYear":{"era":"令和","year":1}}`、表示は「令和元年」。元年の保存値は1であり、0は最小値制約でエラーにする。年数は初期値を持たず、未入力と元年を区別する。要件定義では、空のObjectを選び「入力・表示」→「和暦年の設定例を使う」で同じ定義を作れる。元号一覧や表示名は通常の設定として変更できる。日付型への変換、西暦との変換、各元号の実在年範囲の検証、関数によるEnum生成は行わない。
+
+inlineの成果物出力は、表示対象の子項目を定義順に連結する。空値の子項目は単位ごと省略し、全子項目が空なら`—`。表示名・前後の文字列はHTML / Word / Excel / PowerPoint / PDFプレビューへ反映する。Excelでは表示名に該当する数値、または接頭辞・接尾辞がある数値は表示文字列として出力する。それ以外の数値セルは数値のまま。Document Dataと条件判定は常に元の型・数値を使う。
+
 ### 条件による入力項目の切替
 
 ```json
