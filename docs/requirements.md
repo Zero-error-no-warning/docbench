@@ -6,9 +6,10 @@
 | --- | --- | --- |
 | 型定義フェーズ・登録型 | 構造・入力規則・表示設定の登録型、標準の和暦年度・和暦年、即時選択・使用箇所への編集反映、書式全体の履歴、Definition同梱・TypeLibraryコピー共有 | 独自の比較・変換処理、型内の登録型参照 |
 | 3ツールとManager/Userの分離 | 工程タブと入力者モード、独立JSON | 配置先による権限管理 |
-| String/Text/RichText/Integer/Float/Boolean/Date/DateTime/Enum/MultiEnum/File/Image/Object/Array/Table | 全15型をフォーム生成・検証 | 高度なRichTextのOffice表現 |
+| String/Text/RichText/Integer/Float/Boolean/Date/DateTime/Enum/MultiEnum/TreeEnum/File/Image/Object/Array/Table | 全16型をフォーム生成・検証 | 高度なRichTextのOffice表現 |
 | 必須・文字数・数値・日付・選択・条件付き必須 | 画面で定義、出力前検証 | 複合条件、任意式 |
 | セクション・グループ・順序・説明 | フォーム構造、項目の上下/ドラッグ移動 | 独立したセクション編集 |
+| 階層選択 TreeEnum | ツリー編集、段階式・検索入力、末端/途中選択、ID経路、階層の条件判定、共有・出力 | 複数経路の同時選択 |
 | 配列・表の型/行数/操作可否/初期行/行名 | 画面で定義、操作を制御 | 初期行ごとの初期値設定 |
 | 業務キー・重複禁止・並び順 | 単一列、昇順/降順 | 複合キー、任意の要素間整合性式 |
 | 各配列要素の不変ID・メタデータ | _id/_meta、複製元ID、作成/更新者日時 | 監査を要する認証済み作成者 |

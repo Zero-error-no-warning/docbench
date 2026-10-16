@@ -11,6 +11,7 @@ LLMへの指示例：
 > 添付したDocBench JSON仕様と現在のDefinition・RenderDefinitionに従い、指定する書類を作成・修正してください。現在のdefinitionId、既存の書類・項目・ブロック・リッチ文書ノードのIDを維持し、新規要素だけに一意なIDを付けてください。使用する項目はDefinitionに存在するものに限り、未対応の機能や独自プロパティを追加しないでください。各ファイルを部分差分ではなく、読み込める完全なJSONとして返してください。変更したファイルの種類と、読み込む順序も説明してください。
 
 - デザインだけを変更する場合は、`kind:"RenderDefinition"`の完全なJSONを生成する。`definitionId`は現在のDefinitionの`id`と一致させる。`documents[]`と`defaultDocumentId`を指定し、各書類の`outputFormat`に対応する`designs`へ配置・書式を記述する。
+- 階層選択は`TreeEnum`と選択肢IDの経路配列を使用する。階層条件は専用の`treeMatch`ノードで記述し、表示名をIDとして扱ったり、ID配列を文字列の固定値へ変換しない。JSONを直接変更する場合は、使用箇所・条件・入力データの経路も同じ選択肢IDに基づいて更新する。
 - 型を作成・改訂する場合は、下記の`typeDefinitions`と`typeRef`に従う。型の変更は入力項目・条件・出力定義と一緒に書式全体の履歴で管理する。`schema`を編集し、使用箇所の展開済み構造も一致させる。`type`は基本型のまま、登録型のIDだけを`typeRef`で指定する。型ID・schema内の項目ID・使用箇所の項目IDは維持する。独自の`type:"FiscalYear"`等は作らない。型だけを共有する場合は`kind:"TypeLibrary"`を使う。
 - 新しい入力項目や条件ノードが必要な場合は、完全なDefinitionも生成する。`ruleGraph`はDefinitionに置き、出力定義の`generateWhen` / `when`はそのノードを参照する。既存条件を変えずにデザインだけを変える場合、Definitionを書き換える必要はない。
 - 新規作成でサンプル入力値も作る場合は、DocumentDataを別の完全なJSONとして生成する。同じDefinitionの`id`を`definitionId`に使い、配列・表の行には`_id`と`_meta`を付ける。
@@ -47,7 +48,7 @@ LLMへの指示例：
 }
 ```
 
-項目の`key`は半角英字から始まる英数字・`_`で、同階層で一意。`id`は定義内で一意。型は`String`、`Text`、`RichText`、`Integer`、`Float`、`Boolean`、`Date`、`DateTime`、`Enum`、`MultiEnum`、`File`、`Image`、`Object`、`Array`、`Table`。
+項目の`key`は半角英字から始まる英数字・`_`で、同階層で一意。`id`は定義内で一意。型は`String`、`Text`、`RichText`、`Integer`、`Float`、`Boolean`、`Date`、`DateTime`、`Enum`、`MultiEnum`、`TreeEnum`、`File`、`Image`、`Object`、`Array`、`Table`。
 
 | 項目 | 意味 |
 | --- | --- |
@@ -62,7 +63,7 @@ LLMへの指示例：
 | section / group | フォーム内の見出し。配列順で表示 |
 | description | 入力者向け説明 |
 | fields | Object内部・Table列・Object要素Arrayの子項目 |
-| itemType | Array要素の型。単純型またはObject、Array/Tableの直接入れ子は未対応（Objectを介して可） |
+| itemType | Array要素の型。単純型またはObject、Array/Table/TreeEnumの直接指定は未対応（Objectを介して可） |
 | default | 単純値の既定値 |
 | minItems / maxItems | 配列・表の行数制約 |
 | initialRows | 新規データの初期行数。初版上限1000 |
@@ -76,7 +77,7 @@ Objectは子項目で構成する。Arrayは全要素を行ラッパーで持ち
 
 ### 型ライブラリと登録型
 
-「型を定義」は要件定義の前に利用できる編集画面。標準の「和暦年度」「和暦年」を用意し、独自の型を構造・規則・表示設定の組合せとして追加できる。基本型15種はそのまま保持する。
+「型を定義」は要件定義の前に利用できる編集画面。標準の「和暦年度」「和暦年」を用意し、独自の型を構造・規則・表示設定の組合せとして追加できる。基本型16種はそのまま保持する。
 
 Definitionの任意の`typeDefinitions`配列に型を同梱する。各型は`id`、同一ライブラリ内で一意な英字キー`key`、名前`name`、任意の説明`description`、現在の定義`schema`を持つ。型ごとの版番号・公開・下書きの区別は設けない。型定義・入力項目・条件・出力デザインをまとめて書式全体の履歴で管理する。「全体」を保存すると全てとその履歴を保存できる。
 
@@ -110,6 +111,50 @@ Definitionの任意の`typeDefinitions`配列に型を同梱する。各型は`i
 型だけを別の書式へ持ち込むための追加形式。`{kind:"TypeLibrary",formatVersion:1,typeDefinitions:[...]}`。現在の型schemaだけを含み、書類の入力値・出力デザイン・履歴を含めない。「型を定義 → 保存・読込」または編集者の保存対象から選べる。JSON貼付け・gzipも通常ファイルと同様に利用できる。
 
 読み込みはこの書式へのローカルコピーとして追加する。既存の項目・入力値・型定義は上書きしない。同じ型IDでschemaが同じなら追加を省略し、schemaが異なる場合は新しい型IDと一意なキーで別の型として追加する。コピー元のIDは任意の`originId`に保持し、同じ内容の再取り込みでは重複を増やさない。型名や説明の差だけでは既存型を変更しない。外部ファイルへの継続的なリンクは作らない。標準型は`source:"standard"`を持つことがあるが、共有後もこの書式内の定義として扱う。
+
+### 階層選択型 TreeEnum
+
+部署など、親子関係を持つ選択肢から1つの経路を選ぶ型。基本型として直接設定でき、「型を定義」で構造・入力方法・出力表示を登録型にまとめることもできる。連動選択のために表示条件を個別に定義する必要はない。
+
+- `options`: `{id,label,children?}`のツリー配列。`id`はツリー内で一意かつ不変の文字列、`label`は1〜200文字。同じ親の子は同名不可、異なる親の下なら同名可。`children`は任意の配列。最大32階層・10000選択肢で、循環・ID重複を検証する。名称・親・並び順を変更してもIDを変えない。
+- `leafOnly`: 既定true。trueは末端まで選択、falseは途中の階層でも選択可。
+- `treeInput`: `cascade`（既定、階層ごとのプルダウン）または`tree`（検索付きツリー）。親を選び直すと子の選択を解除する。検索は経路全体の表示名を対象とし、実行コードを含まない。
+- `presentation.pathDisplay`: `full`（既定、経路全体）または`leaf`（末端名のみ）。`presentation.separator`は経路の区切り（既定` ／ `、40文字以内）。通常のHTML・Word・Excel・PowerPoint・PDFプレビュー・テンプレート・Wordリッチ文書の参照で共通の表示を使う。
+- 入力値と任意の`default`は、根から選択先までの選択肢IDの配列。未入力は`[]`。例：表示`A ／ B`は`["dept-a","dept-ab"]`。別の`D ／ B`は`["dept-d","dept-db"]`。名前・配列位置で同一性を判定しない。MultiEnumの複数選択とは異なる。
+
+完全なDefinitionと入力値の例：
+
+```json
+{
+  "kind":"Definition","formatVersion":1,"id":"definition-tree-1","title":"部署選択",
+  "fields":[{
+    "id":"department-field","key":"department","label":"担当部署","type":"TreeEnum","required":true,
+    "options":[
+      {"id":"dept-a","label":"A","children":[{"id":"dept-ab","label":"B"},{"id":"dept-ac","label":"C"}]},
+      {"id":"dept-d","label":"D","children":[{"id":"dept-db","label":"B"},{"id":"dept-de","label":"E"}]}
+    ],
+    "leafOnly":true,"treeInput":"cascade","presentation":{"pathDisplay":"full","separator":" ／ "}
+  }]
+}
+```
+
+```json
+{"kind":"DocumentData","formatVersion":1,"id":"data-tree-1","definitionId":"definition-tree-1","values":{"department":["dept-d","dept-de"]}}
+```
+
+存在しない経路・親子が連続しない経路・型不一致・末端必須なのに途中までの選択は入力エラー。非表示の項目は通常どおり入力検証の対象外。選択肢の移動は有効な入力経路の末端IDに基づいて追従し、同じ項目を参照する階層条件の経路も更新する。削除された選択肢の入力値・条件は保持し、検証で選び直しを促す。登録型の編集では同じ書式内の全使用箇所へ反映し、Undo・履歴でまとめて戻せる。
+
+Object内とTable列、Object要素のArray内でも使用できる。単純要素Arrayの`itemType:"TreeEnum"`は使わず、選択肢設定を持つTreeEnumの子項目をObject内に定義する。
+
+階層の判定は条件グラフの専用ノードを使う。通常の`field`/`literal`/`compare`でID配列を文字列として比較しない。
+
+```json
+{"id":"department-match","type":"treeMatch","field":"department","path":["dept-a"],"operator":"descendant","position":{"x":40,"y":60}}
+```
+
+`operator:"eq"`は経路全体の一致、`"descendant"`は指定経路自身とその配下（経路の接頭辞）の判定。未入力・不完全・無効な入力や非表示の参照元は未確定になる。判定経路は途中階層でも指定できるが、存在しない経路・配列内の項目参照は定義エラー。出力ポート`result`はBooleanで、AND/OR/NOT・表示・必須・書類生成・出力要素の条件へ共通に接続できる。入力ポートはない。条件の依存・表示循環・未定義参照も通常の検証対象になる。
+
+簡易条件には`{field:"department",equals:["dept-a"],operator:"descendant"}`を使用でき、`operator`省略時は`eq`。画面のノード編集を開くと`treeMatch`へ変換する。通常の項目設定の条件選択からも経路を選べる。TreeEnumを含むファイルは、この型に対応する版のDocBenchで開くこと。
 
 ### 複合入力と表示設定
 
@@ -155,7 +200,7 @@ inlineの成果物出力は、表示対象の子項目を定義順に連結す�
 
 種別Aでは項目Xを表示し必須にする。Bでは項目Xを表示しない。Definitionの項目構造は維持し、その入力値に対する有効な項目の集合を計算する。表示条件なしは常に表示する。`requiredWhen`は表示とは独立で、表示されている項目だけに適用する。旧ファイルで両方が指定されている場合は`required:true`を優先する。画面では常時必須または条件付き必須のどちらかを設定する。
 
-上記は互換用の単一等値比較の記法。複合条件は後述の共通条件グラフを使う。参照元はルートまたはObject内のString/Text/Integer/Float/Boolean/Date/DateTime/Enum。配列内の各行・複合型は条件元に使用しない。Enum値は定義済み選択肢、Boolean値はtrue/false、数値は数値型で指定する。画面では項目を選び、Enumは選択肢、Booleanははい/いいえ、数値・日付は対応する入力欄で設定する。AND/OR/NOT・大小比較はノードエディタに対応し、行ごとの条件は未実装。
+上記は互換用の単一等値比較の記法。複合条件は後述の共通条件グラフを使う。参照元はルートまたはObject内のString/Text/Integer/Float/Boolean/Date/DateTime/Enum/TreeEnum。TreeEnumは上記の階層判定を使う。配列内の各行・複合型は条件元に使用しない。Enum値は定義済み選択肢、Boolean値はtrue/false、数値は数値型で指定する。画面では項目を選び、Enumは選択肢、Booleanははい/いいえ、数値・日付は対応する入力欄で設定する。AND/OR/NOT・大小比較はノードエディタに対応し、行ごとの条件は未実装。
 
 Object・Array・Table全体や内部の項目にも`visibleWhen`を設定できる。親が非表示なら子も非表示。表の条件付き列は全行共通の条件で列全体を切り替える。非表示の条件元の保存値は条件評価に使わず、依存項目も非表示になる。表示条件の自己参照・相互参照・親子間の循環を検証する。未定義項目・対応外の型・等値の型不一致も定義エラー。
 
@@ -218,6 +263,7 @@ Object・Array・Table全体や内部の項目にも`visibleWhen`を設定でき
 | field | `field`はDefinition内のドットパス | なし | 項目の値 |
 | literal | `valueType`と`value` | なし | 固定値 |
 | compare | `operator` | `left`と`right`にそれぞれ1本 | 条件結果 |
+| treeMatch | TreeEnumの`field`、ID経路`path`、`operator: eq / descendant` | なし | 経路一致・自身と配下の判定結果 |
 | and | 任意の`label` | `items`に1本以上、複数可 | すべて成立なら成立 |
 | or | 任意の`label` | `items`に1本以上、複数可 | いずれか成立なら成立 |
 | not | 任意の`label` | `value`に1本 | 成立と不成立を反転 |

@@ -1,7 +1,7 @@
 /* DocBench core: browser-independent, stable identity and three-way merge. */
 (function (root) {
 'use strict';
-const types = ['String','Text','RichText','Integer','Float','Boolean','Date','DateTime','Enum','MultiEnum','File','Image','Object','Array','Table'];
+const types = ['String','Text','RichText','Integer','Float','Boolean','Date','DateTime','Enum','MultiEnum','TreeEnum','File','Image','Object','Array','Table'];
 const clone = v => v === undefined ? undefined : JSON.parse(JSON.stringify(v));
 const equal = (a,b) => JSON.stringify(a) === JSON.stringify(b);
 const uid = () => 'id_'+(globalThis.crypto?.randomUUID?.() || Date.now().toString(36)+'_'+Math.random().toString(36).slice(2));
@@ -14,10 +14,11 @@ function inputLabel(f,value){const labels=f.presentation?.valueLabels;return typ
 function parseNumberInput(f,raw){const value=String(raw).trim();if(!value)return '';for(const [number,label]of Object.entries(f.presentation?.valueLabels||{}))if(value===label)return Number(number);if(!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(value)||!Number.isFinite(Number(value)))return raw;return Number(value);}
 function numberInputError(f,v){if(v===null||v===undefined||v==='')return '';if(typeof v!=='number'||!Number.isFinite(v)||f.type==='Integer'&&!Number.isInteger(v))return '数値型が一致しません';if(f.min!==undefined&&v<f.min)return '最小値を下回っています';if(f.max!==undefined&&v>f.max)return '最大値を上回っています';return '';}
 function yearInputExample(){return {presentation:{layout:'inline',separator:'',hideChildLabels:true},fields:[field('era','元号','Enum',{options:['令和','平成','昭和','大正','明治'],default:'令和',required:true}),field('year','年数','Integer',{min:1,required:true,presentation:{suffix:'年',valueLabels:{'1':'元'}}})]};}
-function validatePresentation(f,err,path){const p=f.presentation;if(p===undefined)return;if(!p||typeof p!=='object'||Array.isArray(p)){err(path,'表示設定はオブジェクトです');return;}for(const k of Object.keys(p))if(!['layout','separator','hideChildLabels','prefix','suffix','valueLabels'].includes(k))err(path+'.'+k,'未対応の表示設定です');
- for(const k of ['layout','separator','hideChildLabels'])if(p[k]!==undefined&&f.type!=='Object')err(path+'.'+k,'Objectの表示設定です');
+function validatePresentation(f,err,path){const p=f.presentation;if(p===undefined)return;if(!p||typeof p!=='object'||Array.isArray(p)){err(path,'表示設定はオブジェクトです');return;}for(const k of Object.keys(p))if(!['layout','separator','hideChildLabels','prefix','suffix','valueLabels','pathDisplay'].includes(k))err(path+'.'+k,'未対応の表示設定です');
+ for(const k of ['layout','separator','hideChildLabels'])if(p[k]!==undefined&&f.type!=='Object'&&!(k==='separator'&&f.type==='TreeEnum'))err(path+'.'+k,'Objectの表示設定です');
  if(p.layout!==undefined&&!['stacked','inline'].includes(p.layout))err(path+'.layout','stackedまたはinlineを指定してください');if(p.separator!==undefined&&(typeof p.separator!=='string'||p.separator.length>40))err(path+'.separator','区切りは40文字以内の文字列です');if(p.hideChildLabels!==undefined&&typeof p.hideChildLabels!=='boolean')err(path+'.hideChildLabels','真偽値を指定してください');
  for(const k of ['prefix','suffix'])if(p[k]!==undefined){if(!['String','Text','Integer','Float','Date','DateTime','Enum'].includes(f.type))err(path+'.'+k,'単純な文字列・数値・日付・選択項目に指定してください');if(typeof p[k]!=='string'||p[k].length>100)err(path+'.'+k,'接辞は100文字以内の文字列です');}
+ if(p.pathDisplay!==undefined&&(f.type!=='TreeEnum'||!['full','leaf'].includes(p.pathDisplay)))err(path+'.pathDisplay','TreeEnumのfullまたはleafを指定してください');
  if(p.valueLabels!==undefined){const labels=p.valueLabels;if(!numberTypes.includes(f.type))err(path+'.valueLabels','数値項目の表示名です');if(!labels||typeof labels!=='object'||Array.isArray(labels)||Object.keys(labels).length>100){err(path+'.valueLabels','表示名は100件以内のオブジェクトです');return;}const used=new Set();for(const [k,label]of Object.entries(labels)){const n=Number(k);if(!k||!Number.isFinite(n)||String(n)!==k||f.type==='Integer'&&!Number.isInteger(n)||numberInputError(f,n))err(path+'.valueLabels.'+k,'項目の型・範囲に一致する数値を指定してください');if(typeof label!=='string'||!label.trim()||label!==label.trim()||label.length>100||used.has(label)||label!==''&&Number.isFinite(Number(label))&&Number(label)!==n)err(path+'.valueLabels.'+k,'表示名は前後空白なし・重複なしの1〜100文字で、別の数値と重ならないようにしてください');used.add(label);}}
 }
 function defaultValue(f,actor='作成者') {
@@ -25,6 +26,7 @@ function defaultValue(f,actor='作成者') {
  if(['Array','Table'].includes(f.type)) return Array.from({length:f.initialRows||0},()=>newRow(f,actor));
  if(f.type==='Boolean') return false;
  if(f.type==='MultiEnum') return [];
+ if(f.type==='TreeEnum') return clone(f.default??[]);
  if(['File','Image'].includes(f.type)) return null;
  return f.default ?? '';
 }
@@ -164,7 +166,7 @@ function diff(a,b,path='') {
 function get(obj,path){return String(path||'').split('.').reduce((v,k)=>v&&Object.hasOwn(v,k)?v[k]:undefined,obj);}
 function fieldAt(def,path){let fields=def.fields;let found;for(const k of String(path||'').split('.')){found=(fields||[]).find(f=>f.key===k);if(!found)return null;fields=found.fields;}return found;}
 function allFields(def){const out=[],seen=new WeakSet();function visit(fs,p){for(const f of Array.isArray(fs)?fs:[]){if(!f||typeof f!=='object'||seen.has(f))continue;seen.add(f);const path=p? p+'.'+f.key:f.key;out.push({field:f,path});visit(f.fields,path);}}visit(def.fields,'');return out;}
-const conditionTypes=['String','Text','Integer','Float','Boolean','Date','DateTime','Enum'];
+const conditionTypes=['String','Text','Integer','Float','Boolean','Date','DateTime','Enum','TreeEnum'];
 function schemaPath(path){return String(path).replace(/\[\d+\]/g,'').split('.').filter(p=>!/^\d+$/.test(p)).join('.');}
 function conditionFields(def){const all=allFields(def);return all.filter(x=>conditionTypes.includes(x.field.type)&&!all.some(p=>x.path.startsWith(p.path+'.')&&['Array','Table'].includes(p.field.type)));}
 function inputState(def,values){
@@ -175,7 +177,7 @@ function inputState(def,values){
   visiting.add(path);const parent=path.includes('.')?path.slice(0,path.lastIndexOf('.')):null;
   const result=(!parent||visible(parent))&&(!f.visibleWhen||matches(f.visibleWhen));visiting.delete(path);cache.set(path,result);return result;
  }
- function matches(condition){if(condition?.nodeId){const result=runtime?.evaluate(condition.nodeId);return result?.status==='known'&&result.valueType==='boolean'&&result.value===true;}return !!condition&&visible(condition.field)&&get(values,condition.field)!==undefined&&equal(get(values,condition.field),condition.equals);}
+ function matches(condition){if(condition?.nodeId){const result=runtime?.evaluate(condition.nodeId);return result?.status==='known'&&result.valueType==='boolean'&&result.value===true;}if(!condition||!visible(condition.field))return false;const f=fields.get(condition.field);if(f?.type==='TreeEnum')return root.DocBench.treePredicate(f,get(values,condition.field),condition.equals,condition.operator||'eq')===true;return get(values,condition.field)!==undefined&&equal(get(values,condition.field),condition.equals);}
  function required(f){return !!f.required||matches(f.requiredWhen);}
  function project(fs,obj,prefix){if(!obj||typeof obj!=='object'||Array.isArray(obj))return clone(obj);const result={};
   for(const [key,value] of Object.entries(obj))if(key.startsWith('_'))result[key]=clone(value);
@@ -197,14 +199,15 @@ function validateDefinition(def,render) {
   for(const k of ['min','max','minLength','maxLength','minItems','maxItems','initialRows','minSelections','maxSelections'])if(f[k]!==undefined&&(typeof f[k]!=='number'||!Number.isFinite(f[k])||!['min','max'].includes(k)&&(!Number.isInteger(f[k])||f[k]<0)))err(p,k+'の数値が不正です');
   if(f.initialRows>1000)err(p,'初期行数の上限は1000です');
   for(const [lo,hi] of [['min','max'],['minLength','maxLength'],['minItems','maxItems'],['minDate','maxDate'],['minSelections','maxSelections']])if(f[lo]!==undefined&&f[lo]!==''&&f[hi]!==undefined&&f[hi]!==''&&f[lo]>f[hi])err(p,lo+'が'+hi+'を上回っています');
+  if(f.type==='TreeEnum')for(const issue of root.DocBench.validateTreeEnum?.(f)||[])err(p+'.'+issue.path,issue.message);
   if(['Enum','MultiEnum'].includes(f.type)&&(!Array.isArray(f.options)||!f.options.length||new Set(f.options).size!==f.options.length))err(p,'選択肢は1件以上・重複なしで定義してください');
   for(const name of ['visibleWhen','requiredWhen'])if(f[name]!=null&&!f[name].nodeId){const c=f[name],ref=conditionFields(def).find(x=>x.path===c.field)?.field;
    if(!c||typeof c!=='object'||Array.isArray(c)||!Object.hasOwn(c,'equals'))err(p+'.'+name,'条件はfieldとequalsを指定してください');
    if(!ref)err(p+'.'+name,'条件の参照項目は配列外の文字列・数値・真偽値・日付・選択項目です');
-   else if(ref.type==='Boolean'?typeof c.equals!=='boolean':['Integer','Float'].includes(ref.type)?typeof c.equals!=='number'||!Number.isFinite(c.equals)||ref.type==='Integer'&&!Number.isInteger(c.equals):typeof c.equals!=='string'||ref.type==='Enum'&&!ref.options?.includes(c.equals))err(p+'.'+name,'条件の値が参照項目の型・選択肢と一致しません');
+   else if(ref.type==='TreeEnum'?!!root.DocBench.treeValueError?.(ref,c.equals,true)||!Array.isArray(c.equals)||!c.equals.length:ref.type==='Boolean'?typeof c.equals!=='boolean':['Integer','Float'].includes(ref.type)?typeof c.equals!=='number'||!Number.isFinite(c.equals)||ref.type==='Integer'&&!Number.isInteger(c.equals):typeof c.equals!=='string'||ref.type==='Enum'&&!ref.options?.includes(c.equals))err(p+'.'+name,'条件の値が参照項目の型・選択肢と一致しません');
   }
   if(['Object','Table'].includes(f.type)||(f.type==='Array'&&f.itemType==='Object'))walk(f.fields,p,depth+1);
-  if(f.type==='Array'&&(!types.includes(f.itemType)||['Object','Array','Table'].includes(f.itemType)&&f.itemType!=='Object'))err(p,'Array要素型は単純型またはObjectです');
+  if(f.type==='Array'&&(!types.includes(f.itemType)||(['Object','Array','Table'].includes(f.itemType)&&f.itemType!=='Object'||f.itemType==='TreeEnum')))err(p,'Array要素型は単純型またはObjectです');
   if(['Array','Table'].includes(f.type)){for(const name of ['businessKey','uniqueBy','sortBy'])if(f[name]&&f[name]!=='value'&&!(f.fields||[]).some(c=>c.key===f[name]))err(p,name+'に未定義の列が指定されています');if((f.initialRows||0)<(f.minItems||0)||(f.maxItems!==undefined&&(f.initialRows||0)>f.maxItems))err(p,'初期行数が最小・最大要素数の範囲外です');}
  }}walk(def.fields,'');
  if(root.DocBench.validateTypeLibrary){const check=root.DocBench.validateTypeLibrary(def);errors.push(...check.errors);warnings.push(...check.warnings);}
@@ -270,6 +273,7 @@ function validateData(def,values){const errors=[],globalIds=new Set(),input=inpu
  if(f.type==='Boolean'&&typeof v!=='boolean')err(p,'真偽値で入力してください');
  if(['Date','DateTime'].includes(f.type)){const pattern=f.type==='Date'?/^\d{4}-\d{2}-\d{2}$/:/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;if(!pattern.test(v)||!Number.isFinite(Date.parse(v))||f.type==='Date'&&new Date(v).toISOString().slice(0,10)!==v)err(p,'無効な日付です');if(f.minDate&&v<f.minDate)err(p,'日付が下限より前です');if(f.maxDate&&v>f.maxDate)err(p,'日付が上限より後です');}
  if(f.type==='Enum'&&!f.options?.includes(v))err(p,'選択肢にない値です');
+ if(f.type==='TreeEnum'){const message=root.DocBench.treeValueError?.(f,v);if(message)err(p,message);}
  if(f.type==='MultiEnum'){if(!Array.isArray(v)||v.some(x=>!f.options?.includes(x))||new Set(v).size!==v.length)err(p,'複数選択の値が不正です');else{if(f.minSelections!==undefined&&v.length<f.minSelections)err(p,'選択数が不足しています');if(f.maxSelections!==undefined&&v.length>f.maxSelections)err(p,'選択数が上限を超えています');}}
  if(['File','Image'].includes(f.type)){if(!v||typeof v.name!=='string'||typeof v.content!=='string'||!/^data:[^,]*;base64,/.test(v.content))err(p,'添付情報が不正です');if(f.type==='Image'&&!/^data:image\/(png|jpeg|gif|webp);base64,/.test(v.content||''))err(p,'画像はPNG/JPEG/GIF/WebPを使用してください');}
  if(f.type==='Object')check(f.fields,v,p);
