@@ -238,7 +238,7 @@ function validateDefinition(def,render) {
    for(const b of design.blocks||[]){if(!b||typeof b!=='object'){issue('blocks','出力ブロックが不正です');continue;}
     if(!b.id||bid.has(b.id))issue('blocks','出力ブロックIDが未指定または重複');bid.add(b.id);
     if(b.type==='shape'&&(!['rect','ellipse','line'].includes(b.shape)||design.outputFormat!=='pptx'))issue(b.id,'図形はPowerPointのrect/ellipse/lineです');
-    if(b.content){for(const msg of root.DocBench.validateRich?.(b.content)||[])issue(b.id,msg);for(const ref of root.DocBench.richReferences?.(b.content)||[]){used.add(ref);if(!fieldAt(def,ref))issue(b.id,'未定義項目参照: '+ref);}}
+    if(b.content){for(const msg of [...(root.DocBench.validateRich?.(b.content)||[]),...(root.DocBench.validateRichDefinition?.(b.content,def)||[])])issue(b.id,msg);for(const ref of root.DocBench.richReferences?.(b.content)||[]){used.add(ref);if(!(root.DocBench.richFieldAt||fieldAt)(def,ref))issue(b.id,'未定義項目参照: '+ref);}}
     if(!['heading','text','rich','field','table','shape','pagebreak'].includes(b.type))issue(b.id,'未対応ブロック');
     if(b.type==='table'&&b.field&&fieldAt(def,b.field)&&!['Table','Array'].includes(fieldAt(def,b.field).type))issue(b.id,'表の出力にはTableまたはArray項目を指定してください');
     if(b.field){used.add(b.field);if(!fieldAt(def,b.field))issue(b.id,'未定義項目参照: '+b.field);}

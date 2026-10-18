@@ -86,3 +86,13 @@ button[aria-pressed=true],.format-choices button.active{background:var(--soft);c
 .action-menu-body button{text-align:left;width:100%}
 .action-menu-body button.danger{border-top:1px solid var(--line);border-radius:0;margin-top:3px;padding-top:9px}
 @media(max-width:850px){.app-shell .document-manager{max-height:none;flex-wrap:wrap}.action-menu-body{left:0;right:auto}}
+
+/* Word starts with the page and prose. Merge controls are opened when needed. */
+.word-toolbar .word-merge-tools{width:100%}
+.word-toolbar .word-merge-tools>summary{color:var(--accent);font-weight:600}
+.word-toolbar .word-merge-tools .ribbon-popup{padding:8px 0;background:transparent;border:0;box-shadow:none}
+.word-toolbar #word-write{margin-bottom:6px;color:var(--accent)}
+.word-range-tools{border-top:1px solid var(--line);padding-top:10px;margin-top:12px;font-size:11px}
+.word-range-tools strong{display:block;line-height:1.6;margin-bottom:8px}
+.word-range-tools[hidden]{display:none}
+.word-workbench .word-toolbar .word-insertion{border:0;padding:0}

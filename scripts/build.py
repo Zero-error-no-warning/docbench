@@ -12,7 +12,7 @@ source=(ROOT/'index.html').read_text()
 css=re.sub(r'\s+',' ',(ROOT/'src/style.css').read_text()).strip()
 # CSS uses its own escape syntax; HTML character entities do not apply inside style.
 css=''.join(c if ord(c)<128 else '\\'+format(ord(c),'x')+' ' for c in css)
-app=rjsmin.jsmin('\n;\n'.join((ROOT/'src'/p).read_text() for p in ['core.js','tree-enum.js','tree-outline.js','types.js','rules.js','layout.js','render.js','designer.js','editors.js','specification.js','rule-editor.js','type-editor.js','app.js']))
+app=rjsmin.jsmin('\n;\n'.join((ROOT/'src'/p).read_text() for p in ['core.js','tree-enum.js','tree-outline.js','types.js','rules.js','layout.js','word-model.js','render.js','designer.js','editors.js','specification.js','rule-editor.js','type-editor.js','app.js']))
 # Vendor libraries remain separate; local pako loads before the bootstrap.
 program=app
 licenses='\n\n'.join(p.name+'\n'+p.read_text() for p in sorted((ROOT/'vendor').glob('*LICENSE*')))

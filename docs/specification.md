@@ -574,3 +574,35 @@ IndexedDBの`docbench-workspace-v1`へWorkspaceを自動保存し、利用でき
 `portable/docbench.html`にアプリ本体・CSS・仕様書・ライセンスを持ち、第三者JS/CSSは`../vendor/`から読み込む。条件ノード編集には追加の`vendor/rete.min.js`も必要。配置は`配置先/portable/docbench.html`と`配置先/vendor/`。必要な実行ファイル一覧はportable/build-manifest.jsonのruntimeFilesを参照する。HTMLだけ移動すると起動できず、ライブラリ配置の確認エラーを表示する。
 
 アプリJavaScriptをライセンス本文とともにJSONへ格納し、gzip + Base64のASCIIデータとしてHTMLへ内包する。展開後はscript要素のtextContentへ設定するため、プログラム中のHTML文字列をHTMLパーサーへ直接渡さない。HTML本体とローダーはASCIIのみ。日本語はHTML数値文字参照またはJavaScriptのUnicodeエスケープで保持する。LF/CRLF変換を許容し、圧縮データが欠けた場合は起動エラーを表示する。展開は別ファイルのローカルpakoを使い、CDN・fetch・eval・CompressionStreamを必要としない。
+
+## Word本文中の制御範囲
+
+Wordの`rich`ブロックは、通常の文章・見出し・リスト・表の中に`fieldRef`を配置する本文です。追加のブロック要素として`repeatBlock`、`conditionBlock`、`pageBreak`を使用できます。`repeatBlock`と`conditionBlock`の`content`は段落・表などのブロック要素の配列です。インライン要素の直下には置きません。
+
+```json
+{
+  "type": "doc",
+  "content": [
+    {"type":"paragraph","content":[{"type":"text","text":"支出内訳は以下のとおりです。"}]},
+    {"type":"repeatBlock","attrs":{"field":"expenses"},"content":[
+      {"type":"paragraph","content":[
+        {"type":"fieldRef","attrs":{"field":"expenses.category","part":"value"}},
+        {"type":"text","text":"："},
+        {"type":"fieldRef","attrs":{"field":"expenses.amount","part":"value"}},
+        {"type":"text","text":"円"}
+      ]}
+    ]},
+    {"type":"conditionBlock","attrs":{"when":{"field":"status","equals":"完了"}},"content":[
+      {"type":"paragraph","content":[{"type":"text","text":"事業は完了しました。"}]}
+    ]},
+    {"type":"pageBreak"}
+  ]
+}
+```
+
+- `repeatBlock.attrs.field`はArrayまたはTableのスキーマパス。子項目の`fieldRef.attrs.field`も`expenses.category`のようにスキーマパスで指定し、出力時に最も内側の該当ループの行へ解決します。添字や別名は記述しません。配列の子項目は対応する親の繰り返し範囲内で参照します。
+- 単純型Arrayの現在の要素は`fieldRef.attrs.field = "配列パス.value"`。入れ子の繰り返しはすべての親配列の範囲内へ配置します。同じ配列を自身の内側で再度繰り返す指定は禁止です。
+- `conditionBlock.attrs.when`は既存の条件形式（`{field, equals}`または`{nodeId}`）。値の型は参照項目と一致させます。書類全体の入力値による判定です。グラフ条件の参照・未接続検証・削除時の解除も通常の出力条件と共通です。
+- 制御範囲の判定は非表示項目の投影と共通です。非表示の配列・表および0件の配列・表は出力を省き、保存値は保持します。数値の0やBooleanのfalseを空値と扱いません。
+- 通常の文章要素と同様、`attrs.id`で範囲を識別し、編集時にIDを補完します。複製時はIDを振り直します。保存するJSONは未展開の本文です。出力時だけ行パスを解決するため、出力定義へ行データを埋め込みません。
+- 本文の検証は5,000要素・16階層以内、出力展開は50,000要素以内です。`valuePath`等の内部計算値をJSONへ指定して参照先を変更することはできません。

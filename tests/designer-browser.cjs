@@ -1,3 +1,4 @@
+const {reveal}=require('./ui-helpers.cjs');
 /* Real pointer / keyboard actions in the same preview used by the UI. */
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 module.exports=async function({page,out,url,root}){
@@ -56,7 +57,7 @@ module.exports=async function({page,out,url,root}){
  await page.locator('#undo').click();await frame().locator('[data-cell="C3"]').waitFor();assert.equal((await readBlock('sheet-title')).layout.cell,'C3');await page.locator('#redo').click();await frame().locator('[data-cell="D12"]').waitFor();assert.equal((await readBlock('sheet-title')).layout.cell,'D12');
  const xlsx=await exportFile('xlsx');assert((await xmlFrom(xlsx,'xl/worksheets/sheet1.xml')).includes('ref="D12:H14"'));
  // Occupied ranges report a conflict without losing either element.
- const blockCount=await page.evaluate(()=>DocBenchApp.getWorkspace().render.documents[0].designs.xlsx.blocks.length);await page.locator('#canvas-insert-type').selectOption('field');await page.locator('#canvas-insert-field').selectOption('budget');await page.locator('#canvas-insert').click();assert((await page.locator('#toast').innerText()).includes('重複'));assert.equal(await page.evaluate(()=>DocBenchApp.getWorkspace().render.documents[0].designs.xlsx.blocks.length),blockCount);
+ const blockCount=await page.evaluate(()=>DocBenchApp.getWorkspace().render.documents[0].designs.xlsx.blocks.length);await reveal(page,'#canvas-insert-type');await page.locator('#canvas-insert-type').selectOption('field');await reveal(page,'#canvas-insert-field');await page.locator('#canvas-insert-field').selectOption('budget');await reveal(page,'#canvas-insert');await page.locator('#canvas-insert').click();assert((await page.locator('#toast').innerText()).includes('重複'));assert.equal(await page.evaluate(()=>DocBenchApp.getWorkspace().render.documents[0].designs.xlsx.blocks.length),blockCount);
  await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:path.join(out,'11-interactive-excel.png'),fullPage:true});
 
  await fixture('docx');const wordSource=await shape('word-text').locator('.word-flow-handle').boundingBox(),wordTarget=await shape('word-title').boundingBox();assert(wordSource&&wordTarget);await drag(shape('word-text').locator('.word-flow-handle'),wordTarget.x+20-(wordSource.x+wordSource.width/2),wordTarget.y+3-(wordSource.y+wordSource.height/2));await shape('word-title').waitFor();assert.deepEqual(await page.evaluate(()=>DocBenchApp.getWorkspace().render.documents[0].designs.docx.blocks.map(b=>b.id)),['word-text','word-title','word-table']);
