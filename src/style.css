@@ -43,3 +43,46 @@ html{height:100%}body.app-shell{--sidebar-width:184px;display:grid;grid-template
 /* Hierarchical choices use the same controls in definitions, previews and forms. */
 .tree-settings fieldset{border:0;padding:0;margin:0;min-width:0}.tree-choice-list,.tree-options{border:1px solid var(--line);border-radius:6px;max-height:230px;overflow:auto;margin:10px 0}.tree-choice-list button,.tree-options button{display:block;width:100%;text-align:left;border:0;border-radius:0;border-bottom:1px solid var(--line);font-size:12px;overflow-wrap:anywhere}.tree-choice-list button[aria-pressed=true],.tree-options button[aria-pressed=true]{background:var(--soft);box-shadow:inset 3px 0 var(--accent);font-weight:700}.tree-options small{display:block;color:var(--muted);font-size:10px;margin-top:3px}.tree-options button[hidden]{display:none}.tree-input{min-width:170px;max-width:100%}.tree-cascade{display:flex;flex-wrap:wrap;gap:8px}.tree-cascade>label{flex:1 1 145px;min-width:120px;margin:0}.tree-selection{font-size:12px;color:var(--muted);margin:7px 0;overflow-wrap:anywhere}.tree-settings .button-row{flex-wrap:wrap}.tree-choice-list:empty{display:none}
 .tree-edit-modes{display:flex;gap:6px;margin:12px 0}.tree-edit-modes button{flex:1;min-width:0;font-size:11px}.tree-edit-modes [aria-pressed=true]{background:var(--soft);border-color:var(--accent);box-shadow:inset 0 -2px var(--accent);font-weight:700}.tree-outline-text{min-height:240px;tab-size:4;white-space:pre;overflow:auto;line-height:1.6}.tree-settings [data-outline-status]{white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0}.tree-settings [data-tree-graph][hidden],.tree-settings [data-tree-outline-panel][hidden]{display:none}.type-file-actions{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:8px;flex-shrink:0;border-bottom:1px solid var(--line)}.type-file-actions button{min-width:0;padding:7px 3px;font-size:11px}.workspace-new{display:flex;align-items:center;justify-content:center;gap:6px;margin:8px 10px 0;flex-shrink:0}.workspace-new[hidden]{display:none}.sidebar-collapsed .workspace-new{padding:8px;margin:8px 6px 0}.sidebar-collapsed .workspace-new .sidebar-label{display:none}
+
+/* Actions use spacing and hover/focus feedback; borders identify inputs and surfaces. */
+button{border-color:transparent;background:transparent}
+button:hover{border-color:transparent;background:#eaf2f3}
+button:focus-visible,summary:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.primary:hover{background:#0b565c;border-color:#0b565c}
+button.danger:hover{background:#fff0ee;color:#983333}
+button.outlined{border-color:var(--line);background:#fff}
+button[aria-pressed=true],.format-choices button.active{background:var(--soft);color:#085e64;border-color:transparent;box-shadow:inset 0 -2px var(--accent)}
+.app-shell .format-choices{border-bottom:1px solid var(--line);gap:2px}
+.app-shell .format-choices button{border-radius:5px 5px 0 0;background:transparent;color:var(--muted)}
+.app-shell .format-choices button.active{background:var(--soft);color:#085e64;font-weight:600;box-shadow:inset 0 -2px var(--accent)}
+.app-shell .panel{box-shadow:none}
+.app-shell #mode-switch{background:var(--bg)}
+.app-shell #definition-settings{color:var(--accent)}
+.app-shell .workspace-new{border-color:transparent;background:var(--soft)}
+.app-shell .ribbon-details>summary{border-color:transparent;background:transparent}
+.app-shell .ribbon-details>summary:hover{background:#eaf2f3}
+/* Keep the tiny Word table-picker cells and color controls visibly bounded. */
+.app-shell .word-table-grid button{border:1px solid #c9d6dc;background:#fff}
+.app-shell .word-table-grid button.highlight,.app-shell .word-table-grid button:hover{background:var(--soft);border-color:var(--accent)}
+.app-shell details>summary{line-height:1.5}
+.app-shell .panel-body details:not(.action-menu):not(.ribbon-details)>summary{margin-bottom:0;padding:2px 0 8px;color:#405d6a}
+.app-shell .panel-body details[open]:not(.action-menu):not(.ribbon-details)>summary{margin-bottom:8px}
+.detail-status{float:right;max-width:48%;font-size:10px;font-weight:400;color:var(--muted);padding-left:8px}
+.type-usage{margin:0 0 10px;font-size:11px}
+.app-shell .panel-guide{flex-shrink:0;margin:0;padding:10px 12px;border-top:1px solid var(--line);background:#fafcfc}
+.app-shell .panel-guide>summary{font-size:11px;font-weight:400;color:var(--muted);margin:0}
+.panel-guide p{font-size:11px;line-height:1.8;color:var(--muted);margin:10px 0 0}
+.app-shell .inline-guide{margin:0 0 16px;padding-top:0;border:0}
+.app-shell .inline-guide>summary{font-size:11px;font-weight:400;color:var(--muted)}
+/* Named menus keep management actions reachable without widening the toolbar. */
+.app-shell .document-manager{overflow:visible}
+.action-menu{position:relative;margin:0;padding:0;border:0}
+.action-menu>summary{list-style:none;margin:0;padding:7px 10px;border-radius:6px;font-size:12px;color:var(--accent);white-space:nowrap}
+.action-menu>summary::-webkit-details-marker{display:none}
+.action-menu>summary::after{content:' ▾';font-size:10px}
+.action-menu>summary:hover,.action-menu[open]>summary{background:var(--soft)}
+.action-menu-body{position:absolute;right:0;top:calc(100% + 5px);z-index:70;min-width:190px;padding:6px;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 10px 30px #21364225;display:flex;flex-direction:column;gap:2px}
+.action-menu-body button{text-align:left;width:100%}
+.action-menu-body button.danger{border-top:1px solid var(--line);border-radius:0;margin-top:3px;padding-top:9px}
+@media(max-width:850px){.app-shell .document-manager{max-height:none;flex-wrap:wrap}.action-menu-body{left:0;right:auto}}
