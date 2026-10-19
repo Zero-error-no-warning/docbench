@@ -11,9 +11,21 @@ import { TextStyleKit } from '@tiptap/extension-text-style';
 
 const toolbarSelectionKey=new PluginKey('wordToolbarSelection');
 const ToolbarSelection=Extension.create({name:'wordToolbarSelection',addProseMirrorPlugins(){return [new Plugin({key:toolbarSelectionKey,state:{init:()=>false,apply:(tr,held)=>tr.getMeta(toolbarSelectionKey)??held},props:{decorations:state=>{const selected=state.selection;if(!toolbarSelectionKey.getState(state)||selected.empty)return null;if(selected instanceof TextSelection)return DecorationSet.create(state.doc,[Decoration.inline(selected.from,selected.to,{class:'word-held-selection'})]);return null;}}})];},addCommands(){return {holdWordSelection:held=>({tr,dispatch})=>{if(dispatch)dispatch(tr.setMeta(toolbarSelectionKey,held).setMeta('addToHistory',false));return true;}};}});
-const ListTypography=Extension.create({name:'wordListTypography',addOptions(){return {fontSize:11};},addGlobalAttributes(){return [{types:['listItem'],attributes:{markerFontSize:{default:null,parseHTML:el=>parseFloat(el.style.getPropertyValue('--word-marker-size'))||null,renderHTML:a=>a.markerFontSize?{style:'--word-marker-size:'+a.markerFontSize+'pt'}:{}}}}];},addProseMirrorPlugins(){const base=this.options.fontSize;return [new Plugin({props:{decorations:state=>{const decorations=[];state.doc.descendants((n,pos)=>{if(n.type.name==='listItem')decorations.push(Decoration.node(pos,pos+n.nodeSize,{style:'--word-marker-size:'+globalThis.DocBench.listMarkerSize(n.toJSON(),{fontSize:base})+'pt'}));});return DecorationSet.create(state.doc,decorations);}}})];},addCommands(){return {setWordMarkerSize:size=>({state,tr,dispatch})=>{const selected=state.selection,seen=new Set();const change=(node,pos)=>{if(node.type.name!=='listItem'||seen.has(pos))return;seen.add(pos);if(node.attrs.markerFontSize!==size)tr.setNodeMarkup(pos,undefined,{...node.attrs,markerFontSize:size});};if(selected.empty){for(let d=selected.$from.depth;d>0;d--)if(selected.$from.node(d).type.name==='listItem'){change(selected.$from.node(d),selected.$from.before(d));break;}}else state.doc.nodesBetween(selected.from,selected.to,(node,pos)=>{if(node.type.name==='listItem'){// A nested list changes its own marker, not its enclosing item.
- const start=pos+1,firstEnd=start+(node.firstChild?.nodeSize||0);if(selected.from<firstEnd&&selected.to>start)change(node,pos);
- }});if(dispatch)dispatch(tr);return true;}};}});
+const ListTypography=Extension.create({
+ name:'wordListTypography',addOptions(){return {fontSize:11,color:'#172b39'};},
+ addGlobalAttributes(){return [{types:['listItem'],attributes:{
+  markerFontSize:{default:null,parseHTML:el=>parseFloat(el.style.getPropertyValue('--word-marker-size'))||null,renderHTML:a=>a.markerFontSize?{style:'--word-marker-size:'+a.markerFontSize+'pt'}:{}},
+  markerColor:{default:null,parseHTML:el=>el.style.getPropertyValue('--word-marker-color')||null,renderHTML:a=>a.markerColor?{style:'--word-marker-color:'+a.markerColor}:{}}
+ }}];},
+ addProseMirrorPlugins(){const base=this.options;return [new Plugin({props:{decorations:state=>{const decorations=[];state.doc.descendants((n,pos)=>{if(n.type.name==='listItem'){const item=n.toJSON();decorations.push(Decoration.node(pos,pos+n.nodeSize,{style:'--word-marker-size:'+globalThis.DocBench.listMarkerSize(item,base)+'pt;--word-marker-color:'+globalThis.DocBench.listMarkerColor(item,base)}));}});return DecorationSet.create(state.doc,decorations);}}})];},
+ addCommands(){const setMarker=(attribute,value)=>({state,tr,dispatch})=>{
+  const selected=state.selection,seen=new Set();const change=(node,pos)=>{if(node.type.name!=='listItem'||seen.has(pos))return;seen.add(pos);if(node.attrs[attribute]!==value)tr.setNodeMarkup(pos,undefined,{...node.attrs,[attribute]:value});};
+  if(selected.empty){for(let d=selected.$from.depth;d>0;d--)if(selected.$from.node(d).type.name==='listItem'){change(selected.$from.node(d),selected.$from.before(d));break;}}
+  else state.doc.nodesBetween(selected.from,selected.to,(node,pos)=>{if(node.type.name==='listItem'){// A nested list changes its own marker, not its enclosing item.
+   const start=pos+1,firstEnd=start+(node.firstChild?.nodeSize||0);if(selected.from<firstEnd&&selected.to>start)change(node,pos);
+  }});if(dispatch)dispatch(tr);return true;
+ };return {setWordMarkerSize:size=>setMarker('markerFontSize',size),setWordMarkerColor:color=>setMarker('markerColor',color)};}
+});
 
 const FieldRef = Node.create({
   name:'fieldRef',group:'inline',inline:true,atom:true,

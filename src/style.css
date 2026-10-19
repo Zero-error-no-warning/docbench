@@ -97,36 +97,39 @@ button[aria-pressed=true],.format-choices button.active{background:var(--soft);c
 .word-range-tools[hidden]{display:none}
 .word-workbench .word-toolbar .word-insertion{border:0;padding:0}
 
-/* The Word page uses the full viewport height. */
-.app-shell #app[data-screen=render][data-format=docx]{padding:0;gap:0}
-.app-shell #app[data-format=docx]>.render-grid{gap:0;min-height:0}
-.app-shell #app[data-format=docx] .render-grid>.panel{border-radius:0;border-top:0;border-bottom:0}
-.app-shell #app[data-format=docx] .word-workbench{height:100%;max-height:none;flex:1;min-height:0}
-.app-shell #app[data-format=docx] .word-workbench>.paper-frame{padding:6px 8px;min-height:0}
-.app-shell .word-workspace-heading{display:flex;flex-direction:column;gap:8px;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:12px}
-.word-workspace-heading h3{margin:0;font-size:12px}
-.word-workspace-heading .button-row{gap:4px}
-.word-workspace-heading button{font-size:11px;padding:6px 7px}
-.word-document-settings{margin-top:14px}
-.word-document-settings>summary,.word-output-guide>summary{font-size:11px;margin-bottom:8px}
-.app-shell .word-document-settings .document-manager{display:block;padding:8px 0;border:0;box-shadow:none;background:transparent}
-.app-shell .word-document-settings .document-manager label{display:block;width:100%;min-width:0;max-width:none;margin-bottom:10px}
-.word-document-settings .document-manager select{width:100%}
-.word-document-settings .action-menu-body{position:static;min-width:0;box-shadow:none;margin-top:5px}
-.app-shell .word-toolbar>.format-choices{display:flex;flex-wrap:wrap;overflow:visible;margin-top:12px;gap:3px;border:0}
-.app-shell .word-toolbar>.format-choices button{flex:1 1 65px;min-width:65px;padding:6px;font-size:11px;border-radius:5px}
-.word-output-guide .panel-note{border:0;background:transparent;padding:0!important}
-@media(max-width:850px){.app-shell #app[data-format=docx]>.render-grid{display:grid;overflow:hidden}.app-shell #app[data-format=docx] .render-grid>.panel{height:auto;flex:1;min-height:0}}
-
-/* Word has no horizontal application bar; all global actions live in its left rail. */
-body.app-shell.word-editing{grid-template-rows:minmax(0,1fr)}
-.word-editing .word-toolbar>.topbar{height:auto;min-height:0;display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:0 0 12px;margin:0 0 12px;background:transparent;grid-column:auto}
-.word-editing .word-toolbar>.topbar .brand{font-size:15px;gap:7px}
-.word-editing .word-toolbar>.topbar .brand-mark{width:24px;height:26px;font-size:18px}
-.word-editing .word-toolbar>.topbar .workspace-heading{flex:1 1 100%;padding:0;border:0;gap:5px}
-.word-editing .word-toolbar>.topbar #workspace-title{flex:1;font-size:12px}
-.word-editing .word-toolbar>.topbar .header-right{flex:1 1 100%;flex-wrap:wrap;gap:4px}
-.word-editing .word-toolbar>.topbar .save-status{display:block;flex:1 1 100%;max-width:none;white-space:normal;font-size:10px;margin:0 0 4px}
-.word-editing .word-toolbar>.topbar .header-right button{font-size:11px;padding:6px 7px}
-.word-editing .word-workspace-heading h3{display:none}
-@media(max-width:850px){.word-editing.app-shell:not(.sidebar-collapsed) .app-sidebar{top:0}}
+/* The left half owns the application header and controls in every workspace. */
+body.app-shell{--header-height:96px;--control-width:calc(50vw - var(--sidebar-width));grid-template-rows:minmax(0,1fr)}
+.app-shell>.topbar{position:fixed;inset:0 auto auto 0;width:50vw;height:var(--header-height);display:grid;grid-template-columns:auto auto minmax(0,1fr);grid-template-rows:32px 32px;align-content:center;gap:8px 10px;padding:8px 12px;z-index:5}
+.app-shell>.topbar .header-right{grid-column:1/-1;justify-content:flex-end;min-width:0}
+.app-shell>.topbar .save-status{display:block;margin-right:auto;max-width:none;overflow:hidden;text-overflow:ellipsis}
+.app-shell>.app-sidebar{grid-column:1;grid-row:1;margin-top:var(--header-height)}
+.app-shell>#app{grid-column:2;grid-row:1;padding:0;gap:0;--list-width:clamp(130px,calc(var(--control-width) * .36),210px)}
+.app-shell #app>.builder,.app-shell #app>.rule-workbench{grid-template-columns:var(--list-width) minmax(0,1fr) 50vw;gap:0;grid-template-rows:minmax(0,1fr)}
+.app-shell #app>.builder>.panel:not(.form-preview),.app-shell #app>.rule-workbench>.rule-palette,.app-shell #app>.rule-workbench>.rule-properties{margin-top:var(--header-height)}
+.app-shell #app>.builder>.form-preview{grid-column:3;grid-row:1}
+.app-shell #app>.rule-workbench>.rule-palette{grid-column:1;grid-row:1}
+.app-shell #app>.rule-workbench>.rule-properties{grid-column:2;grid-row:1}
+.app-shell #app>.rule-workbench>.rule-stage{grid-column:3;grid-row:1;min-width:0}
+.app-shell #app>.builder>.panel,.app-shell #app>.form-grid>.panel,.app-shell #app>.rule-workbench>.panel,.app-shell #app>.render-grid>.panel{border-radius:0;border-top:0;border-bottom:0;box-shadow:none}
+.app-shell #app>.form-grid,.app-shell #app>.render-grid{grid-template-columns:var(--control-width) minmax(0,1fr);grid-template-rows:minmax(0,1fr);gap:0}
+.app-shell #app>.form-grid>.panel:first-child{margin-top:var(--header-height)}
+.app-shell #app>.render-grid>.output-controls{display:block;margin-top:var(--header-height);overflow:auto;padding:0 12px 14px}
+.app-shell .output-controls>.panel-head{padding:12px 0;flex-wrap:wrap}
+.app-shell .output-controls>.format-choices{display:flex;flex-wrap:wrap;gap:4px;padding:12px 0}
+.app-shell .output-controls>.format-choices button{flex:1;min-width:60px;padding:7px 5px;font-size:11px}
+.app-shell .output-controls .canvas-tools{max-height:none;overflow:visible;padding:12px 0;border-right:0}
+.app-shell .output-controls>.design-inspector{display:flex;flex-direction:column;max-height:none;border:0;border-radius:0;box-shadow:none}
+.app-shell .output-controls>.design-inspector>.panel-body{overflow:visible;padding:12px 0}
+.app-shell .native-format[data-inspector=false] .output-controls>.design-inspector{display:none}
+.app-shell .output-document-settings{margin:0;padding:10px 0 0}
+.output-document-settings>summary,.output-guide>summary{font-size:12px;margin-bottom:10px}
+.app-shell .output-document-settings .document-manager{display:block;padding:0;border:0;box-shadow:none;background:transparent}
+.app-shell .output-document-settings .document-manager label{display:block;width:100%;min-width:0;max-width:none;margin-bottom:10px}
+.output-document-settings .document-manager select{width:100%}
+.output-document-settings .action-menu-body{position:static;min-width:0;box-shadow:none;margin-top:5px}
+.output-guide .panel-note{border:0;background:transparent;padding:0!important}
+.app-shell #app>.render-grid>.output-stage{min-width:0;min-height:0}
+.app-shell .output-stage>.paper-frame{padding:6px 8px;min-height:0;overflow:hidden}
+.app-shell #app[data-screen=help]{padding:calc(var(--header-height) + 14px) 16px 16px}
+@media(max-width:1100px) and (min-width:851px){.app-shell .builder .property-grid{grid-template-columns:minmax(0,1fr)}.app-shell #app>.rule-workbench{grid-template-columns:var(--control-width) minmax(0,1fr);grid-template-rows:minmax(0,1fr) minmax(0,1fr)}.app-shell #app>.rule-workbench>.rule-palette{margin-top:var(--header-height)}.app-shell #app>.rule-workbench>.rule-properties{grid-column:1;grid-row:2;margin-top:0}.app-shell #app>.rule-workbench>.rule-stage{grid-column:2;grid-row:1/-1}}
+@media(max-width:850px){body.app-shell{--control-width:min(310px,45vw);--header-height:112px}.app-shell>.topbar{width:calc(var(--sidebar-width) + var(--control-width));grid-template-columns:auto minmax(0,1fr);grid-template-rows:28px 28px 28px;gap:4px 7px}.app-shell>.topbar .brand{display:none}.app-shell>.topbar .workspace-heading{padding:0;border:0}.app-shell>.topbar .header-right{flex-wrap:wrap;gap:3px}.app-shell>.topbar .save-status{flex:1 1 100%;font-size:10px}.app-shell:not(.sidebar-collapsed)>.app-sidebar{top:0;margin-top:var(--header-height)}.app-shell #app>.render-grid{display:grid;overflow:hidden}.app-shell #app>.render-grid>.panel{height:auto}.app-shell #app>.builder,.app-shell #app>.form-grid,.app-shell #app>.rule-workbench{padding-top:var(--header-height)}.app-shell #app>.builder>.panel:not(.form-preview),.app-shell #app>.form-grid>.panel:first-child,.app-shell #app>.rule-workbench>.rule-palette,.app-shell #app>.rule-workbench>.rule-properties{margin-top:0}.app-shell .output-controls .property-grid{grid-template-columns:minmax(0,1fr)}}
