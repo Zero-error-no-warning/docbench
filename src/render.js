@@ -15,6 +15,7 @@ function display(f,v){
  if(f?.type==='TreeEnum')return D.treeDisplay(f,v);
  if(v===null||v===undefined||v==='')return '—';const p=f?.presentation||{};let value;
  if(f?.type==='Object'&&p.layout==='inline'&&typeof v==='object'&&!Array.isArray(v)){const parts=(f.fields||[]).filter(c=>Object.hasOwn(v,c.key)&&v[c.key]!==null&&v[c.key]!==undefined&&v[c.key]!=='').map(c=>display(c,v[c.key]));return parts.length?parts.join(p.separator??''):'—';}
+ if(f?.type==='Object'&&typeof v==='object'&&!Array.isArray(v))return (f.fields||[]).filter(c=>Object.hasOwn(v,c.key)).map(c=>(p.hideChildLabels?'':c.label+': ')+display(c,v[c.key])).join(p.separator??'\n')||'—';
  if(f?.type==='Boolean')value=v?'はい':'いいえ';else if(f?.type==='RichText')value=text(v);else if(Array.isArray(v))value=f?.type==='MultiEnum'?v.join('、'):v.map(r=>Object.entries(r).filter(([k])=>!k.startsWith('_')).map(([,x])=>String(x??'')).join(' / ')).join('\n');else if(typeof v==='object')value=v.name||Object.entries(v).filter(([k])=>!k.startsWith('_')).map(([k,x])=>k+': '+String(x)).join('\n');else if(typeof v==='number')value=p.valueLabels&&Object.hasOwn(p.valueLabels,String(v))?p.valueLabels[String(v)]:v.toLocaleString('ja-JP');else value=String(v);
  return (p.prefix||'')+value+(p.suffix||'');
 }

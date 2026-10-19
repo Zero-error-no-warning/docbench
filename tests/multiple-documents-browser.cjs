@@ -24,7 +24,7 @@ module.exports=async({page,out,url,root})=>{
  };
  await run(false);await page.screenshot({path:path.join(out,'multiple-documents.png'),fullPage:true});
  // The normal JSON paste/import path upgrades a legacy single-document file.
- const legacy=await page.evaluate(()=>{const w=DocBenchApp.getWorkspace(),d=w.render.documents[0],r={...w.render,...d,id:w.render.id};delete r.documents;delete r.defaultDocumentId;return r;});await page.locator('#files-open').click();await page.locator('summary').filter({hasText:'JSONを貼り付けて読み込む'}).click();await page.locator('#json-paste').fill(JSON.stringify(legacy));await page.locator('#paste-load').click();await page.locator('#import-confirm').click();assert.equal(await page.locator('#editor-document option').count(),1);
+ const legacy=await page.evaluate(()=>{const w=DocBenchApp.getWorkspace(),d=w.render.documents[0],r={...w.render,...d,id:w.render.id};delete r.documents;delete r.defaultDocumentId;return r;});await page.locator('#files-open').click();await page.locator('summary').filter({hasText:'JSONを貼り付けて読み込む'}).click();await page.locator('#json-paste').fill(JSON.stringify(legacy));await page.locator('#paste-load').click();await page.locator('#import-confirm').click();await page.locator('#modal').waitFor({state:'hidden'});assert.equal(await page.locator('#editor-document option').count(),1);
  await page.evaluate(w=>DocBenchApp.setWorkspace(w),original);await page.evaluate(()=>DocBenchApp.save());
  await page.goto('file://'+path.join(root,'portable/docbench.html')+'#editor');await page.waitForFunction(()=>window.DocBenchApp);await run(true);await page.evaluate(w=>DocBenchApp.setWorkspace(w),original);await page.evaluate(()=>DocBenchApp.save());
 };
