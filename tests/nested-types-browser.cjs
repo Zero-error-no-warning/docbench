@@ -19,7 +19,7 @@ module.exports=async function({page,url,root,out}){
   await page.locator('[data-type-field="builtin_year_year"]').click();assert.equal(await page.locator('#type-prop-type option[value="@'+period.id+'"]').count(),0);
   await page.locator('[data-view="definition"]').click();await page.locator('#add-field').click();const item=await page.evaluate(()=>DocBenchApp.getWorkspace().definition.fields.at(-1));await page.locator('[data-prop="type"]').selectOption('@'+period.id);
   for(const [key,value]of [['start','1'],['end','8']]){const input=page.locator('[data-input="'+item.key+'.'+key+'.year"]');await input.fill(value);await input.dispatchEvent('change');}
-  const nested=await page.evaluate(id=>DocBenchApp.getWorkspace().definition.fields.find(f=>f.id===id).fields[0],item.id);await page.locator('[data-select="'+nested.id+'"]').click();assert(await page.locator('[data-prop="type"]').isDisabled());
+  const nested=await page.evaluate(id=>DocBenchApp.getWorkspace().definition.fields.find(f=>f.id===id).fields[0],item.id);await page.locator('[data-tree-toggle="'+item.id+'"]').click();await page.locator('[data-select="'+nested.id+'"]').click();assert(await page.locator('[data-prop="type"]').isDisabled());
   await page.locator('[data-view="types"]').click();await page.locator('[data-type-select="builtin_year"]').click();await page.locator('[data-type-field="builtin_year_year"]').click();
   await page.locator('#type-prop-key').fill('number');await page.locator('#type-prop-key').dispatchEvent('change');
   const values=()=>page.evaluate(k=>DocBenchApp.getWorkspace().data.values[k],item.key);assert.equal((await values()).start.number,1);assert.equal((await values()).end.number,8);
