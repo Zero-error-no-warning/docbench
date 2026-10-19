@@ -1,5 +1,6 @@
 import { Editor, Node, Extension, mergeAttributes } from '@tiptap/core';
-import { Plugin, Selection, TextSelection } from '@tiptap/pm/state';
+import { Plugin, PluginKey, Selection, TextSelection } from '@tiptap/pm/state';
+import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { StepMap } from '@tiptap/pm/transform';
 import { selectedRect, isInTable } from '@tiptap/pm/tables';
 import Subscript from '@tiptap/extension-subscript';
@@ -7,6 +8,12 @@ import Superscript from '@tiptap/extension-superscript';
 import StarterKit from '@tiptap/starter-kit';
 import { Table, TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
 import { TextStyleKit } from '@tiptap/extension-text-style';
+
+const toolbarSelectionKey=new PluginKey('wordToolbarSelection');
+const ToolbarSelection=Extension.create({name:'wordToolbarSelection',addProseMirrorPlugins(){return [new Plugin({key:toolbarSelectionKey,state:{init:()=>false,apply:(tr,held)=>tr.getMeta(toolbarSelectionKey)??held},props:{decorations:state=>{const selected=state.selection;if(!toolbarSelectionKey.getState(state)||selected.empty)return null;if(selected instanceof TextSelection)return DecorationSet.create(state.doc,[Decoration.inline(selected.from,selected.to,{class:'word-held-selection'})]);return null;}}})];},addCommands(){return {holdWordSelection:held=>({tr,dispatch})=>{if(dispatch)dispatch(tr.setMeta(toolbarSelectionKey,held).setMeta('addToHistory',false));return true;}};}});
+const ListTypography=Extension.create({name:'wordListTypography',addOptions(){return {fontSize:11};},addGlobalAttributes(){return [{types:['listItem'],attributes:{markerFontSize:{default:null,parseHTML:el=>parseFloat(el.style.getPropertyValue('--word-marker-size'))||null,renderHTML:a=>a.markerFontSize?{style:'--word-marker-size:'+a.markerFontSize+'pt'}:{}}}}];},addProseMirrorPlugins(){const base=this.options.fontSize;return [new Plugin({props:{decorations:state=>{const decorations=[];state.doc.descendants((n,pos)=>{if(n.type.name==='listItem')decorations.push(Decoration.node(pos,pos+n.nodeSize,{style:'--word-marker-size:'+globalThis.DocBench.listMarkerSize(n.toJSON(),{fontSize:base})+'pt'}));});return DecorationSet.create(state.doc,decorations);}}})];},addCommands(){return {setWordMarkerSize:size=>({state,tr,dispatch})=>{const selected=state.selection,seen=new Set();const change=(node,pos)=>{if(node.type.name!=='listItem'||seen.has(pos))return;seen.add(pos);if(node.attrs.markerFontSize!==size)tr.setNodeMarkup(pos,undefined,{...node.attrs,markerFontSize:size});};if(selected.empty){for(let d=selected.$from.depth;d>0;d--)if(selected.$from.node(d).type.name==='listItem'){change(selected.$from.node(d),selected.$from.before(d));break;}}else state.doc.nodesBetween(selected.from,selected.to,(node,pos)=>{if(node.type.name==='listItem'){// A nested list changes its own marker, not its enclosing item.
+ const start=pos+1,firstEnd=start+(node.firstChild?.nodeSize||0);if(selected.from<firstEnd&&selected.to>start)change(node,pos);
+ }});if(dispatch)dispatch(tr);return true;}};}});
 
 const FieldRef = Node.create({
   name:'fieldRef',group:'inline',inline:true,atom:true,
@@ -61,4 +68,4 @@ const TableBorders=Extension.create({name:'tableBorders',addCommands(){return {s
  }};}});
 const ParagraphFormat = Extension.create({name:'paragraphFormat',addGlobalAttributes(){return [{types:['paragraph','heading'],attributes:{textAlign:{default:'left',renderHTML:a=>({style:'text-align:'+a.textAlign})},lineHeight:{default:null,renderHTML:a=>a.lineHeight?{style:'line-height:'+a.lineHeight}:{}},spaceBefore:{default:0,renderHTML:a=>({style:'margin-top:'+a.spaceBefore+'pt'})},spaceAfter:{default:8,renderHTML:a=>({style:'margin-bottom:'+a.spaceAfter+'pt'})},bottomBorder:{default:'none',renderHTML:a=>({style:'border-bottom:'+(a.bottomBorder==='none'?'none':'1pt solid '+a.bottomBorder)})}}}];}});
 const Identity = Extension.create({name:'richIdentity',addGlobalAttributes(){return [{types:['paragraph','heading','table','tableRow','tableCell','tableHeader','fieldRef','listItem','bulletList','orderedList','blockquote','horizontalRule','repeatBlock','conditionBlock','pageBreak'],attributes:{id:{default:null,parseHTML:element=>element.getAttribute('data-rich-id'),renderHTML:attrs=>attrs.id?{'data-rich-id':attrs.id}:{}}}}];},addProseMirrorPlugins(){return [new Plugin({appendTransaction(transactions,oldState,state){if(!transactions.some(t=>t.docChanged))return null;const seen=new Set(),tr=state.tr;state.doc.descendants((node,pos)=>{if(!('id' in node.attrs))return;let id=node.attrs.id;if(!id||seen.has(id)){id=globalThis.DocBench.uid();tr.setNodeMarkup(pos,undefined,{...node.attrs,id});}seen.add(id);});return tr.docChanged?tr:null;}})];}});
-globalThis.DocBenchEditorLib={Editor,StarterKit,Table,TableRow,Cell,CellHeader,TextStyleKit,FieldRef,ParagraphFormat,Identity,TableBorders,Subscript,Superscript,Selection,TextSelection,StepMap,RepeatBlock,ConditionBlock,PageBreakNode,ControlRanges};
+globalThis.DocBenchEditorLib={Editor,StarterKit,Table,TableRow,Cell,CellHeader,TextStyleKit,FieldRef,ParagraphFormat,Identity,TableBorders,Subscript,Superscript,Selection,TextSelection,StepMap,RepeatBlock,ConditionBlock,PageBreakNode,ControlRanges,ToolbarSelection,ListTypography};

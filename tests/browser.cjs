@@ -50,6 +50,7 @@ const server=http.createServer((req,res)=>{const pathname=decodeURIComponent(new
  await require('./designer-browser.cjs')({page,out,url,root});
  await require('./native-editors-browser.cjs')({page,out,url,root});
  await require('./editor-dependencies-browser.cjs')({page,out,url,root});
+ await require('./word-typography-browser.cjs')({page,out,url,root});
  await require('./word-authoring-browser.cjs')({page,out,url,root});
  await require('./word-continuity-browser.cjs')({page,out,url,root});
  await require('./definition-continuity-browser.cjs')({page,out,url,root});

@@ -96,3 +96,37 @@ button[aria-pressed=true],.format-choices button.active{background:var(--soft);c
 .word-range-tools strong{display:block;line-height:1.6;margin-bottom:8px}
 .word-range-tools[hidden]{display:none}
 .word-workbench .word-toolbar .word-insertion{border:0;padding:0}
+
+/* The Word page uses the full viewport height. */
+.app-shell #app[data-screen=render][data-format=docx]{padding:0;gap:0}
+.app-shell #app[data-format=docx]>.render-grid{gap:0;min-height:0}
+.app-shell #app[data-format=docx] .render-grid>.panel{border-radius:0;border-top:0;border-bottom:0}
+.app-shell #app[data-format=docx] .word-workbench{height:100%;max-height:none;flex:1;min-height:0}
+.app-shell #app[data-format=docx] .word-workbench>.paper-frame{padding:6px 8px;min-height:0}
+.app-shell .word-workspace-heading{display:flex;flex-direction:column;gap:8px;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:12px}
+.word-workspace-heading h3{margin:0;font-size:12px}
+.word-workspace-heading .button-row{gap:4px}
+.word-workspace-heading button{font-size:11px;padding:6px 7px}
+.word-document-settings{margin-top:14px}
+.word-document-settings>summary,.word-output-guide>summary{font-size:11px;margin-bottom:8px}
+.app-shell .word-document-settings .document-manager{display:block;padding:8px 0;border:0;box-shadow:none;background:transparent}
+.app-shell .word-document-settings .document-manager label{display:block;width:100%;min-width:0;max-width:none;margin-bottom:10px}
+.word-document-settings .document-manager select{width:100%}
+.word-document-settings .action-menu-body{position:static;min-width:0;box-shadow:none;margin-top:5px}
+.app-shell .word-toolbar>.format-choices{display:flex;flex-wrap:wrap;overflow:visible;margin-top:12px;gap:3px;border:0}
+.app-shell .word-toolbar>.format-choices button{flex:1 1 65px;min-width:65px;padding:6px;font-size:11px;border-radius:5px}
+.word-output-guide .panel-note{border:0;background:transparent;padding:0!important}
+@media(max-width:850px){.app-shell #app[data-format=docx]>.render-grid{display:grid;overflow:hidden}.app-shell #app[data-format=docx] .render-grid>.panel{height:auto;flex:1;min-height:0}}
+
+/* Word has no horizontal application bar; all global actions live in its left rail. */
+body.app-shell.word-editing{grid-template-rows:minmax(0,1fr)}
+.word-editing .word-toolbar>.topbar{height:auto;min-height:0;display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:0 0 12px;margin:0 0 12px;background:transparent;grid-column:auto}
+.word-editing .word-toolbar>.topbar .brand{font-size:15px;gap:7px}
+.word-editing .word-toolbar>.topbar .brand-mark{width:24px;height:26px;font-size:18px}
+.word-editing .word-toolbar>.topbar .workspace-heading{flex:1 1 100%;padding:0;border:0;gap:5px}
+.word-editing .word-toolbar>.topbar #workspace-title{flex:1;font-size:12px}
+.word-editing .word-toolbar>.topbar .header-right{flex:1 1 100%;flex-wrap:wrap;gap:4px}
+.word-editing .word-toolbar>.topbar .save-status{display:block;flex:1 1 100%;max-width:none;white-space:normal;font-size:10px;margin:0 0 4px}
+.word-editing .word-toolbar>.topbar .header-right button{font-size:11px;padding:6px 7px}
+.word-editing .word-workspace-heading h3{display:none}
+@media(max-width:850px){.word-editing.app-shell:not(.sidebar-collapsed) .app-sidebar{top:0}}
