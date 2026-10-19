@@ -21,6 +21,10 @@ function validatePresentation(f,err,path){const p=f.presentation;if(p===undefine
  if(p.pathDisplay!==undefined&&(f.type!=='TreeEnum'||!['full','leaf'].includes(p.pathDisplay)))err(path+'.pathDisplay','TreeEnumのfullまたはleafを指定してください');
  if(p.valueLabels!==undefined){const labels=p.valueLabels;if(!numberTypes.includes(f.type))err(path+'.valueLabels','数値項目の表示名です');if(!labels||typeof labels!=='object'||Array.isArray(labels)||Object.keys(labels).length>100){err(path+'.valueLabels','表示名は100件以内のオブジェクトです');return;}const used=new Set();for(const [k,label]of Object.entries(labels)){const n=Number(k);if(!k||!Number.isFinite(n)||String(n)!==k||f.type==='Integer'&&!Number.isInteger(n)||numberInputError(f,n))err(path+'.valueLabels.'+k,'項目の型・範囲に一致する数値を指定してください');if(typeof label!=='string'||!label.trim()||label!==label.trim()||label.length>100||used.has(label)||label!==''&&Number.isFinite(Number(label))&&Number(label)!==n)err(path+'.valueLabels.'+k,'表示名は前後空白なし・重複なしの1〜100文字で、別の数値と重ならないようにしてください');used.add(label);}}
 }
+// Registered elements retain their full field schema while itemType stays native.
+function arrayItemField(f){const item=f?.type==='Array'&&Array.isArray(f.fields)&&f.fields.length===1&&f.fields[0]?.key==='value'?f.fields[0]:null;return item?.typeRef?item:null;}
+function collectionFields(f){const item=arrayItemField(f);if(item)return [item];if(f?.type==='Array'&&f.itemType!=='Object')return [{...f,id:f.id+'_value',key:'value',label:'値',type:f.itemType||'String',required:false,fields:undefined,initialRows:0,itemType:undefined}];return f?.fields||[];}
+function editorChildren(f){const item=arrayItemField(f);return item?(item.type==='Object'?item.fields||[]:[]):f.fields||[];}
 function defaultValue(f,actor='作成者') {
  if(f.type==='Object') return Object.fromEntries((f.fields||[]).map(c=>[c.key,defaultValue(c,actor)]));
  if(['Array','Table'].includes(f.type)) return Array.from({length:f.initialRows||0},()=>newRow(f,actor));
@@ -32,8 +36,7 @@ function defaultValue(f,actor='作成者') {
 }
 function newRow(f,actor,source) {
  const row = {_id:uid(),_meta:{origin:source?source._id:null,createdBy:actor,createdAt:now(),modifiedBy:actor,modifiedAt:now()}};
- if(f.type==='Array' && f.itemType !== 'Object') row.value = defaultValue({type:f.itemType || 'String'},actor);
- else (f.fields||[]).forEach(c=>{row[c.key] = defaultValue(c,actor);});
+ collectionFields(f).forEach(c=>{row[c.key]=defaultValue(c,actor);});
  if(source) Object.keys(source).filter(k=>!k.startsWith('_')).forEach(k=>{row[k]=clone(source[k]);});
  // Nested collection clones also receive fresh identity.
  function reidentify(v) {if(!v||typeof v!=='object') return; if(v._id){const old=v._id;v._id=uid();v._meta={origin:old,createdBy:actor,createdAt:now(),modifiedBy:actor,modifiedAt:now()};} Object.values(v).forEach(reidentify);}
@@ -167,7 +170,7 @@ function diff(a,b,path='') {
  return [{path,before:clone(a),after:clone(b)}];
 }
 function get(obj,path){return String(path||'').split('.').reduce((v,k)=>v&&Object.hasOwn(v,k)?v[k]:undefined,obj);}
-function fieldAt(def,path){let fields=def.fields;let found;for(const k of String(path||'').split('.')){found=(fields||[]).find(f=>f.key===k);if(!found)return null;fields=found.fields;}return found;}
+function fieldAt(def,path){let fields=def.fields;let found;for(const k of String(path||'').split('.')){found=(fields||[]).find(f=>f.key===k);if(!found)return null;fields=['Array','Table'].includes(found.type)?collectionFields(found):found.fields;}return found;}
 function allFields(def){const out=[],seen=new WeakSet();function visit(fs,p){for(const f of Array.isArray(fs)?fs:[]){if(!f||typeof f!=='object'||seen.has(f))continue;seen.add(f);const path=p? p+'.'+f.key:f.key;out.push({field:f,path});visit(f.fields,path);}}visit(def.fields,'');return out;}
 const conditionTypes=['String','Text','Integer','Float','Boolean','Date','DateTime','Enum','TreeEnum'];
 function schemaPath(path){return String(path).replace(/\[\d+\]/g,'').split('.').filter(p=>!/^\d+$/.test(p)).join('.');}
@@ -185,7 +188,7 @@ function inputState(def,values){
  function project(fs,obj,prefix){if(!obj||typeof obj!=='object'||Array.isArray(obj))return clone(obj);const result={};
   for(const [key,value] of Object.entries(obj))if(key.startsWith('_'))result[key]=clone(value);
   for(const f of fs||[]){const path=prefix?prefix+'.'+f.key:f.key;if(!visible(path)||!Object.hasOwn(obj,f.key))continue;const value=obj[f.key];
-   result[f.key]=f.type==='Object'?project(f.fields,value,path):['Array','Table'].includes(f.type)&&Array.isArray(value)?value.map(row=>f.type==='Array'&&f.itemType!=='Object'?clone(row):project(f.fields,row,path)):clone(value);
+   result[f.key]=f.type==='Object'?project(f.fields,value,path):['Array','Table'].includes(f.type)&&Array.isArray(value)?value.map(row=>project(collectionFields(f),row,path)):clone(value);
   }return result;
  }
  function schema(fs,prefix){return (fs||[]).filter(f=>visible(prefix?prefix+'.'+f.key:f.key)).map(f=>({...clone(f),...(f.fields?{fields:schema(f.fields,prefix?prefix+'.'+f.key:f.key)}:{})}));}
@@ -209,8 +212,9 @@ function validateDefinition(def,render) {
    if(!ref)err(p+'.'+name,'条件の参照項目は配列外の文字列・数値・真偽値・日付・選択項目です');
    else if(ref.type==='TreeEnum'?!!root.DocBench.treeValueError?.(ref,c.equals,true)||!Array.isArray(c.equals)||!c.equals.length:ref.type==='Boolean'?typeof c.equals!=='boolean':['Integer','Float'].includes(ref.type)?typeof c.equals!=='number'||!Number.isFinite(c.equals)||ref.type==='Integer'&&!Number.isInteger(c.equals):typeof c.equals!=='string'||ref.type==='Enum'&&!ref.options?.includes(c.equals))err(p+'.'+name,'条件の値が参照項目の型・選択肢と一致しません');
   }
-  if(['Object','Table'].includes(f.type)||(f.type==='Array'&&f.itemType==='Object'))walk(f.fields,p,depth+1);
-  if(f.type==='Array'&&(!types.includes(f.itemType)||(['Object','Array','Table'].includes(f.itemType)&&f.itemType!=='Object'||f.itemType==='TreeEnum')))err(p,'Array要素型は単純型またはObjectです');
+  if(['Object','Table'].includes(f.type)||(f.type==='Array'&&(f.itemType==='Object'||arrayItemField(f))))walk(f.fields,p,depth+1);
+  if(arrayItemField(f)&&f.itemType!==arrayItemField(f).type)err(p,'配列の要素型が登録型の元の型と一致しません');
+  if(f.type==='Array'&&(!types.includes(f.itemType)||!arrayItemField(f)&&(['Object','Array','Table'].includes(f.itemType)&&f.itemType!=='Object'||f.itemType==='TreeEnum')))err(p,'Array要素型は単純型またはObjectです');
   if(['Array','Table'].includes(f.type)){for(const name of ['businessKey','uniqueBy','sortBy'])if(f[name]&&f[name]!=='value'&&!(f.fields||[]).some(c=>c.key===f[name]))err(p,name+'に未定義の列が指定されています');if((f.initialRows||0)<(f.minItems||0)||(f.maxItems!==undefined&&(f.initialRows||0)>f.maxItems))err(p,'初期行数が最小・最大要素数の範囲外です');}
  }}walk(def.fields,'');
  if(root.DocBench.validateTypeLibrary){const check=root.DocBench.validateTypeLibrary(def);errors.push(...check.errors);warnings.push(...check.warnings);}
@@ -285,7 +289,7 @@ function validateData(def,values){const errors=[],globalIds=new Set(),input=inpu
   if(v.length<(f.minItems||0))err(p,'最小要素数を下回っています');if(f.maxItems!==undefined&&v.length>f.maxItems)err(p,'最大要素数を超えています');const keys=new Set();
   v.forEach((r,i)=>{const rp=p+'['+(i+1)+']';if(!r||typeof r!=='object'){err(rp,'行データが不正です');return;}if(!r._id||globalIds.has(r._id))err(rp,'要素IDが未指定または重複');globalIds.add(r._id);
    if(f.uniqueBy&&input.visible(schemaPath(p)+'.'+f.uniqueBy)){const k=JSON.stringify(r[f.uniqueBy]);if(keys.has(k))err(rp,'業務キーが重複しています: '+f.uniqueBy);keys.add(k);}
-   if(f.type==='Array'&&f.itemType!=='Object')check([{...f,type:f.itemType,key:'value',required:false}],r,rp);else check(f.fields,r,rp);
+   check(collectionFields(f),r,rp);
   });
   if(f.sortBy&&input.visible(schemaPath(p)+'.'+f.sortBy))for(let i=1;i<v.length;i++){const a=v[i-1][f.sortBy],b=v[i][f.sortBy];if(f.sortDirection==='desc'?a<b:a>b)err(p,'並び順制約に違反しています: '+f.sortBy);}
  }
@@ -295,6 +299,6 @@ function validateData(def,values){const errors=[],globalIds=new Set(),input=inpu
 }
 function envelope(ws,kind){if(kind==='TypeLibrary')return root.DocBench.exportTypeLibrary(ws.definition);if(kind==='Workspace')return clone(ws);const key=kind==='Definition'?'definition':kind==='RenderDefinition'?'render':'data';return {...clone(ws[key]),history:{currentBranch:ws.currentBranch,branches:clone(ws.branches),nodes:ws.history.map(n=>({...clone(n),state:clone(n.state[key])}))}};}
 function assertImport(v){if(!v||typeof v!=='object'||v.formatVersion!==1||!['Workspace','Definition','RenderDefinition','DocumentData','TypeLibrary'].includes(v.kind))throw Error('DocBench形式v1のJSONを選んでください');const check=JSON.stringify(v);if(/"(?:__proto__|constructor|prototype)"\s*:/.test(check))throw Error('予約プロパティを含むJSONは読み込めません');if(check.length>80*1024*1024)throw Error('読み込み上限は80MBです');if(v.kind==='Workspace'){if(!v.definition||!v.render||!v.data||!Array.isArray(v.history)||!v.branches||!Object.hasOwn(v.branches,v.currentBranch))throw Error('Workspaceの必須構造がありません');const ids=new Set(v.history.map(n=>n.id));if(ids.size!==v.history.length||v.history.some(n=>!n.state||!Array.isArray(n.parents)||n.parents.some(p=>!ids.has(p)))||Object.values(v.branches).some(id=>!ids.has(id)))throw Error('履歴IDまたは親状態の参照が不正です');const active=new Set(),done=new Set(),map=new Map(v.history.map(n=>[n.id,n]));function walk(id){if(active.has(id))throw Error('履歴の循環参照を検出');if(done.has(id))return;active.add(id);for(const p of map.get(id).parents)walk(p);active.delete(id);done.add(id);}ids.forEach(walk);}normalizeOutputModels(v);return root.DocBench.normalizeTypeModels?root.DocBench.normalizeTypeModels(v):v;}
-root.DocBench={inputLabel,parseNumberInput,numberInputError,yearInputExample,types,clone,equal,uid,now,esc,safeKey,field,defaultValue,newRow,renderDocument,outputDocuments,outputDesigns,createOutputDocument,duplicateOutputDocument,normalizeRender,normalizeOutputModels,createWorkspace,sample,state,snapshot,checkout,ancestor,merge,diff,get,fieldAt,allFields,conditionTypes,schemaPath,conditionFields,inputState,validateDefinition,validateData,envelope,assertImport};
+root.DocBench={arrayItemField,collectionFields,editorChildren,inputLabel,parseNumberInput,numberInputError,yearInputExample,types,clone,equal,uid,now,esc,safeKey,field,defaultValue,newRow,renderDocument,outputDocuments,outputDesigns,createOutputDocument,duplicateOutputDocument,normalizeRender,normalizeOutputModels,createWorkspace,sample,state,snapshot,checkout,ancestor,merge,diff,get,fieldAt,allFields,conditionTypes,schemaPath,conditionFields,inputState,validateDefinition,validateData,envelope,assertImport};
 if(typeof module!=='undefined')module.exports=root.DocBench;
 })(typeof globalThis!=='undefined'?globalThis:this);
