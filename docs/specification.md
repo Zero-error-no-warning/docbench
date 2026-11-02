@@ -460,6 +460,41 @@ CSSは外部読込・url()・HTMLタグ・式評価を許可しない。HTML成�
 
 orderedListの`attrs.start`（省略時1）は開始番号。番号はDOCXのネイティブ番号定義として出力し、手入力した番号文字ではない。
 
+#### Wordの段落書式とスタイル
+
+`designs.docx.wordStyles`は文書内のスタイル定義配列（最大150件）。各要素は`{id,name,kind,basedOn?,next?,format}`。kindは`paragraph` / `character` / `table`。basedOnは同じ種類のスタイルID、nextは次段落の段落スタイルID。継承の循環・参照切れ・使用中スタイルの削除はエラー。Normal、Heading1〜Heading6、DefaultParagraphFont、TableNormalは標準スタイルとして存在し、同じIDの定義で書式を上書きできる。標準スタイルの種類は変更できない。
+
+段落・見出し・表は`attrs.styleId`、文字は`{type:"characterStyle",attrs:{styleId:"..."}}`のmarkで参照する。直接指定は継承したスタイルより優先し、null・省略は継承する。スタイルへの適用を実際の文字書式へ展開して保存しない。
+
+| format／段落属性 | 内容 |
+| --- | --- |
+| font / fontSize / color / fill | フォント、pt、文字色、背景色。色は#RRGGBB |
+| bold / italic / underline / strike | 真偽値。falseは継承した装飾を明示的に解除 |
+| textAlign | left / center / right / justify |
+| lineMode / lineHeight | multiple（倍率）/ exact（固定pt）/ atLeast（最小pt）。旧データのlineHeightは倍率 |
+| indentUnit | pt / chars |
+| indentLeft / indentRight / indentFirst | 指定単位のインデント。indentFirstが負数ならぶら下げ |
+| spaceBefore / spaceAfter | 段落前後のpt |
+| keepNext / keepLines / pageBreakBefore / widowControl | 次段落と分離しない／段落内で分割しない／段落前で改ページ／先頭・末尾1行の孤立防止 |
+| tabs | `{position,align,leader}`の配列、最大40件。positionは左端からのpt。alignはleft / center / right / decimal、leaderはnone / dots / dashes / line。位置は重複不可 |
+| outlineLevel | スタイルの見出し階層0〜5、本文は9 |
+
+表スタイルのformatには文字書式のほか`border`、`borderWidth`（pt）、`fill`、`headerFill`、`alternateFill`、`padding`（px）、`valign`を指定できる。先頭行が見出し行なら、その後の最初の本文行から交互の行色を適用する。見出し行がなければ先頭行から適用する。セル属性のnullは表スタイルの値を継承する。明示したセルの罫線・背景・余白等は表スタイルより優先する。
+
+タブ文字は`{type:"wordTab"}`のインラインノード。文字・項目参照と同じ位置に置け、`richText`では\t、Wordではw:tabになる。タブの計測幅・リーダーの描画情報は保存しない。未指定の既定タブ間隔は36pt。固定の文字列内や貼り付けた文字列内の\tも編集・出力時にタブノードへ正規化する。
+
+#### 階層番号
+
+`designs.docx.wordNumberings`は`{id,name,levels}`の配列、最大40件。Outlineは標準の階層番号で、同じIDの定義で変更できる。levelsは1〜9件で、各要素は`{format,text,start,restartAfter,indentLeft,hanging,align,suffix,headingStyle?}`。
+
+- format: decimal / decimalFullWidth / lowerLetter / upperLetter / lowerRoman / upperRoman / aiueo / bullet。
+- text: `%1`〜`%9`で自身または上位の番号を参照する。例`%1.%2.`。
+- start: 1〜32767。restartAfterは0始まりの上位階層番号、nullなら上位が変わっても再開しない。
+- indentLeft / hanging: 本文の開始位置とぶら下げ幅（pt）。alignはleft / center / right、suffixはtab / space / nothing。
+- headingStyle: 自動で番号を付ける段落スタイルID。
+
+orderedList.attrsに`numberingId`、`numberingSequence`、`numberingLevel`を指定する。連番を継続する別リストには同じnumberingSequenceを使い、再開するときは新しい識別子とstartを指定する。段落へ直接指定する場合は同じ属性に加えて`numberingStart`を使う。numberingIdがnoneの段落は見出しへの自動番号も抑止する。実際のカウンター・ラベル・ネイティブ番号IDは出力時に計算し、公開JSONへ保存しない。
+
 doc/text/hardBreak以外のノードは一意で不変の`attrs.id`を持つ。画面での新規作成・複製・貼付はIDを生成/再生成する。LLMからはIDを明示して渡す。構造は最大5000ノード・入れ子16段まで。セルの重複結合や表の範囲外結合は拒否する。列幅は先頭行を基準に全幅に対する比率へ換算し、Wordのページ余白内へ配置する。見出しセルの行は繰返し行として出力する。
 
 ### Excelの固定セルと範囲設定

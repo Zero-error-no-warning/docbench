@@ -160,3 +160,8 @@ body.app-shell{--header-height:96px;--control-width:calc(50vw - var(--sidebar-wi
 .tree-toggle{display:grid;place-items:center;padding:0;border:0;background:transparent;border-radius:4px;color:var(--muted);font-size:15px;cursor:pointer}
 .tree-toggle:hover{background:var(--soft);color:var(--accent)}
 .tree-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.word-paragraph-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;min-width:300px;max-width:min(480px,85vw)}
+.word-paragraph-grid .check,.word-paragraph-grid .button-row{grid-column:1/-1}
+.word-style-manager{display:grid;gap:12px}.word-style-preview{padding:18px;min-height:80px;background:#fff;border:1px solid var(--line);overflow-wrap:anywhere}
+.word-number-sample{padding:12px;background:var(--panel-soft,#f3f7f8);line-height:1.6;max-height:160px;overflow:auto}
+.word-tab-list{display:grid;gap:4px;margin-bottom:12px}.word-tab-list>div{display:flex;gap:8px;justify-content:space-between}

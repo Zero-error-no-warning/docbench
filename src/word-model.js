@@ -11,7 +11,7 @@ function wordEditorDocument(blocks){
  for(const block of blocks||[]){
   if(!writing.has(block.type)){if(!content.length||content.at(-1).type==='wordObject')content.push(gap('before-'+block.id));content.push({type:'wordObject',attrs:{id:block.id,source:D.clone(block)}});continue;}
   const source=D.clone(block);delete source.content;delete source.text;delete source.id;
-  const body=D.clone(block.content||D.plainRich(block.text));let index=0;
+  const body=D.wordNormalizeTabs(block.content||D.plainRich(block.text));let index=0;
   const identify=n=>{if(!['doc','text','hardBreak'].includes(n.type)){n.attrs=n.attrs||{};n.attrs.id||='word-node-'+block.id+'-'+index;index++;}for(const child of n.content||[])identify(child);};identify(body);
   if(!block.content&&block.type==='heading')for(const n of body.content){n.type='heading';n.attrs={...n.attrs,level:1};}
   content.push({type:'wordSection',attrs:{id:block.id,source},content:body.content});

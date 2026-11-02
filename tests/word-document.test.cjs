@@ -1,7 +1,7 @@
 'use strict';
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const D=require('../scripts/load-core.cjs');
-global.docx=require('../scripts/qa/node_modules/docx');const JSZip=require('../scripts/qa/node_modules/jszip');
+global.docx=require('../scripts/qa/node_modules/docx');const JSZip=global.JSZip=require('../scripts/qa/node_modules/jszip');
 vm.runInThisContext(fs.readFileSync(path.join(__dirname,'../src/render.js'),'utf8'));
 test('Unified Word editor preserves legacy identity, output rules and field bindings without materializing input',()=>{
  const blocks=[{id:'title',type:'heading',text:'Title',style:{fontSize:25},when:{field:'status',equals:'完了'}},{id:'prose',type:'rich',content:D.identifyRich(D.plainRich('One\nTwo'))},{id:'bound',type:'field',field:'budget',appendixAfter:100,valueStyle:{color:'#123456'}},{id:'data',type:'table',field:'expenses',rowsPerPage:10}];

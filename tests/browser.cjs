@@ -54,6 +54,7 @@ const server=http.createServer((req,res)=>{const pathname=decodeURIComponent(new
  await require('./word-authoring-browser.cjs')({page,out,url,root});
  await require('./word-continuity-browser.cjs')({page,out,url,root});
  await require('./word-document-browser.cjs')({page,out,url,root});
+ await require('./word-format-browser.cjs')({page,out,url,root});
  await require('./definition-continuity-browser.cjs')({page,out,url,root});
  await require('./multiple-documents-browser.cjs')({page,out,url,root});
  await require('./conditional-inputs-browser.cjs')({page,out,url,root});
