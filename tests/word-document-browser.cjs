@@ -14,6 +14,9 @@ module.exports=async function({page,url,root,out}){
   const blocks=()=>page.evaluate(()=>DocBenchApp.getWorkspace().render.documents[0].designs.docx.blocks);
   await fixture(false);
   assert(await first.evaluate(el=>el.editor===el.getRootNode().querySelector('[data-block-id="second"] .tiptap').editor));
+  // The inspector's native HTML drag works even while dragover data is protected.
+  await page.locator('#design-properties').click();await page.locator('[data-drag-block="second"]').dragTo(first.locator('p'),{targetPosition:{x:50,y:4}});
+  assert.deepEqual((await blocks()).map(b=>b.id),['second','first']);assert.deepEqual((await blocks()).map(b=>b.text),['Beta','Alpha']);await fixture(false);
   // Cursor and Backspace cross the former editor boundary; one Undo restores it.
   await second.locator('p').click();await page.keyboard.press('Home');await page.keyboard.press('Backspace');
   await page.waitForFunction(()=>DocBenchApp.getWorkspace().render.documents[0].designs.docx.blocks.length===1);

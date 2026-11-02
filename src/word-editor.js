@@ -168,8 +168,10 @@ function attachWordEditor(surface,config,doc){
  });
  main.addEventListener('pointerup',()=>{if(!gesture)return;const g=gesture;gesture=null;clearDrop();if(g.target)controller.blockCommand('reorder',g.id,g.target,g.after);});
  main.addEventListener('pointercancel',()=>{gesture=null;clearDrop();});
- main.addEventListener('dragover',event=>{const id=event.dataTransfer?.getData('text/plain');if(!id||!locate(id))return;const target=event.target.closest('[data-block-id]');if(!target)return;event.preventDefault();clearDrop();target.classList.add(event.clientY>target.getBoundingClientRect().top+target.getBoundingClientRect().height/2?'db-drop-after':'db-drop-before');});
- main.addEventListener('drop',event=>{const id=event.dataTransfer?.getData('text/plain'),target=event.target.closest('[data-block-id]');if(!id||!locate(id)||!target)return;event.preventDefault();const after=target.classList.contains('db-drop-after');clearDrop();if(id!==target.dataset.blockId)controller.blockCommand('reorder',id,target.dataset.blockId,after);});
+ // During dragover the browser protects the payload: only its types are
+ // readable. Validate the actual block ID when the drop is delivered.
+ main.addEventListener('dragover',event=>{if(documentEditor.view.dragging||!event.dataTransfer?.types.includes('text/plain'))return;const target=event.target.closest('[data-block-id]');if(!target)return;event.preventDefault();clearDrop();target.classList.add(event.clientY>target.getBoundingClientRect().top+target.getBoundingClientRect().height/2?'db-drop-after':'db-drop-before');});
+ main.addEventListener('drop',event=>{const id=event.dataTransfer?.getData('text/plain'),target=event.target.closest('[data-block-id]');if(!id||!locate(id)||!target)return;event.preventDefault();event.stopPropagation();const after=target.classList.contains('db-drop-after');clearDrop();if(id!==target.dataset.blockId)controller.blockCommand('reorder',id,target.dataset.blockId,after);},true);
  main.addEventListener('dragend',clearDrop);
  if(config.selectedId)select(config.selectedId,false);
  return controller;
