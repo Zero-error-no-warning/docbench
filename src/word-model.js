@@ -3,6 +3,33 @@
 'use strict';const D=root.DocBench;
 function richFieldAt(def,path){if(typeof path!=='string')return null;const f=D.fieldAt(def,path);if(f)return f;if(path?.endsWith('.value')){const parent=D.fieldAt(def,path.slice(0,-6));if(parent?.type==='Array'&&parent.itemType!=='Object')return {key:'value',label:parent.label,type:parent.itemType};}return null;}
 function richNodes(content){const nodes=[];function walk(n){if(!n||typeof n!=='object')return;nodes.push(n);for(const c of Array.isArray(n.content)?n.content:[])walk(c);}walk(content);return nodes;}
+// Editor-only containers keep legacy block IDs and output rules. They never
+// enter the saved rich-text schema or contain expanded input values.
+function wordEditorDocument(blocks){
+ const content=[],writing=new Set(['heading','text','rich']);
+ const gap=anchor=>({type:'wordSection',attrs:{id:'word-gap-'+anchor,draft:true},content:[{type:'paragraph',attrs:{id:'word-gap-paragraph-'+anchor}}]});
+ for(const block of blocks||[]){
+  if(!writing.has(block.type)){if(!content.length||content.at(-1).type==='wordObject')content.push(gap('before-'+block.id));content.push({type:'wordObject',attrs:{id:block.id,source:D.clone(block)}});continue;}
+  const source=D.clone(block);delete source.content;delete source.text;delete source.id;
+  const body=D.clone(block.content||D.plainRich(block.text));let index=0;
+  const identify=n=>{if(!['doc','text','hardBreak'].includes(n.type)){n.attrs=n.attrs||{};n.attrs.id||='word-node-'+block.id+'-'+index;index++;}for(const child of n.content||[])identify(child);};identify(body);
+  if(!block.content&&block.type==='heading')for(const n of body.content){n.type='heading';n.attrs={...n.attrs,level:1};}
+  content.push({type:'wordSection',attrs:{id:block.id,source},content:body.content});
+ }
+ if(!content.length||content.at(-1).type==='wordObject')content.push(gap(content.length?'after-'+content.at(-1).attrs.id:'empty'));
+ return {type:'doc',content};
+}
+function wordEditorBlocks(document){
+ const blocks=[];
+ for(const node of document.content||[]){const a=node.attrs||{};
+  if(node.type==='wordObject'){blocks.push({...D.clone(a.source),id:a.id});continue;}
+  if(node.type!=='wordSection')continue;
+  const content={type:'doc',content:D.clone(node.content||[])};
+  if(a.draft&&content.content.length===1&&content.content[0].type==='paragraph'&&!content.content[0].content?.length)continue;
+  blocks.push({...D.clone(a.source||{}),id:a.id,type:a.source?.type||'rich',content,text:D.richSourceText(content)});
+ }
+ return blocks;
+}
 function richReferences(content){const refs=new Set();for(const n of richNodes(content)){if(['fieldRef','repeatBlock'].includes(n.type))refs.add(n.attrs?.field);if(n.type==='conditionBlock'&&n.attrs?.when?.field)refs.add(n.attrs.when.field);}return [...refs].filter(p=>typeof p==='string'&&p);}
 function validateRichDefinition(content,def){const errors=[];
  function walk(n,scopes=[]){if(!n||typeof n!=='object')return;const a=n.attrs||{},field=typeof a.field==='string'?a.field:'';
@@ -23,5 +50,5 @@ function expandRich(content,def,values,input=D.inputState(def,values)){
  }return expand(content)[0]||{type:'doc',content:[]};
 }
 function wordControlLabel(n,def){const a=n.attrs||{},type=typeof n.type==='string'?n.type:n.type?.name;if(type==='repeatBlock')return '繰り返し：'+(richFieldAt(def,a.field)?.label||a.field||'項目未指定')+' の各行';if(type==='conditionBlock'){const c=D.simpleCondition(def,a.when)||a.when;return '条件：'+(c?.field?(D.fieldAt(def,c.field)?.label||c.field)+' = '+String(Array.isArray(c.equals)?D.display(D.fieldAt(def,c.field),c.equals):c.equals):D.ruleGraph(def).nodes.find(x=>x.id===c?.nodeId)?.label||'条件を設定');}return '';}
-Object.assign(D,{richFieldAt,richNodes,richReferences,validateRichDefinition,expandRich,wordControlLabel});
+Object.assign(D,{richFieldAt,richNodes,richReferences,validateRichDefinition,expandRich,wordControlLabel,wordEditorDocument,wordEditorBlocks});
 })(globalThis);

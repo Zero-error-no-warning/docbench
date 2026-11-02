@@ -253,6 +253,7 @@ function syncCanvasTools(){
 function selectCanvasBlock(id,fromSurface=false){canvasSelected=id;if(!fromSurface)canvasController?.select(id,false);syncCanvasTools();}
 function canvasChange(change){
  const d=activeDesign(),b=d.blocks.find(x=>x.id===change.id),f=activeDocument().outputFormat||'html';
+ if(f==='docx'&&change.kind==='wordDocument'){mutate(()=>{d.blocks=change.blocks;canvasSelected=change.selectedId;},false,false);syncCanvasTools();return;}
  if(['cellValue','columnWidths','rowHeight'].includes(change.kind)){mutate(()=>{if(change.kind==='cellValue'){d.cellValues=d.cellValues||{};if(change.value==='')delete d.cellValues[change.cell];else d.cellValues[change.cell]=change.value;}if(change.kind==='columnWidths')d.columnWidths={...d.columnWidths,...change.values};if(change.kind==='rowHeight')d.rowHeights={...d.rowHeights,[change.row]:change.height};},false,!change.live);if(change.kind==='cellValue')syncCanvasTools();return;}
  if(!b&&f==='docx'&&change.kind==='rich'){mutate(()=>{d.blocks.splice(change.beforeId?Math.max(0,d.blocks.findIndex(x=>x.id===change.beforeId)):d.blocks.length,0,{id:change.id,type:'rich',content:change.content,text:D.richSourceText(change.content)});canvasSelected=change.id;},false,false);syncCanvasTools();return;}if(!b)return;let layout;
  if(change.kind==='range'){layout=D.rangeLayout(b,change.range);const candidate=D.clone(d);Object.assign(candidate.blocks.find(x=>x.id===b.id),{layout});try{D.excelModel(ws.definition,{...candidate,outputFormat:f},ws.data.values);}catch(err){notify(err.message);return;}}
@@ -272,6 +273,7 @@ function canvasStyle(key,value,keepFocus=false){
  if(!b)return;const scope=canvasPart==='label'?'labelStyle':canvasPart==='value'&&b.type==='field'?'valueStyle':'style';mutate(()=>{b[scope]=b[scope]||{};Object.assign(b[scope],patch);},false);syncCanvasTools();
 }
 function canvasCommand(command){
+ if(activeDocument().outputFormat==='docx'&&canvasController?.blockCommand?.(command,canvasSelected))return;
  if(command==='undo'||command==='redo'){$('#'+command).click();return;}
  const d=activeDesign(),b=selectedDesignBlock();if(!b)return;const i=d.blocks.indexOf(b),f=activeDocument().outputFormat||'html';let excelLast; if(command==='duplicate'&&f==='xlsx'){try{excelLast=D.excelModel(ws.definition,{...d,outputFormat:f},ws.data.values).lastRow;}catch(err){notify(err.message);return;}}
  mutate(()=>{
@@ -335,7 +337,7 @@ function bindCanvasTools(){
   const op=el.dataset.wordCommand;
   if(op==='table'&&['word-table-rows','word-table-cols'].some(id=>{const n=Number($('#'+id).value);return !Number.isInteger(n)||n<1||n>20;})){notify('表の行・列は1〜20で指定してください');return;}
   if(op==='table'&&!canvasController?.activeEditor?.()){const b={id:D.uid(),type:'rich',content:D.identifyRich(D.tableRich(Number($('#word-table-rows').value),Number($('#word-table-cols').value)))};mutate(()=>{activeDesign().blocks.push(b);canvasSelected=b.id;});canvasController?.edit?.(b.id);return;}
-  if(!canvasController?.activeEditor?.()){notify('文章・表をクリックしてから操作してください');return;}
+  if(!canvasController?.activeEditor?.()&&!['undo','redo'].includes(op)){notify('文章・表をクリックしてから操作してください');return;}
   const value=op==='table'?{rows:Number($('#word-table-rows').value),cols:Number($('#word-table-cols').value)}:op==='field'?{field:$('#canvas-insert-field').value,part:$('#word-field-part').value}:op==='cellStyles'?{padding:Number($('#word-cell-padding').value),valign:$('#word-cell-valign').value}:op==='cellFill'?($('#word-cell-transparent').checked?null:$('#word-cell-fill').value):undefined;
   canvasController.command(op,value);el.closest('.ribbon-details')?.removeAttribute('open');
  });

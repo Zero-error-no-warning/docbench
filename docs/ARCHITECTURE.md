@@ -10,14 +10,18 @@
 | `src/layout.js` | 公開された文章・表ノード、書式解決、項目参照、HTML表示 |
 | `src/render.js` | 形式別デザイン、読取プレビュー、docx/ExcelJS/PptxGenJSによるネイティブ出力 |
 | `src/designer.js` | 安全なShadow DOM、選択・並び替え・配置操作 |
-| `src/editors.js` | Tiptap、Jspreadsheet CE、Konvaの編集操作をJSONの変更へ変換 |
+| `src/word-model.js` | Wordの参照・制御範囲、公開ブロックと編集用文書の相互変換 |
+| `src/word-editor.js` | 単一Tiptap文書の選択・クリップボード・履歴・表・差し込み操作 |
+| `src/editors.js` | Jspreadsheet CE、Konvaの編集操作をJSONの変更へ変換 |
 | `src/app.js` | 画面、文脈に応じた書式UI、フォーム、ファイル、履歴、保存 |
 | `src/specification.js` | ビルド時に内蔵する公開Markdown仕様 |
 | `vendor/` | 固定版の実行時JS/CSSと第三者ライセンス |
 
 選択・ズーム・ハンドル・ライブラリインスタンスは保存しない。編集変更だけを公開JSONに反映する。入力項目参照は値でなくパスを保存する。Wordの非テキストノードに不変`attrs.id`を付与し、複製時は再生成する。入力行の`_id`と別の名前空間で管理する。
 
-WordはTiptapの文書フロー、Excelはセルモデル、PowerPointはcm座標で設計する。入力者のプレビューはscript禁止のsandbox iframeにBlob HTMLを読み込み、編集者側は親側のイベントハンドラーで操作する。Officeの自動改ページとフォント測定の完全な再現は行わない。
+Wordは単一Tiptap文書、Excelはセルモデル、PowerPointはcm座標で設計する。Wordの`wordSection`と`wordObject`は編集時だけのコンテナで、公開JSONへは従来のblocksとrich.contentを保存する。要素境界をまたぐ選択・コピー・削除・履歴をTiptapが一括管理し、要素ID・書式・条件・参照先をコンテナから元のブロックへ戻す。未入力の挿入用空白は保存しない。
+
+入力者のプレビューはscript禁止のsandbox iframeにBlob HTMLを読み込み、編集者側は親側のイベントハンドラーで操作する。現在のプレビューに自動ページ分割・Officeと同じフォント測定はない。デスクトップ版Wordに近い編集・組版・出力を目標として、[Word対応計画](word-roadmap.md)の順で拡張する。
 
 ## 保存と配布
 

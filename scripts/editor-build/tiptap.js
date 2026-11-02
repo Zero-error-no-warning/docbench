@@ -1,7 +1,7 @@
 import { Editor, Node, Extension, mergeAttributes } from '@tiptap/core';
 import { Plugin, PluginKey, Selection, TextSelection } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
-import { StepMap } from '@tiptap/pm/transform';
+import { StepMap, canJoin } from '@tiptap/pm/transform';
 import { selectedRect, isInTable } from '@tiptap/pm/tables';
 import Subscript from '@tiptap/extension-subscript';
 import Superscript from '@tiptap/extension-superscript';
@@ -17,7 +17,7 @@ const ListTypography=Extension.create({
   markerFontSize:{default:null,parseHTML:el=>parseFloat(el.style.getPropertyValue('--word-marker-size'))||null,renderHTML:a=>a.markerFontSize?{style:'--word-marker-size:'+a.markerFontSize+'pt'}:{}},
   markerColor:{default:null,parseHTML:el=>el.style.getPropertyValue('--word-marker-color')||null,renderHTML:a=>a.markerColor?{style:'--word-marker-color:'+a.markerColor}:{}}
  }}];},
- addProseMirrorPlugins(){const base=this.options;return [new Plugin({props:{decorations:state=>{const decorations=[];state.doc.descendants((n,pos)=>{if(n.type.name==='listItem'){const item=n.toJSON();decorations.push(Decoration.node(pos,pos+n.nodeSize,{style:'--word-marker-size:'+globalThis.DocBench.listMarkerSize(item,base)+'pt;--word-marker-color:'+globalThis.DocBench.listMarkerColor(item,base)}));}});return DecorationSet.create(state.doc,decorations);}}})];},
+ addProseMirrorPlugins(){const base=this.options;return [new Plugin({props:{decorations:state=>{const decorations=[];state.doc.descendants((n,pos)=>{if(n.type.name==='listItem'){const item=n.toJSON(),position=state.doc.resolve(pos);let source=null;for(let d=position.depth;d>0;d--)if(position.node(d).type.name==='wordSection'){source=position.node(d).attrs.source;break;}const fallback=base.styleForSection?base.styleForSection(source||{}):base;decorations.push(Decoration.node(pos,pos+n.nodeSize,{style:'--word-marker-size:'+globalThis.DocBench.listMarkerSize(item,fallback)+'pt;--word-marker-color:'+globalThis.DocBench.listMarkerColor(item,fallback)}));}});return DecorationSet.create(state.doc,decorations);}}})];},
  addCommands(){const setMarker=(attribute,value)=>({state,tr,dispatch})=>{
   const selected=state.selection,seen=new Set();const change=(node,pos)=>{if(node.type.name!=='listItem'||seen.has(pos))return;seen.add(pos);if(node.attrs[attribute]!==value)tr.setNodeMarkup(pos,undefined,{...node.attrs,[attribute]:value});};
   if(selected.empty){for(let d=selected.$from.depth;d>0;d--)if(selected.$from.node(d).type.name==='listItem'){change(selected.$from.node(d),selected.$from.before(d));break;}}
@@ -33,6 +33,7 @@ const FieldRef = Node.create({
   addAttributes(){return {field:{default:''},part:{default:'value'}};},
   parseHTML(){return [{tag:'span[data-field-ref]'}];},
   renderHTML({node,HTMLAttributes}){return ['span',mergeAttributes(HTMLAttributes,{'data-field-ref':node.attrs.field,class:'field-token'}),this.options.resolve(node.attrs)];},
+  renderText({node}){return this.options.resolve(node.attrs);},
   addNodeView(){return ({node})=>{const dom=document.createElement('span');dom.className='field-token';dom.contentEditable='false';dom.textContent=this.options.resolve(node.attrs);dom.title=node.attrs.field;return {dom};};}
 });
 const rangeNode=(name,tag)=>Node.create({
@@ -49,6 +50,54 @@ const rangeNode=(name,tag)=>Node.create({
 });
 const RepeatBlock=rangeNode('repeatBlock','繰り返し'),ConditionBlock=rangeNode('conditionBlock','条件付き範囲');
 const PageBreakNode=Node.create({name:'pageBreak',group:'block',atom:true,parseHTML(){return [{tag:'div[data-word-page-break]'}];},renderHTML(){return ['div',{'data-word-page-break':'',class:'word-page-break'},'改ページ'];}});
+// A single ProseMirror document owns selection, clipboard and history across
+// all saved blocks. Containers preserve the public Render Definition format.
+const WordDocument=Node.create({name:'doc',topNode:true,content:'(wordSection | wordObject)+'});
+const WordEditing=Extension.create({
+ name:'wordEditing',priority:1100,
+ addKeyboardShortcuts(){
+  const join=backward=>({editor})=>{
+   const {state,view}=editor,{$from,empty}=state.selection;
+   if(!empty||$from.depth!==2||$from.node(1).type.name!=='wordSection'||!$from.parent.isTextblock)return false;
+   const section=$from.node(1),atEdge=backward?$from.parentOffset===0&&$from.index(1)===0:$from.parentOffset===$from.parent.content.size&&$from.index(1)===section.childCount-1;
+   if(!atEdge)return false;
+   const pos=backward?$from.before(1):$from.after(1),neighbor=backward?state.doc.resolve(pos).nodeBefore:state.doc.resolve(pos).nodeAfter;
+   if(neighbor?.type.name!=='wordSection'||!(backward?neighbor.lastChild:neighbor.firstChild)?.isTextblock||!canJoin(state.doc,pos))return false;
+   const tr=state.tr.join(pos);if(canJoin(tr.doc,pos-1))tr.join(pos-1);view.dispatch(tr.scrollIntoView());return true;
+  };
+  const edge=(end,extend)=>{const editor=this.editor,{state,view}=editor,pos=TextSelection.near(state.doc.resolve(end?state.doc.content.size:0),end?-1:1).head;view.dispatch(state.tr.setSelection(TextSelection.create(state.doc,extend?state.selection.anchor:pos,pos)).scrollIntoView());return true;};
+  return {Backspace:()=>join(true)({editor:this.editor}),Delete:()=>join(false)({editor:this.editor}),'Mod-Home':()=>edge(false,false),'Mod-End':()=>edge(true,false),'Mod-Shift-Home':()=>edge(false,true),'Mod-Shift-End':()=>edge(true,true)};
+ }
+});
+function sourceAttrs(element){try{const value=JSON.parse(element.getAttribute('data-word-source')||'null');return value&&typeof value==='object'&&!Array.isArray(value)?value:null;}catch{return null;}}
+const WordSection=Node.create({
+ name:'wordSection',content:'block+',defining:true,
+ addOptions(){return {style:()=>'',onSelect:()=>{}};},
+ addAttributes(){return {id:{default:null},source:{default:null,rendered:false},draft:{default:false,rendered:false}};},
+ parseHTML(){return [{tag:'section[data-word-section]',contentElement:'.tiptap',getAttrs:el=>({id:el.getAttribute('data-block-id'),source:sourceAttrs(el)})}];},
+ renderHTML({node}){return ['section',{'data-word-section':'','data-block-id':node.attrs.id,'data-word-source':JSON.stringify(node.attrs.source)},['div',{class:'tiptap'},0]];},
+ addNodeView(){return ({node,editor,getPos})=>{
+  const dom=document.createElement('section'),handle=document.createElement('button'),contentDOM=document.createElement('div');
+  dom.className='db-object word-flow-block';handle.className='word-flow-handle';handle.type='button';handle.contentEditable='false';handle.dataset.wordDrag='';handle.title='ドラッグして段落・表を移動';handle.setAttribute('aria-label','段落・表を移動');handle.textContent='⋮⋮';contentDOM.className='tiptap db-editing';contentDOM.contentEditable='true';contentDOM.editor=editor;dom.append(handle,contentDOM);
+  const paint=()=>{dom.dataset.blockId=node.attrs.id;dom.classList.toggle('word-writing-gap',!!node.attrs.draft);dom.classList.toggle('word-empty',node.childCount===1&&node.firstChild.type.name==='paragraph'&&!node.firstChild.content.size);contentDOM.style.cssText=this.options.style(node.attrs.source||{});const source=node.attrs.source;contentDOM.style.setProperty('--word-heading-size',source?.type==='heading'&&source.style?.fontSize?source.style.fontSize+'pt':'initial');contentDOM.style.setProperty('--word-heading-weight',source?.type==='heading'&&typeof source.style?.bold==='boolean'?(source.style.bold?'bold':'normal'):'initial');};paint();
+  handle.addEventListener('mousedown',ev=>ev.preventDefault());
+  return {dom,contentDOM,update:next=>{if(next.type!==node.type)return false;node=next;paint();return true;},ignoreMutation:m=>m.type!=='selection'&&(m.target===dom||m.target===handle||handle.contains(m.target)||m.type==='attributes'&&m.target===contentDOM)};
+ };}
+});
+const WordObject=Node.create({
+ name:'wordObject',atom:true,selectable:true,
+ addOptions(){return {render:()=>'',text:()=>'',onSelect:()=>{}};},
+ addAttributes(){return {id:{default:null},source:{default:null,rendered:false}};},
+ parseHTML(){return [{tag:'section[data-word-object]',getAttrs:el=>{const source=sourceAttrs(el);return source&&['field','table','pagebreak'].includes(source.type)?{id:el.getAttribute('data-block-id'),source}:false;}}];},
+ renderHTML({node}){return ['section',{'data-word-object':'','data-block-id':node.attrs.id,'data-word-source':JSON.stringify(node.attrs.source)},this.options.text(node.attrs.source)];},
+ renderText({node}){return this.options.text(node.attrs.source);},
+ addNodeView(){return ({node,editor,getPos})=>{
+  const dom=document.createElement('section');dom.className='db-object word-bound-block';dom.contentEditable='false';dom.tabIndex=0;
+  const paint=()=>{dom.dataset.blockId=node.attrs.id;dom.innerHTML=this.options.render(node.attrs.source);};paint();
+  dom.addEventListener('mousedown',ev=>{if(ev.button!==0)return;ev.preventDefault();editor.commands.setNodeSelection(getPos());this.options.onSelect(node.attrs.id,ev.target.closest('[data-style-part]')?.dataset.stylePart||'value');editor.view.focus();});
+  return {dom,update:next=>{if(next.type!==node.type)return false;node=next;paint();return true;},selectNode:()=>dom.classList.add('db-selected'),deselectNode:()=>dom.classList.remove('db-selected'),ignoreMutation:()=>true};
+ };}
+});
 const ControlRanges=Extension.create({name:'controlRanges',addCommands(){return {exitControlRange:()=>({state,dispatch})=>{const {selection}=state,{$from}=selection;let pos=['repeatBlock','conditionBlock'].includes(selection.node?.type.name)?selection.to:null;for(let depth=$from.depth;pos===null&&depth>0;depth--)if(['repeatBlock','conditionBlock'].includes($from.node(depth).type.name))pos=$from.after(depth);if(pos===null)return false;const tr=state.tr.insert(pos,state.schema.nodes.paragraph.create());if(dispatch)dispatch(tr.setSelection(TextSelection.near(tr.doc.resolve(pos+1))).scrollIntoView());return true;}};},addKeyboardShortcuts(){return {'Mod-Enter':()=>this.editor.commands.exitControlRange()||this.editor.commands.insertContent({type:'pageBreak'})};}});
 
 const cellExtension=tag=>({addAttributes(){return {...this.parent?.(),border:{default:'none'},borderWidth:{default:0.5},borders:{default:null},fill:{default:null},padding:{default:6},valign:{default:'top'}};},renderHTML({node,HTMLAttributes}){const a=node.attrs;return [tag,mergeAttributes(HTMLAttributes,{style:globalThis.DocBench.cellBorderCSS(a)+'background:'+(a.fill||'transparent')+';padding:'+a.padding+'px;vertical-align:'+a.valign}),0];}});
@@ -80,4 +129,4 @@ const TableBorders=Extension.create({name:'tableBorders',addCommands(){return {s
  }};}});
 const ParagraphFormat = Extension.create({name:'paragraphFormat',addGlobalAttributes(){return [{types:['paragraph','heading'],attributes:{textAlign:{default:'left',renderHTML:a=>({style:'text-align:'+a.textAlign})},lineHeight:{default:null,renderHTML:a=>a.lineHeight?{style:'line-height:'+a.lineHeight}:{}},spaceBefore:{default:0,renderHTML:a=>({style:'margin-top:'+a.spaceBefore+'pt'})},spaceAfter:{default:8,renderHTML:a=>({style:'margin-bottom:'+a.spaceAfter+'pt'})},bottomBorder:{default:'none',renderHTML:a=>({style:'border-bottom:'+(a.bottomBorder==='none'?'none':'1pt solid '+a.bottomBorder)})}}}];}});
 const Identity = Extension.create({name:'richIdentity',addGlobalAttributes(){return [{types:['paragraph','heading','table','tableRow','tableCell','tableHeader','fieldRef','listItem','bulletList','orderedList','blockquote','horizontalRule','repeatBlock','conditionBlock','pageBreak'],attributes:{id:{default:null,parseHTML:element=>element.getAttribute('data-rich-id'),renderHTML:attrs=>attrs.id?{'data-rich-id':attrs.id}:{}}}}];},addProseMirrorPlugins(){return [new Plugin({appendTransaction(transactions,oldState,state){if(!transactions.some(t=>t.docChanged))return null;const seen=new Set(),tr=state.tr;state.doc.descendants((node,pos)=>{if(!('id' in node.attrs))return;let id=node.attrs.id;if(!id||seen.has(id)){id=globalThis.DocBench.uid();tr.setNodeMarkup(pos,undefined,{...node.attrs,id});}seen.add(id);});return tr.docChanged?tr:null;}})];}});
-globalThis.DocBenchEditorLib={Editor,StarterKit,Table,TableRow,Cell,CellHeader,TextStyleKit,FieldRef,ParagraphFormat,Identity,TableBorders,Subscript,Superscript,Selection,TextSelection,StepMap,RepeatBlock,ConditionBlock,PageBreakNode,ControlRanges,ToolbarSelection,ListTypography};
+globalThis.DocBenchEditorLib={Editor,StarterKit,Table,TableRow,Cell,CellHeader,TextStyleKit,FieldRef,ParagraphFormat,Identity,TableBorders,Subscript,Superscript,Selection,TextSelection,StepMap,RepeatBlock,ConditionBlock,PageBreakNode,ControlRanges,ToolbarSelection,ListTypography,WordDocument,WordSection,WordObject,WordEditing};
