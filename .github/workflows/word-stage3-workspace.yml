@@ -1,0 +1,32 @@
+name: Word stage 3 verification workspace
+on:
+  push:
+    branches: [word-stage3-tables]
+permissions:
+  contents: read
+concurrency:
+  group: word-stage3-workspace
+  cancel-in-progress: true
+jobs:
+  workspace:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked editor build tools
+        run: npm ci --prefix scripts/editor-build --no-audit --no-fund
+      - name: Install browser test tools
+        run: npm --prefix scripts/qa install --ignore-scripts --no-audit --no-fund
+      - name: Package tracked source and development dependencies
+        run: |
+          git archive --format=tar HEAD > /tmp/docbench-source.tar
+          tar -cf /tmp/docbench-dependencies.tar scripts/editor-build/node_modules scripts/qa/node_modules
+      - uses: actions/upload-artifact@v4
+        with:
+          name: word-stage3-workspace
+          path: |
+            /tmp/docbench-source.tar
+            /tmp/docbench-dependencies.tar
+          retention-days: 3
