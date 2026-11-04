@@ -1,0 +1,2 @@
+# The portable builder embeds this document verbatim with LF newlines.
+docs/specification.md text eol=lf

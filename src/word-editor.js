@@ -12,7 +12,10 @@ function attachWordEditor(surface,config,doc){
  main.querySelectorAll('[data-block-id]').forEach(node=>node.remove());
  main.insertBefore(host,main.querySelector('footer'));
  main.style.margin='0 auto';main.style.background='white';main.style.boxShadow='0 3px 16px #21364222';
- main.style.zoom=Math.min(1,Math.max(.15,(surface.clientWidth-28)/main.getBoundingClientRect().width))*(config.zoom||100)/100;
+ // A percentage is an actual scale; fit follows pane resizing without rebuilding Tiptap.
+ const paperWidth=main.offsetWidth;
+ function fitPaper(){if(surface.clientWidth)main.style.zoom=config.zoom===0?Math.max(.15,(surface.clientWidth-28)/paperWidth):(config.zoom||100)/100;}
+ fitPaper();const resizeObserver=new ResizeObserver(fitPaper);resizeObserver.observe(surface);
  doc.body.style.background='#e8eef0';
  let documentEditor,editor=null,lastSelected=config.selectedId,heldSelection=null,gesture=null,ruler=null,formatPlanDoc=null,formatPlan=new Map();
  const locate=id=>{let found=null;documentEditor.state.doc.forEach((node,pos)=>{if(node.attrs.id===id)found={node,pos};});return found;};
@@ -176,7 +179,7 @@ function attachWordEditor(surface,config,doc){
    else return false;
    if(!nodes.length)nodes.push(...D.wordEditorDocument([]).content);replaceBlocks(nodes,id);return true;
   },
-  destroy(){ruler?.destroy();documentEditor.destroy();editor=null;}
+  destroy(){resizeObserver.disconnect();ruler?.destroy();documentEditor.destroy();editor=null;}
  };
  main.addEventListener('click',event=>{if(event.target===main||event.target===host)write();});
  main.addEventListener('pointerdown',event=>{

@@ -165,3 +165,39 @@ body.app-shell{--header-height:96px;--control-width:calc(50vw - var(--sidebar-wi
 .word-style-manager{display:grid;gap:12px}.word-style-preview{padding:18px;min-height:80px;background:#fff;border:1px solid var(--line);overflow-wrap:anywhere}
 .word-number-sample{padding:12px;background:var(--panel-soft,#f3f7f8);line-height:1.6;max-height:160px;overflow:auto}
 .word-tab-list{display:grid;gap:4px;margin-bottom:12px}.word-tab-list>div{display:flex;gap:8px;justify-content:space-between}
+
+/* Word tasks have stable names, visible field labels and a dedicated proof view. */
+.word-toolbar .word-workspace-nav{position:sticky;top:0;z-index:5;background:#f8fafb;padding:6px 0 8px;margin-bottom:12px;box-shadow:0 3px 5px #21364209}
+.word-toolbar .word-task-shortcuts{display:flex;gap:4px}.word-toolbar .word-task-shortcuts button{flex:1;min-width:0;min-height:32px;padding:6px 4px;font-size:12px;color:#47616d}
+.word-toolbar .word-task-section{scroll-margin-top:108px}
+.word-toolbar .word-view-switch{display:flex;gap:4px;padding:4px;background:#edf2f4;border-radius:7px;margin-bottom:12px}
+.word-toolbar .word-view-switch button{flex:1;min-width:0;min-height:36px;font-size:12px;padding:7px 8px;border-radius:5px}
+.word-toolbar .word-view-switch button[aria-pressed=true]{background:#fff;color:#126b74;box-shadow:0 1px 4px #21364218;font-weight:600}
+.word-toolbar .canvas-selection{display:grid!important;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:0 0 10px}
+.word-toolbar .canvas-selection strong{grid-column:1/-1;margin:0!important;font-size:12px;color:#47616d}
+.word-toolbar .canvas-selection #word-write{margin:0;justify-self:start;min-height:32px}
+.word-toolbar .canvas-selection>label{justify-content:flex-end;gap:8px}
+.word-toolbar .word-task-section{border-top:1px solid #d8e2e6;padding:14px 0;margin:0;min-width:0}
+.word-toolbar .word-task-section h4,.word-toolbar .word-task-section>summary{font-size:13px;font-weight:650;color:#263f4b;margin:0 0 10px}
+.word-toolbar .word-task-section>summary{cursor:pointer;min-height:26px;margin:0}
+.word-toolbar .word-task-section .word-toolbar-row{margin:0;gap:10px}
+.word-toolbar .word-task-section .word-tool-group{padding:0;border:0;gap:5px;flex-wrap:wrap}
+.word-toolbar .word-task-section .word-tool-group+.word-tool-group{border:0;padding:0}
+.word-toolbar .word-task-section label{font-size:12px;gap:5px}
+.word-toolbar .word-task-section label:has(>span){display:flex;flex-direction:column;align-items:flex-start;gap:5px}
+.word-toolbar .word-task-section label>span{font-size:11px;color:#58717d}
+.word-toolbar .word-task-section button{min-height:32px;font-size:12px}
+.word-toolbar .word-task-section input,.word-toolbar .word-task-section select{font-size:13px;min-height:34px}
+.word-toolbar .word-task-section #word-heading{width:108px}.word-toolbar .word-task-section #canvas-font{width:140px}
+.word-toolbar .word-task-section #canvas-font-size{width:68px}
+.word-toolbar .word-task-section>.ribbon-details{display:block;margin-top:8px}
+.word-toolbar .word-task-section>.ribbon-details>summary{font-weight:500;background:transparent;border:0;padding:8px 0;min-height:32px}
+.word-toolbar .word-page-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}
+.word-toolbar .word-page-grid>label{display:flex;flex-direction:column;align-items:stretch;white-space:normal}
+.word-toolbar .word-page-grid input,.word-toolbar .word-page-grid select{width:100%;min-width:0;box-sizing:border-box}
+.word-toolbar .word-margin-preset{grid-column:1/-1}
+.word-toolbar .word-result-note{font-size:12px;line-height:1.8;color:#526a76;padding:10px 12px;background:#edf5f5;border-radius:5px}
+.word-toolbar .word-preview-hidden,.word-workbench .word-preview-hidden,.output-stage .paper[hidden]{display:none!important}
+.app-shell .output-stage #word-result-preview{width:100%;height:100%;border:0;background:#fff}
+.word-toolbar .word-page-settings[open]{margin-bottom:8px}
+@media(max-width:850px){.word-toolbar .canvas-selection{grid-template-columns:minmax(0,1fr)}.word-toolbar .canvas-selection>label{justify-content:flex-start}.word-toolbar .word-page-grid{grid-template-columns:minmax(0,1fr)}}
