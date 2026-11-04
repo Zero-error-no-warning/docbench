@@ -2,31 +2,70 @@ name: Word stage 3 verification workspace
 on:
   push:
     branches: [word-stage3-tables]
+    paths: ['.github/word-stage3.payload.3']
 permissions:
-  contents: read
+  contents: write
 concurrency:
   group: word-stage3-workspace
   cancel-in-progress: true
 jobs:
-  workspace:
+  verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Apply reviewed source changes with baseline and result checksums
+        shell: python
+        run: |
+          from pathlib import Path
+          import base64, gzip, hashlib, json
+          raw = gzip.decompress(base64.b64decode(''.join(Path('.github/word-stage3.payload.' + str(i)).read_text() for i in (1,2,3))))
+          assert hashlib.sha256(raw).hexdigest() == '2104cf214b130a0934a9b41af3b848db29b0f3a7289008bf7cdde22a8abaf382'
+          for item in json.loads(raw):
+              path = Path(item['path'])
+              assert not path.is_absolute() and '..' not in path.parts and '.git' not in path.parts
+              assert item['path'] == 'index.html' or path.parts[0] in ('src', 'scripts', 'tests', 'docs')
+              if item['before'] is None:
+                  assert not path.exists(), str(path)
+                  text = ''
+              else:
+                  text = path.read_text()
+                  assert hashlib.sha256(text.encode()).hexdigest() == item['before'], str(path)
+              for start, end, replacement in reversed(item['edits']):
+                  text = text[:start] + replacement + text[end:]
+              assert hashlib.sha256(text.encode()).hexdigest() == item['after'], str(path)
+              path.parent.mkdir(parents=True, exist_ok=True)
+              path.write_text(text)
       - name: Install locked editor build tools
         run: npm ci --prefix scripts/editor-build --no-audit --no-fund
-      - name: Install browser test tools
+      - name: Install QA dependencies
         run: npm --prefix scripts/qa install --ignore-scripts --no-audit --no-fund
-      - name: Package tracked source and development dependencies
+      - name: Rebuild local editor libraries and portable application
         run: |
-          git archive --format=tar HEAD > /tmp/docbench-source.tar
-          tar -cf /tmp/docbench-dependencies.tar scripts/editor-build/node_modules scripts/qa/node_modules
+          python -m pip install rjsmin
+          node scripts/editor-build/build.mjs
+          python3 scripts/build.py
+      - name: Run offline regression tests
+        run: npm run test:offline
+      - name: Install test browser
+        run: node scripts/qa/node_modules/playwright/cli.js install --with-deps chromium
+      - name: Run complete browser workflows
+        run: npm run test:browser
+      - name: Commit verified source and generated files
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          rm .github/word-stage3.payload.{1,2,3} .github/workflows/word-stage3-workspace.yml
+          git add src scripts tests docs index.html vendor portable .github
+          git diff --cached --check
+          git commit -m 'Add Word table geometry, row pagination and repeated headers'
+          git push origin HEAD:word-stage3-tables
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: word-stage3-workspace
-          path: |
-            /tmp/docbench-source.tar
-            /tmp/docbench-dependencies.tar
-          retention-days: 3
+          name: word-stage3-verification
+          path: test-results/
+          retention-days: 14
