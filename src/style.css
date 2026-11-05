@@ -200,4 +200,5 @@ body.app-shell{--header-height:96px;--control-width:calc(50vw - var(--sidebar-wi
 .word-toolbar .word-preview-hidden,.word-workbench .word-preview-hidden,.output-stage .paper[hidden]{display:none!important}
 .app-shell .output-stage #word-result-preview{width:100%;height:100%;border:0;background:#fff}
 .word-toolbar .word-page-settings[open]{margin-bottom:8px}
+.word-import-text{white-space:pre-wrap;overflow:auto;max-height:220px;padding:12px;background:#f3f6f7;border:1px solid var(--line);font:13px/1.7 "Yu Gothic",sans-serif}
 @media(max-width:850px){.word-toolbar .canvas-selection{grid-template-columns:minmax(0,1fr)}.word-toolbar .canvas-selection>label{justify-content:flex-start}.word-toolbar .word-page-grid{grid-template-columns:minmax(0,1fr)}}
