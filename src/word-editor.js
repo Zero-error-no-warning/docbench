@@ -64,6 +64,13 @@ function attachWordEditor(surface,config,doc){
  .field-token{display:inline-block;background:#e5f3f1;color:#085e64;padding:1px 4px;border-radius:3px;font-size:.85em}
  .word-control-range{position:relative;border-left:2px solid #8bb5bb;margin:8pt 0;padding:0 0 0 10px}
  .word-control-range.conditionBlock{border-color:#baa3cf}
+ .word-control-range{border:1px solid #b9d3d6;border-left:3px solid #76a8af;border-radius:4px;padding:0 10px 0;margin:10pt 0}
+ .word-control-range.conditionBlock{border:1px solid #d6c8e2;border-left:3px solid #aa91bd}
+ .word-document .word-range-label,.word-document .word-range-end{display:block;width:100%;text-align:left;white-space:normal;line-height:1.5;font:11px/1.5 sans-serif;color:#366d76;background:#f0f7f7;border:0;border-radius:0;cursor:pointer;padding:5px 7px;margin:0;min-height:26px}
+ .word-document .conditionBlock>.word-range-label,.word-document .conditionBlock>.word-range-end{background:#f7f3fa;color:#795c91}
+ .word-document .word-range-content{padding:8px 0}
+ .word-document .word-range-end{border-top:1px dashed #bdd3d6;font-size:10px}
+
  .word-range-label{background:#edf5f5;color:#37646c;font:11px sans-serif;padding:5px 8px;margin:0 0 8px;cursor:pointer;user-select:none}
  .conditionBlock>.word-range-label{background:#f3eff8;color:#755786}.word-range-content{min-height:1em}
  .word-page-break,.word-bound-pagebreak{border-top:1px dashed #a1b7bf;color:#6d818b;font:10px sans-serif;margin:10px 0;padding:5px 0}

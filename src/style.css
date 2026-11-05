@@ -325,3 +325,27 @@ body.app-shell{--header-height:96px;--control-width:calc(50vw - var(--sidebar-wi
 .app-shell.word-authoring .word-editor-tabs [data-word-tab=table],.app-shell.word-authoring .word-editor-tabs [data-word-tab=object],.app-shell.word-authoring .word-editor-tabs [data-word-tab=range]{color:#087782;background:#f0f8f8}
 
 .app-shell.word-authoring #word-panel-home>.word-task-section:nth-child(2) .ribbon-popup,.app-shell.word-authoring .word-border-tools .ribbon-popup{left:auto;right:0}
+
+/* Keep the source of a merge field visible, separate from ordinary insertion. */
+.app-shell.word-authoring .word-ribbon-panels{height:168px;min-height:168px}
+.app-shell.word-authoring #word-panel-insert>.word-task-section{gap:16px;align-items:stretch}
+.app-shell.word-authoring #word-panel-insert h4{display:block;order:0;text-align:left;margin:0 0 8px;font-size:12px;font-weight:600;color:#285360}
+.app-shell.word-authoring #word-panel-insert .word-merge-tools{flex:1.6;min-width:350px;margin:0}
+.app-shell.word-authoring #word-panel-insert .word-control-actions{flex:1;min-width:180px;max-width:260px;display:flex;flex-direction:column;align-items:stretch;gap:4px}
+.app-shell.word-authoring #word-panel-insert .word-control-actions .button-row{display:flex;flex-direction:column;align-items:stretch;margin:0;gap:4px}
+.app-shell.word-authoring #word-panel-insert .word-control-actions .canvas-hint{display:block;margin:3px 0 0;font-size:11px;line-height:1.5;white-space:normal;color:#607580}
+.app-shell.word-authoring #word-panel-insert .word-ordinary-insert{display:flex;flex-direction:column;align-items:flex-start;gap:2px;flex:0 0 138px;width:auto}
+.app-shell.word-authoring #word-panel-insert .word-ordinary-insert button,.app-shell.word-authoring #word-panel-insert .word-ordinary-insert summary{padding:3px 6px;min-height:23px}
+.app-shell.word-authoring #word-panel-insert .word-insertion{flex-wrap:wrap!important;align-items:flex-end;gap:8px!important}
+.app-shell.word-authoring #canvas-insert-field{width:220px;max-width:100%}
+.app-shell.word-authoring #word-field-part{width:140px}
+.app-shell.word-authoring #canvas-insert{min-height:30px}
+.app-shell.word-authoring .word-binding-source{display:flex;flex-wrap:wrap;align-items:center;gap:3px 10px;margin-top:7px;font-size:11px;line-height:1.5;max-width:530px}
+.app-shell.word-authoring #word-binding-example{flex-basis:100%;color:#607580;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.app-shell.word-authoring .word-binding-source button{padding:0;min-height:20px;color:#087782;text-decoration:underline;background:transparent;border:0}
+.app-shell.word-authoring .word-border-tools>.word-tool-group{width:100%}
+.app-shell.word-authoring .word-border-tools [data-word-border]{min-width:46px}
+.word-control-example{background:#f0f6f7;border-left:3px solid #68a4ac;border-radius:4px;padding:12px 14px;margin:14px 0;line-height:1.7}
+.word-control-example p{margin:6px 0 0}
+@media(max-width:1100px){.app-shell.word-authoring #word-panel-insert>.word-task-section{gap:10px}.app-shell.word-authoring #word-panel-insert .word-merge-tools{min-width:330px}.app-shell.word-authoring #word-panel-insert .word-control-actions{min-width:170px}.app-shell.word-authoring #word-panel-insert .word-ordinary-insert{flex-basis:124px}.app-shell.word-authoring #canvas-insert-field{width:180px}.app-shell.word-authoring #word-field-part{width:132px}}
+@media(max-width:1100px){.app-shell.word-authoring .word-ribbon-panels{height:198px;min-height:198px}}
