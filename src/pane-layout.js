@@ -9,7 +9,7 @@ function fitWidths(ratios,total,minima){
  return result;
 }
 function mountPaneLayout(host,screen){
- const work=host.querySelector(':scope > .builder,:scope > .rule-workbench,:scope > .render-grid,:scope > .form-grid');document.body.style.removeProperty('--pane-header-width');if(!work)return {destroy(){}};
+ const work=host.querySelector(':scope > .builder,:scope > .rule-workbench,:scope > .render-grid,:scope > .form-grid');document.body.style.removeProperty('--pane-header-width');if(!work||screen==='render'&&work.classList.contains('word-workbench'))return {destroy(){}};
  const controller=new AbortController(),signal=controller.signal,layer=document.createElement('div');layer.className='pane-resizer-layer';host.append(layer);let groups=[],widths=[],minimums=[],drag=null,frame=0,dimensions='';
  const names={types:['型一覧','型の設定','入力プレビュー'],definition:['入力項目','項目の設定','フォームプレビュー'],rules:['ノード追加','ノードの設定','条件エディタ'],render:['出力の設定','出力編集'],form:['入力','書類プレビュー']}[screen];
  const panels=screen==='rules'?[work.querySelector('.rule-palette'),work.querySelector('.rule-properties'),work.querySelector('.rule-stage')]:[...work.children].filter(el=>el.classList.contains('panel'));

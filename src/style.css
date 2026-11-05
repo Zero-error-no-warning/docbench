@@ -201,4 +201,127 @@ body.app-shell{--header-height:96px;--control-width:calc(50vw - var(--sidebar-wi
 .app-shell .output-stage #word-result-preview{width:100%;height:100%;border:0;background:#fff}
 .word-toolbar .word-page-settings[open]{margin-bottom:8px}
 .word-import-text{white-space:pre-wrap;overflow:auto;max-height:220px;padding:12px;background:#f3f6f7;border:1px solid var(--line);font:13px/1.7 "Yu Gothic",sans-serif}
+
+/* Word uses a document-editor layout: file bar, stable ribbon, canvas and status. */
+.app-shell.word-authoring{--header-height:56px}
+.app-shell.word-authoring>.topbar{width:100%;height:56px;display:flex;flex-wrap:nowrap;gap:12px;padding:8px 16px}
+.app-shell.word-authoring>.topbar .workspace-heading{flex:1;min-width:0;max-width:520px}
+.app-shell.word-authoring>.topbar .header-right{margin-left:auto;gap:6px;flex-shrink:0}
+.app-shell.word-authoring>.topbar .save-status{font-size:11px}
+.app-shell.word-authoring>#app{padding:56px 0 0;min-height:0}
+.app-shell.word-authoring #app>.word-workbench{display:grid!important;grid-template-columns:minmax(0,1fr)!important;grid-template-rows:auto minmax(0,1fr) 34px;position:relative;gap:0;overflow:hidden;height:100%;max-height:none}
+.app-shell.word-authoring #app>.word-workbench>.output-controls{margin:0;padding:0;overflow:visible;min-height:0;min-width:0;display:block;position:relative;border:0;background:#fff;z-index:4}
+.app-shell.word-authoring #app>.word-workbench>.output-stage{grid-row:2;min-height:0;min-width:0;border:0;background:#e9eef2;overflow:hidden}
+.app-shell.word-authoring .output-stage>.paper-frame{height:100%;padding:16px;min-height:0;overflow:hidden;background:#e9eef2}
+.app-shell.word-authoring .output-stage .paper{height:100%;background:#e9eef2;box-shadow:none}
+.app-shell.word-authoring .word-document-bar{display:flex;align-items:center;gap:12px;min-height:48px;padding:7px 16px;background:#fff;border-bottom:1px solid #e4e9ed}
+.app-shell.word-authoring .word-document-bar label{display:flex;align-items:center;gap:8px;margin:0;font-size:11px;white-space:nowrap;color:#617580}
+.app-shell.word-authoring .word-document-selector{min-width:0;flex:1;max-width:340px}
+.app-shell.word-authoring .word-document-selector select{min-width:0;width:100%;font-size:13px;margin:0;height:32px;padding:4px 8px;border-color:transparent;background:#f5f7f9}
+.app-shell.word-authoring .word-format-selector select{width:112px;height:32px;font-size:12px;margin:0;padding:4px 8px;border-color:transparent;background:#f5f7f9}
+.app-shell.word-authoring .word-view-switch{display:flex;gap:2px;background:#eef3f5;border-radius:6px;padding:3px;margin-left:auto;flex-shrink:0}
+.app-shell.word-authoring .word-view-switch button{min-height:30px;padding:5px 10px;border:0;border-radius:4px;font-size:12px;background:transparent;color:#586c78;white-space:nowrap}
+.app-shell.word-authoring .word-view-switch [aria-pressed=true]{background:#fff;color:#086570;box-shadow:0 1px 4px #21364215;font-weight:600}
+.app-shell.word-authoring .word-document-actions{display:flex;gap:6px;flex-wrap:nowrap;flex-shrink:0}
+.app-shell.word-authoring .word-document-actions button{font-size:12px;padding:7px 10px;white-space:nowrap}
+.app-shell.word-authoring .word-file-menu{position:relative;flex-shrink:0;padding:0;margin:0}
+.app-shell.word-authoring .word-file-menu>summary{list-style:none;cursor:pointer;padding:7px 9px;font-size:13px;font-weight:600;color:#285360;border-radius:5px}
+.app-shell.word-authoring .word-file-menu>summary::after{content:'▾';font-size:10px;margin-left:7px}
+.app-shell.word-authoring .word-file-actions{position:absolute;top:calc(100% + 7px);left:0;width:280px;max-width:calc(100vw - 90px);max-height:65vh;overflow:auto;background:white;border:1px solid #dce5e9;box-shadow:0 8px 28px #21364225;border-radius:7px;padding:6px;z-index:25}
+.app-shell.word-authoring .word-file-actions>button{display:block;width:100%;text-align:left;font-size:13px;padding:9px 10px;border:0;background:white}
+.app-shell.word-authoring .word-file-actions>.format-choices{display:flex;flex-wrap:wrap;margin:8px 0 0;padding-top:8px;border-top:1px solid #e4e9ed;gap:4px}
+.app-shell.word-authoring .word-file-actions .format-choices button{flex:1;font-size:11px;min-width:60px;padding:6px 5px}
+.app-shell.word-authoring .word-file-menu:not([open])>.word-file-actions{display:none}
+.app-shell.word-authoring .output-controls>.word-toolbar{padding:0;margin:0;background:#fbfcfd;border:0;overflow:visible;max-height:none}
+.app-shell.word-authoring .word-editor-tabs{display:flex;align-items:center;gap:6px;padding:0 16px;border-bottom:1px solid #dce5e9;background:#fff;height:34px;overflow-x:auto}
+.app-shell.word-authoring .word-editor-tabs button{position:relative;padding:7px 12px;height:34px;min-height:34px;font-size:12px;border:0;border-radius:0;background:transparent;white-space:nowrap;color:#617580}
+.app-shell.word-authoring .word-editor-tabs [aria-selected=true]{color:#086570;font-weight:650;box-shadow:inset 0 -3px #087f8c;background:#f2f8f8}
+.app-shell.word-authoring .word-ribbon-panels{height:112px;min-height:112px;padding:10px 16px;background:#fbfcfd;border-bottom:1px solid #d6e0e6}
+.app-shell.word-authoring .word-ribbon-panel{display:flex;gap:18px;align-items:stretch;height:100%;min-width:0}
+.app-shell.word-authoring .word-ribbon-panel[hidden],.app-shell.word-authoring .word-editor-tabs [hidden]{display:none!important}
+.app-shell.word-authoring .word-ribbon-panel .word-task-section{border:0;border-radius:0;padding:0;margin:0;min-width:0;scroll-margin:0;display:flex;flex-direction:column;gap:3px}
+.app-shell.word-authoring .word-ribbon-panel .word-task-section+.word-task-section{border-left:1px solid #dce5e9;padding-left:18px}
+.app-shell.word-authoring .word-ribbon-panel .word-task-section h4{order:2;font-size:10px;line-height:1.2;font-weight:500;color:#71848d;margin:auto 0 0;text-align:center}
+.app-shell.word-authoring #word-panel-home>.word-task-section:first-child{flex:1.2}
+.app-shell.word-authoring #word-panel-home>.word-task-section:nth-child(2){flex:1}
+.app-shell.word-authoring .word-toolbar-row{display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin:0}
+.app-shell.word-authoring .word-ribbon-panel .word-toolbar-row{margin:0;gap:6px}
+.app-shell.word-authoring .word-ribbon-panel .word-tool-group{padding:0!important;border:0!important;display:flex;align-items:center;gap:3px;flex-wrap:wrap}
+.app-shell.word-authoring .word-ribbon-panel button{min-height:28px;height:28px;padding:4px 7px;font-size:11px;border:1px solid transparent;border-radius:4px;background:transparent;line-height:1.2}
+.app-shell.word-authoring .word-ribbon-panel button:hover{background:#e8f2f4;border-color:#c8dce1}
+.app-shell.word-authoring .word-ribbon-panel button[aria-pressed=true]{background:#d8edef;border-color:#96c4cc;color:#075c68}
+.app-shell.word-authoring .word-ribbon-panel input,.app-shell.word-authoring .word-ribbon-panel select{height:29px;min-height:29px;font-size:12px;padding:4px 6px;border-color:#d3dfe5;background:white;margin:0}
+.app-shell.word-authoring .word-ribbon-panel label{font-size:10px;font-weight:500;margin:0;gap:4px}
+.app-shell.word-authoring .word-ribbon-panel label>span{font-size:10px;line-height:1.1;color:#637b85}
+.app-shell.word-authoring .word-ribbon-panel #word-heading{width:110px}
+.app-shell.word-authoring .word-ribbon-panel #canvas-font{width:132px}
+.app-shell.word-authoring .word-ribbon-panel #canvas-font-size{width:58px}
+.app-shell.word-authoring .word-ribbon-panel input[type=color]{width:27px;padding:2px}
+.app-shell.word-authoring .word-ribbon-panel [data-canvas-align]{padding:4px 6px;width:30px}
+.app-shell.word-authoring .word-ribbon-panel [data-canvas-align] svg{display:block}
+.app-shell.word-authoring .word-ribbon-panel .ribbon-details{position:relative;width:auto!important;display:inline-block;margin:0}
+.app-shell.word-authoring .word-ribbon-panel .ribbon-details>summary{min-height:28px;padding:6px 8px;font-size:11px;font-weight:500;list-style:none;border:1px solid transparent;background:transparent;border-radius:4px}
+.app-shell.word-authoring .word-ribbon-panel .ribbon-details>summary::after{content:'▾';font-size:9px;margin-left:5px}
+.app-shell.word-authoring .word-ribbon-panel .ribbon-details[open]>summary{background:#e8f2f4;border-color:#bdd6dd}
+.app-shell.word-authoring .word-ribbon-panel .ribbon-popup{position:absolute!important;left:0;top:calc(100% + 6px);width:max-content!important;min-width:280px;max-width:min(450px,calc(100vw - 90px));max-height:60vh;overflow:auto;margin:0;padding:14px;box-shadow:0 8px 28px #21364225;border:1px solid #d1dfe5;border-radius:7px;z-index:25;background:white;box-sizing:border-box}
+.app-shell.word-authoring .word-ribbon-panel .ribbon-popup button{border:1px solid #d3dfe5;background:white}
+.app-shell.word-authoring .word-ribbon-panel .word-paragraph-grid{min-width:320px;gap:10px}
+.app-shell.word-authoring .word-ribbon-panel .word-paragraph-grid label{display:flex;flex-direction:column;align-items:stretch;white-space:normal;font-size:11px}
+.app-shell.word-authoring .word-ribbon-panel .word-paragraph-grid .check{flex-direction:row;align-items:center;gap:7px}
+.app-shell.word-authoring .word-ribbon-panel .word-paragraph-grid input,.app-shell.word-authoring .word-ribbon-panel .word-paragraph-grid select{width:100%}
+.app-shell.word-authoring .word-ribbon-panel .word-paragraph-grid input[type=checkbox]{width:16px;height:16px;min-height:16px}
+.app-shell.word-authoring #word-panel-insert .word-task-section{display:flex;flex-direction:row;align-items:center;gap:20px;width:100%}
+.app-shell.word-authoring #word-panel-insert h4{display:none}
+.app-shell.word-authoring .word-merge-tools{display:block;width:auto!important;margin:0}
+.app-shell.word-authoring .word-merge-tools>.ribbon-popup{position:static!important;width:auto!important;max-width:none;max-height:none;min-width:0;padding:0;border:0;box-shadow:none;background:transparent;overflow:visible}
+.app-shell.word-authoring .word-merge-tools .button-row{margin-top:8px;gap:8px}
+.app-shell.word-authoring .word-insertion{flex-wrap:nowrap!important;gap:6px!important}
+.app-shell.word-authoring #canvas-insert-type{width:128px}
+.app-shell.word-authoring #canvas-insert-field{width:180px;max-width:180px}
+.app-shell.word-authoring #word-field-part{width:86px}
+.app-shell.word-authoring #word-panel-insert .primary{background:#087f8c;color:white}
+.app-shell.word-authoring #word-panel-layout .word-page-settings{display:block;width:100%}
+.app-shell.word-authoring #word-panel-layout .word-page-settings>p:first-of-type{display:none}
+.app-shell.word-authoring .word-page-grid{display:grid;grid-template-columns:80px 80px minmax(170px,1fr) repeat(4,minmax(70px,100px));gap:12px;margin:0}
+.app-shell.word-authoring .word-page-grid .word-margin-preset{grid-column:auto}
+.app-shell.word-authoring .word-page-grid label{display:flex;flex-direction:column;align-items:stretch;font-size:11px;gap:5px}
+.app-shell.word-authoring .word-page-grid input,.app-shell.word-authoring .word-page-grid select{width:100%;min-width:0}
+.app-shell.word-authoring #word-page-summary{margin:9px 0 0;font-size:11px;color:#6e838e}
+.app-shell.word-authoring .word-table-context{display:flex;gap:18px;align-items:flex-start;border:0;padding:0;margin:0;width:100%}
+.app-shell.word-authoring .word-table-context>.word-toolbar-row{flex:1;min-width:0;display:flex;align-items:center;gap:6px}
+.app-shell.word-authoring .word-table-context>.word-toolbar-row+.word-toolbar-row{border-left:1px solid #dce5e9;padding-left:18px}
+.app-shell.word-authoring .word-table-context>.canvas-hint{display:none}
+.app-shell.word-authoring .word-table-context strong{font-size:11px;font-weight:600;width:100%;color:#587380}
+.app-shell.word-authoring #word-panel-range .word-range-tools{padding:0;margin:0;border:0}
+.app-shell.word-authoring .word-editor-status{grid-row:3;display:flex;align-items:center;min-width:0;background:#fff;border-top:1px solid #d5e0e6;padding:0 16px;font-size:11px;z-index:2}
+.app-shell.word-authoring .word-editor-status .canvas-selection{display:flex!important;align-items:center;gap:12px;width:100%;padding:0;margin:0;min-width:0}
+.app-shell.word-authoring .word-editor-status #canvas-selection{grid-column:auto;font-size:11px;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0;min-width:0;color:#58717e}
+.app-shell.word-authoring .word-editor-status #word-write{font-size:11px;border:0;padding:3px 6px;min-height:26px;height:26px;color:#58717e}
+.app-shell.word-authoring .word-editor-status label{display:flex;align-items:center;gap:8px;white-space:nowrap;margin:0 0 0 auto;font-size:11px}
+.app-shell.word-authoring .word-editor-status select{width:116px;height:26px;padding:3px 5px;font-size:11px;margin:0;border:0;background:#f5f7f9}
+.app-shell.word-authoring .output-controls>.design-inspector{position:absolute;right:0;top:calc(100% + 1px);bottom:auto;width:330px;height:calc(100dvh - 100% - 91px);max-height:calc(100dvh - 100% - 91px);overflow:auto;z-index:20;border:1px solid #d6e1e7;box-shadow:-6px 6px 24px #21364218;background:#fff;padding:0}
+.app-shell.word-authoring .design-inspector>.panel-head{padding:10px 14px;position:sticky;top:0;background:#fff;z-index:1;display:flex;flex-wrap:wrap}
+.app-shell.word-authoring .design-inspector>.panel-body{padding:14px;overflow:visible}
+.app-shell.word-authoring .word-details-close{font-size:11px;padding:5px 7px;margin-left:auto}
+.app-shell.word-authoring .output-controls>.output-guide{display:none}
+.app-shell.word-authoring .word-proof-mode .word-toolbar{display:none}
+.app-shell.word-authoring .word-result-note{margin:0;padding:8px 16px;border:0;border-radius:0;background:#eef7f7;color:#496e77;font-size:12px;line-height:1.5}
+.app-shell.word-authoring .word-result-note[hidden]{display:none}
+.app-shell.word-authoring .word-proof-mode .word-editor-status label{display:none}
+.app-shell.word-authoring .word-ribbon-panel [hidden],.app-shell.word-authoring .word-editor-status [hidden]{display:none!important}
+@media(max-width:1150px){.app-shell.word-authoring .word-format-selector>span{display:none}.app-shell.word-authoring .word-document-bar{gap:7px;padding-inline:10px}.app-shell.word-authoring .word-view-switch button{padding-inline:7px}.app-shell.word-authoring .word-ribbon-panels{height:144px;min-height:144px;padding-inline:10px}.app-shell.word-authoring .word-ribbon-panel{gap:12px}.app-shell.word-authoring .word-ribbon-panel .word-task-section+.word-task-section{padding-left:12px}.app-shell.word-authoring .word-page-grid{gap:8px;grid-template-columns:72px 72px minmax(150px,1fr) repeat(4,minmax(60px,80px))}}
+@media(max-width:850px){.app-shell.word-authoring>.topbar{height:56px;gap:6px;padding:6px 8px}.app-shell.word-authoring>.topbar .brand{display:none}.app-shell.word-authoring>.topbar .header-right .save-status{display:none}.app-shell.word-authoring>.topbar .header-right button{padding:5px;font-size:11px}.app-shell.word-authoring>.app-sidebar{top:0;margin-top:56px}.app-shell.word-authoring .word-document-bar{flex-wrap:wrap;gap:6px;padding:6px 8px}.app-shell.word-authoring .word-document-selector{max-width:none;flex:1}.app-shell.word-authoring .word-format-selector{display:none}.app-shell.word-authoring .word-document-actions{margin-left:auto}.app-shell.word-authoring .word-view-switch{margin-left:0}.app-shell.word-authoring .word-ribbon-panels{height:148px;min-height:148px;overflow:auto}.app-shell.word-authoring .word-ribbon-panel{min-width:630px}.app-shell.word-authoring #word-panel-home{min-width:650px}.app-shell.word-authoring .word-editor-status{padding-inline:8px}.app-shell.word-authoring .word-editor-status #word-write{display:none}.app-shell.word-authoring .word-editor-status label{font-size:0;gap:0}.app-shell.word-authoring .word-editor-status select{font-size:11px}.app-shell.word-authoring .output-stage>.paper-frame{padding:8px}.app-shell.word-authoring .output-controls>.design-inspector{width:min(330px,calc(100vw - 65px))}}
 @media(max-width:850px){.word-toolbar .canvas-selection{grid-template-columns:minmax(0,1fr)}.word-toolbar .canvas-selection>label{justify-content:flex-start}.word-toolbar .word-page-grid{grid-template-columns:minmax(0,1fr)}}
+
+.app-shell.word-authoring #word-panel-home>.word-task-section:nth-child(2) .word-toolbar-row{align-content:flex-start;row-gap:8px}
+.app-shell.word-authoring .word-ribbon-panel .ribbon-details{border:0;padding:0}
+.app-shell.word-authoring .word-ribbon-panel .ribbon-details>summary{margin:0}
+.app-shell.word-authoring #word-panel-home .word-toolbar-row>.ribbon-details{flex:0 0 auto}
+.app-shell.word-authoring .word-ribbon-panel .word-task-section>.word-toolbar-row{min-height:0}
+
+.app-shell.word-authoring .word-insertion>label{display:flex;flex-direction:column;align-items:flex-start;gap:5px}
+.app-shell.word-authoring .word-insertion select{flex:none}
+.app-shell.word-authoring .word-ribbon-panel .word-insertion{align-items:flex-end}
+.app-shell.word-authoring .word-editor-tabs [data-word-tab=table],.app-shell.word-authoring .word-editor-tabs [data-word-tab=object],.app-shell.word-authoring .word-editor-tabs [data-word-tab=range]{color:#087782;background:#f0f8f8}
+
+.app-shell.word-authoring #word-panel-home>.word-task-section:nth-child(2) .ribbon-popup,.app-shell.word-authoring .word-border-tools .ribbon-popup{left:auto;right:0}
