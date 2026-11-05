@@ -44,9 +44,10 @@ const rangeNode=(name,tag)=>Node.create({
  parseHTML(){return [{tag:'section[data-word-range="'+name+'"]',contentElement:'[data-range-content]',getAttrs:el=>{try{return JSON.parse(el.getAttribute('data-range-attrs')||'{}');}catch{return false;}}}];},
  renderHTML({node,HTMLAttributes}){return ['section',mergeAttributes(HTMLAttributes,{'data-word-range':name,'data-range-attrs':JSON.stringify(node.attrs),class:'word-control-range '+name}),['div',{'data-range-label':'',contenteditable:'false'},this.options.label(node)],['div',{'data-range-content':''},0]];},
  addNodeView(){return ({node,editor,getPos})=>{
-  const dom=document.createElement('section'),label=document.createElement('div'),contentDOM=document.createElement('div');dom.className='word-control-range '+name;dom.dataset.wordRange=name;label.className='word-range-label';label.contentEditable='false';label.setAttribute('role','button');label.setAttribute('aria-label',tag+'の設定');label.title='クリックして'+tag+'の設定';label.textContent=this.options.label(node);contentDOM.className='word-range-content';dom.append(label,contentDOM);
-  label.addEventListener('mousedown',ev=>{ev.preventDefault();editor.commands.setNodeSelection(getPos());this.options.onEdit();});
-  return {dom,contentDOM,update:next=>{if(next.type.name!==name)return false;node=next;label.textContent=this.options.label(next);return true;},ignoreMutation:m=>m.target===label||label.contains(m.target)};
+  const dom=document.createElement('section'),label=document.createElement('button'),contentDOM=document.createElement('div'),end=document.createElement('button');dom.className='word-control-range '+name;dom.dataset.wordRange=name;label.className='word-range-label';label.type='button';label.contentEditable='false';label.setAttribute('aria-label',tag+'の設定');label.title='クリックして'+tag+'の設定';label.textContent=this.options.label(node);contentDOM.className='word-range-content';end.type='button';end.contentEditable='false';end.className='word-range-end';end.textContent=(name==='repeatBlock'?'ここまでを1件分としてくり返す':'ここまでを条件で表示')+' · 続きを外に書く';end.title='このまとまりの後に新しい段落を作ります';dom.append(label,contentDOM,end);
+  label.addEventListener('mousedown',ev=>ev.preventDefault());label.addEventListener('click',()=>{editor.commands.setNodeSelection(getPos());this.options.onEdit();});
+  end.addEventListener('mousedown',ev=>ev.preventDefault());end.addEventListener('click',()=>editor.chain().setNodeSelection(getPos()).exitControlRange().focus().run());
+  return {dom,contentDOM,update:next=>{if(next.type.name!==name)return false;node=next;label.textContent=this.options.label(next);return true;},ignoreMutation:m=>m.target===label||label.contains(m.target)||m.target===end||end.contains(m.target)};
  };}
 });
 const RepeatBlock=rangeNode('repeatBlock','繰り返し'),ConditionBlock=rangeNode('conditionBlock','条件付き範囲');
@@ -105,7 +106,7 @@ const cellExtension=tag=>({addAttributes(){return {...this.parent?.(),border:{de
 const Cell = TableCell.extend(cellExtension('td'));
 const CellHeader = TableHeader.extend(cellExtension('th'));
 // ProseMirror owns cell geometry and selection, including merged and nested cells.
-const TableBorders=Extension.create({name:'tableBorders',addCommands(){return {setTableBorders:({preset,scope='table',color='#172b39',width=.5,style='single'})=>({state,dispatch})=>{
+const TableBorders=Extension.create({name:'tableBorders',addCommands(){return {setTableBorders:({preset,scope='table',color='#172b39',width=.5,style='single',erase=false})=>({state,dispatch})=>{
  if(!isInTable(state))return false;
  const selection=selectedRect(state),{map,table,tableStart}=selection,r=scope==='table'?{left:0,top:0,right:map.width,bottom:map.height}:selection;
  const edge={color,width,style},changes=new Map(),sides=['top','right','bottom','left'];
@@ -116,7 +117,7 @@ const TableBorders=Extension.create({name:'tableBorders',addCommands(){return {s
   for(const side of sides){
    const set=replace||preset===side&&outer[side]||preset==='horizontal'&&['top','bottom'].includes(side)&&!outer[side]||preset==='vertical'&&['left','right'].includes(side)&&!outer[side];if(!set)continue;
    const on=preset==='all'||preset==='outer'&&outer[side]||preset==='inside'&&!outer[side]||!replace;
-   a.borders[side]=on?edge:'none';
+   a.borders[side]=on&&!erase?edge:'none';
    // Shared edges agree on both cells, so clearing an edge really removes it.
    const neighbors=[];if(side==='top'&&c.top>0)for(let x=c.left;x<c.right;x++)neighbors.push(map.map[(c.top-1)*map.width+x]);
    if(side==='bottom'&&c.bottom<map.height)for(let x=c.left;x<c.right;x++)neighbors.push(map.map[c.bottom*map.width+x]);

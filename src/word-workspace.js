@@ -7,7 +7,7 @@ function mountWordWorkspace(cfg){
  const selection=toolbar.querySelector('.canvas-selection'),rows=[...toolbar.children].filter(el=>el.classList.contains('word-toolbar-row'));
  const section=(title,nodes)=>{const group=document.createElement('section');group.className='word-task-section';const h=document.createElement('h4');h.textContent=title;group.append(h,...nodes);return group;};
  const label=(id,text)=>{const input=toolbar.querySelector('#'+id),wrapper=document.createElement('label'),caption=document.createElement('span');caption.textContent=text;input.before(wrapper);wrapper.append(caption,input);};
- label('word-heading','スタイル');label('canvas-font','フォント');label('canvas-font-size','サイズ（pt）');label('canvas-insert-type','挿入する内容');label('canvas-insert-field','入力項目');label('word-field-part','差し込む内容');
+ label('word-heading','スタイル');label('canvas-font','フォント');label('canvas-font-size','サイズ（pt）');label('canvas-insert-type','追加するもの');label('canvas-insert-field','要件で定義した項目');label('word-field-part','文書に表示するもの');
  const paragraph=rows[1],insertions=[...paragraph.querySelectorAll(':scope > .word-merge-tools,:scope > details:last-child')];
  const fontGroup=section('文字の書式',[rows[0]]),paragraphGroup=section('段落',[paragraph]),insertGroup=section('挿入',[...insertions]);
  selection.after(fontGroup,paragraphGroup,insertGroup);
@@ -17,7 +17,7 @@ function mountWordWorkspace(cfg){
  modes.innerHTML='<button type="button" id="word-view-edit" aria-controls="document-preview" aria-pressed="true">本文を編集</button><button type="button" id="word-view-result" aria-controls="word-result-preview" aria-pressed="false">入力データで確認</button>';
  const navigation=document.createElement('div');navigation.className='word-workspace-nav';
  const shortcuts=document.createElement('div');shortcuts.className='word-editor-tabs';shortcuts.setAttribute('role','tablist');shortcuts.setAttribute('aria-label','Word編集の操作');
- const tabNames=[['home','ホーム','0'],['insert','挿入','2'],['layout','レイアウト','3'],['table','表','4'],['object','要素','5'],['range','範囲','6']];
+ const tabNames=[['home','ホーム','0'],['insert','差込み・挿入','2'],['layout','レイアウト','3'],['table','表','4'],['object','要素','5'],['range','くり返し・表示条件','6']];
  shortcuts.innerHTML=tabNames.map(([id,name,old])=>'<button type="button" role="tab" id="word-tab-'+id+'" data-word-tab="'+id+'" data-word-task="'+old+'" aria-controls="word-panel-'+id+'" aria-selected="false" tabindex="-1">'+name+'</button>').join('');
  navigation.append(modes,shortcuts);selection.before(navigation);
  const frame=surface.parentElement,result=document.createElement('iframe');result.id='word-result-preview';result.title='入力データを反映したWordの仕上がり';result.className='paper';result.setAttribute('sandbox','');result.hidden=true;frame.append(result);
@@ -54,6 +54,21 @@ function mountWordWorkspace(cfg){
  for(const [id,selector]of [['table','#word-table-tools'],['object','#word-block-tools'],['range','#word-range-tools']])panes.get(id).append(toolbar.querySelector(selector));
  const pageBreak=paragraphGroup.querySelector('[data-word-command="pageBreak"]');if(pageBreak)insertGroup.append(pageBreak);
  const mergeTools=insertGroup.querySelector('.word-merge-tools');mergeTools.open=true;mergeTools.querySelector('summary').hidden=true;
+ // Separate choosing a requirement from adding ordinary prose or a table.
+ insertGroup.querySelector(':scope > h4').hidden=true;
+ const insertion=mergeTools.querySelector('.word-insertion'),kind=insertion.querySelector('#canvas-insert-type'),part=insertion.querySelector('#word-field-part'),insert=insertion.querySelector('#canvas-insert'),rules=mergeTools.querySelector('.button-row');
+ kind.closest('label').hidden=true;part.options[0].textContent='入力された値';part.options[1].textContent='項目名（見出し用）';
+ const fieldsTitle=document.createElement('h4');fieldsTitle.id='word-insertion-title';fieldsTitle.textContent='要件の入力値を差し込む';
+ const source=document.createElement('div');source.className='word-binding-source';source.innerHTML='<span id="word-binding-example"></span><button type="button" id="word-binding-definition">この項目の要件を開く</button>';
+ insertion.before(fieldsTitle);insertion.after(source);
+ const rulesSection=section('文章・表のくり返しと表示条件',[rules]);rulesSection.classList.add('word-control-actions');
+ rules.querySelector('#word-repeat-insert').textContent='件数分くり返す';rules.querySelector('#word-condition-insert').textContent='条件で表示を切り替える';
+ const ruleHint=document.createElement('p');ruleHint.className='canvas-hint';ruleHint.textContent='対象にしたい段落・表を選んでから設定します。未選択なら、文章を書き込む枠を追加します。';rulesSection.append(ruleHint);
+ const ordinary=section('文章・表を追加',[]);ordinary.classList.add('word-ordinary-insert');
+ for(const [value,title]of [['heading','見出し'],['text','文章'],['table','要件の一覧を表にする']]){const button=document.createElement('button');button.type='button';button.textContent=title;button.onmousedown=ev=>ev.preventDefault();button.onclick=()=>{kind.value=value;kind.onchange();if(value!=='table'){insert.click();kind.value='field';kind.onchange();}};ordinary.append(button);}
+ const back=document.createElement('button');back.type='button';back.id='word-insert-values';back.textContent='入力値の差込みへ戻る';back.onclick=()=>{kind.value='field';kind.onchange();};source.append(back);
+ for(const node of [...insertGroup.children])if(node!==mergeTools&&node.tagName!=='H4')ordinary.append(node);
+ insertGroup.append(rulesSection,ordinary);
  const hint=toolbar.querySelector(':scope > .canvas-hint');if(hint)hint.remove();toolbar.replaceChildren(shortcuts,panels);controls.append(note);navigation.remove();
  const closeSettings=document.createElement('button');closeSettings.className='word-details-close';closeSettings.textContent='設定を閉じる';closeSettings.onclick=()=>properties?.click();inspector.querySelector('.panel-head').append(closeSettings);
  for(const button of toolbar.querySelectorAll('[data-canvas-align]')){const align=button.dataset.canvasAlign,title=button.textContent;button.title=title;button.setAttribute('aria-label',title);const widths=align==='justify'?[16,16,16,16]:[16,11,16,11];button.innerHTML='<svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">'+widths.map((w,i)=>'<path d="M'+(align==='center'?(20-w)/2:align==='right'?18-w:2)+' '+(4+i*4)+'h'+w+'" stroke="currentColor" stroke-width="1.7"/>').join('')+'</svg>';}
