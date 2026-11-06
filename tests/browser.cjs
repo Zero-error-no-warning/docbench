@@ -9,6 +9,7 @@ const server=http.createServer((req,res)=>{const pathname=decodeURIComponent(new
 (async()=>{await new Promise(r=>server.listen(0,'127.0.0.1',r));const url='http://127.0.0.1:'+server.address().port,browser=await playwright.chromium.launch({headless:true});const page=await browser.newPage({viewport:{width:1500,height:1100}}),exceptions=[],sandboxErrors=[];page.on('console',msg=>{if(msg.type()==='error'&&/Blocked script execution|sandboxed.*allow-scripts/i.test(msg.text()))sandboxErrors.push(msg.text());});page.on('pageerror',err=>exceptions.push(err.message));
  try{
  await page.route('**/*',route=>{const u=route.request().url();if(u.startsWith(url)||u.startsWith('file:')||u.startsWith('data:')||u.startsWith('blob:'))route.continue();else route.abort();});
+ await require('./definition-history-browser.cjs')({page,out,url,root});
  await require('./unified-workflows-browser.cjs')({page,out,url,root});
  await require('./task-flow-browser.cjs')({page,out,url,root});
  // Legacy domain scenarios also cover the optional simultaneous list/settings layout.
