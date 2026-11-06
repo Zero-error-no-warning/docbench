@@ -10,12 +10,12 @@ function mountTaskFlow(host,screen,definition,cfg){
  let pinned=false;try{pinned=localStorage.getItem(pinKey)==='true';}catch{}
  source.classList.add('flow-source');settings.classList.add('flow-settings');work.classList.toggle('task-focused',!pinned);work.dataset.flowLayout=pinned?'pinned':'focused';
  if(!panes.has(key))panes.set(key,'list');
- function show(pane,focus){panes.set(key,pane);work.dataset.taskPane=pane;source.hidden=pane!=='list';settings.hidden=!source.hidden;if(focus){const target=host.querySelector(focus.selector);if(target?.checkVisibility())target.focus({preventScroll:true});}}
+ function show(pane,focus){panes.set(key,pane);work.dataset.taskPane=pane;source.hidden=pane!=='list';settings.hidden=!source.hidden;const target=focus?host.querySelector(focus.selector):settings.querySelector('input:not(:disabled),select:not(:disabled),textarea:not(:disabled)');if(target?.checkVisibility())target.focus({preventScroll:true});}
  function button(text,attrs,run){const b=document.createElement('button');b.type='button';b.textContent=text;for(const [k,v]of Object.entries(attrs||{}))b.setAttribute(k,v);b.onclick=run;return b;}
  for(const panel of [source,settings]){const head=panel.querySelector('.panel-head'),pin=button(pinned?'集中表示に戻す':'一覧と設定を並べる',{'data-pin-workbench':'','aria-pressed':String(pinned)},()=>{try{localStorage.setItem(pinKey,String(!pinned));}catch{}cfg.render();});pin.className='workbench-layout-toggle';head.append(pin);}
  if(pinned){source.hidden=settings.hidden=false;return;}
  work.dataset.taskPane=panes.get(key);source.hidden=panes.get(key)!=='list';settings.hidden=!source.hidden;
- const back=button(rule?'＋ ノードを追加':library?'← 型・子項目を選ぶ':'← 入力項目の一覧',{'data-task-back':''},()=>show('list',{selector:'#workbench-list-search'}));settings.querySelector('.panel-head').prepend(back);
+ const back=button(rule?'＋ ノードを追加':library?'← 型・子項目を選ぶ':'← 入力項目の一覧',{'data-task-back':''},()=>show('list',{selector:rule?'#rule-source-field':'#workbench-list-search'}));settings.querySelector('.panel-head').prepend(back);
  if(rule){const edit=button('選択した条件を編集',{'data-task-edit':''},()=>show('edit'));source.querySelector('.panel-head').append(edit);edit.disabled=!cfg.ruleSelected;return;}
  const next=button('書類での表示を設計する',{'data-task-next':''},()=>document.querySelector('[data-view=render]').click());next.className='primary';
  const footer=document.createElement('div');footer.className='workbench-flow-footer';const note=document.createElement('p');note.textContent=library?'入力の形を定義したら、「要件を定義」で書類の項目として使えます。':'集める情報を定義したら、書類のどこへ表示するかを設定します。';footer.append(note,library?button('要件でこの型を使う',{'data-task-next':''},()=>document.querySelector('[data-view=definition]').click()):next);source.append(footer);
