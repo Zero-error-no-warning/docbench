@@ -510,3 +510,5 @@ body.app-shell.word-authoring .word-view-switch button[aria-pressed=true]{color:
  .app-shell:not(.word-authoring)>.topbar #files-open{grid-row:2;grid-column:4}
  .app-shell:not(.word-authoring)>.topbar .save-status{grid-row:3;grid-column:1/-1;display:block;min-width:0;max-width:none;margin:0;font-size:11px}
 }
+.app-shell .rule-palette .rule-actions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:4px}
+.app-shell .rule-palette .rule-actions button{min-width:0;min-height:30px;padding:5px 6px;font-size:12px;text-align:center}
