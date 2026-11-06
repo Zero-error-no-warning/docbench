@@ -67,7 +67,7 @@ function mountWordWorkspace(cfg){
  rules.querySelector('#word-repeat-insert').textContent='件数分くり返す';rules.querySelector('#word-condition-insert').textContent='条件で表示を切り替える';
  const ruleHint=document.createElement('p');ruleHint.className='canvas-hint';ruleHint.textContent='対象にしたい段落・表を選んでから設定します。未選択なら、文章を書き込む枠を追加します。';rulesSection.append(ruleHint);
  const ordinary=section('文章・表を追加',[]);ordinary.classList.add('word-ordinary-insert');
- for(const [value,title]of [['heading','見出し'],['text','文章'],['table','要件の一覧を表にする']]){const button=document.createElement('button');button.type='button';button.textContent=title;button.onmousedown=ev=>ev.preventDefault();button.onclick=()=>{kind.value=value;kind.onchange();if(value!=='table'){insert.click();kind.value='field';kind.onchange();}else advanced.open=true;};ordinary.append(button);}
+ for(const [value,title]of [['heading','見出し'],['text','文章'],['table','入力データを表にする']]){const button=document.createElement('button');button.type='button';button.textContent=title;button.onmousedown=ev=>ev.preventDefault();button.onclick=()=>{kind.value=value;kind.onchange();if(value!=='table'){insert.click();kind.value='field';kind.onchange();}else advanced.open=true;};ordinary.append(button);}
  const back=document.createElement('button');back.type='button';back.id='word-insert-values';back.textContent='入力値の差込みへ戻る';back.onclick=()=>{kind.value='field';kind.onchange();};source.append(back);
  for(const node of [...insertGroup.children])if(node!==mergeTools&&node.tagName!=='H4')ordinary.append(node);
  insertGroup.append(rulesSection,ordinary);
