@@ -157,7 +157,7 @@ function refreshInputForms(){
  if(continuity.defer('forms',refreshInputForms))return;const editing=continuity.capture();
  const active=document.activeElement,path=active?.dataset.input,choice=active?.dataset.choice,treeLevel=active?.dataset.treeLevel,selection=path?{start:active.selectionStart,end:active.selectionEnd,direction:active.selectionDirection}:null,x=window.scrollX,y=window.scrollY;
  const tables=$$('.table-scroll[data-table-path]').map(el=>({path:el.dataset.tablePath,top:el.scrollTop,left:el.scrollLeft}));
- $$('[data-form-content]').forEach(el=>el.innerHTML=formHTML());if($('#input-issues'))$('#input-issues').innerHTML=issueList(errors);bindForm();
+ $$('[data-form-content]').forEach(el=>el.innerHTML=formHTML());if(view==='form')D.mountInputSections($('#app'));if($('#input-issues'))$('#input-issues').innerHTML=issueList(errors);bindForm();
  for(const saved of tables){const el=$$('.table-scroll[data-table-path]').find(el=>el.dataset.tablePath===saved.path);if(el){el.scrollTop=saved.top;el.scrollLeft=saved.left;}}
  const target=path?$$('[data-input]').find(el=>el.dataset.input===path&&el.dataset.choice===choice&&(treeLevel===undefined||el.dataset.treeLevel===treeLevel)):null;if(target){target.focus({preventScroll:true});if(selection.start!=null&&typeof target.setSelectionRange==='function')target.setSelectionRange(selection.start,selection.end,selection.direction||'none');}
  window.scrollTo(x,y);continuity.restore(editing);

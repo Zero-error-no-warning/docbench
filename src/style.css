@@ -555,7 +555,7 @@ body.app-shell.word-authoring .word-view-switch button[aria-pressed=true]{color:
 .input-section-navigation select{min-width:0;margin:0}
 
 /* Direct field insertion is a searchable dock, separate from the ribbon. */
-.app-shell.word-authoring .output-stage{position:relative}
+.app-shell.word-authoring .output-stage{position:relative;top:auto}
 .app-shell.word-authoring .output-stage>.design-inspector{position:absolute;top:0;right:0;bottom:0;width:min(330px,100%);height:auto;max-height:100%;display:flex;flex-direction:column;overflow:auto;z-index:20;border:1px solid var(--line);border-radius:0;box-shadow:-6px 0 24px #243e6020}
 .app-shell.word-authoring .native-format[data-inspector=false] .output-stage>.design-inspector{display:none}
 .app-shell.word-authoring .output-stage>.design-inspector>.panel-body{flex:none;overflow:visible;padding:14px}
