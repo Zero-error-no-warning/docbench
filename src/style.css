@@ -349,3 +349,20 @@ body.app-shell{--header-height:96px;--control-width:calc(50vw - var(--sidebar-wi
 .word-control-example p{margin:6px 0 0}
 @media(max-width:1100px){.app-shell.word-authoring #word-panel-insert>.word-task-section{gap:10px}.app-shell.word-authoring #word-panel-insert .word-merge-tools{min-width:330px}.app-shell.word-authoring #word-panel-insert .word-control-actions{min-width:170px}.app-shell.word-authoring #word-panel-insert .word-ordinary-insert{flex-basis:124px}.app-shell.word-authoring #canvas-insert-field{width:180px}.app-shell.word-authoring #word-field-part{width:132px}}
 @media(max-width:1100px){.app-shell.word-authoring .word-ribbon-panels{height:198px;min-height:198px}}
+
+.field-picker-button{display:flex;align-items:center;justify-content:space-between;gap:8px;max-width:100%;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
+.field-picker-button::after{content:'⌕';flex:0 0 auto;font-size:17px}
+.app-shell.word-authoring .word-insertion .field-picker-button{width:220px;max-width:220px;min-height:30px;border:1px solid #bccfd6;background:#fff}
+.field-picker-dialog{width:min(660px,calc(100vw - 32px));max-height:min(80dvh,720px);padding:0;border:1px solid #c4d6dc;border-radius:10px;box-shadow:0 16px 80px #183d4d33;overflow:hidden}
+.field-picker-dialog .dialog-head{margin:0;padding:14px 18px;border-bottom:1px solid #dbe5e8}
+.field-picker-dialog .dialog-head h2{font-size:16px;margin:0}
+.field-picker-body{padding:16px 18px}.field-picker-body>label{display:block;font-size:12px;font-weight:600}.field-picker-search{width:100%;margin-top:6px;padding:9px 11px;font-size:14px}
+.field-picker-count{font-size:12px;color:#607883;margin:10px 0}
+.field-picker-results{max-height:min(50dvh,470px);overflow:auto;overscroll-behavior:contain;border-top:1px solid #e1e9ec;padding-top:6px}
+.field-picker-results ul{list-style:none;padding:0;margin:0}.field-picker-results li>ul{padding-left:22px}.field-picker-entry{display:flex;align-items:center;min-height:38px;gap:4px}.field-picker-entry small{color:#086c75;font-size:11px;white-space:nowrap;margin-left:auto;padding-right:5px}
+.field-picker-results button{border:0;background:transparent;min-height:36px;border-radius:4px;font-size:13px}.field-picker-results .field-picker-choice{display:block;width:100%;padding:8px 10px;text-align:left;line-height:1.5;white-space:normal;overflow-wrap:anywhere}.field-picker-results .field-picker-entry>.field-picker-choice{flex:1;min-width:0}
+.field-picker-results .field-picker-choice:hover,.field-picker-results button:focus-visible{background:#eef6f7}.field-picker-results .field-picker-choice[aria-current=true]{background:#dceff1;box-shadow:inset 3px 0 #087f8c;color:#075b65}
+.field-picker-toggle,.field-picker-toggle-space{width:26px;flex:0 0 26px}.field-picker-folder{padding:6px 10px;color:#385a67;font-weight:600;font-size:13px}
+.field-picker-results [hidden]{display:none!important}
+@media(max-width:1100px){.app-shell.word-authoring .word-insertion .field-picker-button{width:180px;max-width:180px}}
+.word-insertion select[hidden],#modal select[hidden]{display:none!important}

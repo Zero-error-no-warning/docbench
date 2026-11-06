@@ -17,6 +17,7 @@ function validateRich(content){const errors=[],types=new Set(['doc','paragraph',
   if(a.markerColor!=null&&!color(a.markerColor))fail('箇条書きの文字色が不正です');
   if(a.markerFontSize!=null&&(!Number.isFinite(a.markerFontSize)||a.markerFontSize<1||a.markerFontSize>1000))fail('箇条書きの文字サイズが不正です');
   for(const k of ['padding','spaceBefore','spaceAfter','borderWidth','lineHeight'])if(a[k]!==undefined&&a[k]!==null&&(!Number.isFinite(a[k])||a[k]<0||a[k]>1000))fail('寸法が不正です');
+  if(n.type==='tableRow'&&(a.repeatGroup!=null||a.field!=null)&&(!a.repeatGroup||typeof a.repeatGroup!=='string'||a.repeatGroup.length>200||typeof a.field!=='string'||!a.field))fail('表の行のくり返し設定が不正です');
   if(n.type==='repeatBlock'&&typeof a.field!=='string')fail('繰り返しの参照項目が不正です');
   if(n.type==='conditionBlock'&&(!a.when||typeof a.when!=='object'||Array.isArray(a.when)))fail('条件付き範囲の設定が不正です');
   if(n.type==='fieldRef'&&(typeof a.field!=='string'||!a.field||!['value','label'].includes(a.part||'value')))fail('項目差込の設定が不正です');
