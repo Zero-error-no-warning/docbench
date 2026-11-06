@@ -76,7 +76,18 @@ function mountWordWorkspace(cfg){
  const buttons=[...shortcuts.children];let currentTab=preferredTab;
  function setTab(id,focus=false){if(currentTab!==id)for(const popup of toolbar.querySelectorAll('.ribbon-details:not(.word-merge-tools)[open]'))popup.open=false;currentTab=id;if(['home','insert','layout'].includes(id))preferredTab=id;for(const button of buttons){const selected=button.dataset.wordTab===id;button.setAttribute('aria-selected',String(selected));button.tabIndex=selected?0:-1;}for(const [key,pane]of panes)pane.hidden=key!==id;if(focus)shortcuts.querySelector('[data-word-tab="'+id+'"]').focus({preventScroll:true});}
  for(const button of buttons){button.onmousedown=event=>event.preventDefault();button.onclick=()=>setTab(button.dataset.wordTab);button.onkeydown=event=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;event.preventDefault();const available=buttons.filter(b=>!b.hidden),index=available.indexOf(button),next=event.key==='Home'?available[0]:event.key==='End'?available.at(-1):available[(index+(event.key==='ArrowRight'?1:-1)+available.length)%available.length];setTab(next.dataset.wordTab,true);};}setTab(currentTab);
- const events=new AbortController();document.addEventListener('pointerdown',event=>{for(const detail of toolbar.querySelectorAll('.ribbon-details:not(.word-merge-tools)[open]'))if(!detail.contains(event.target))detail.open=false;},{signal:events.signal});
+ const placePopup=detail=>{
+  const popup=detail.querySelector(':scope > .ribbon-popup'),anchor=detail.querySelector(':scope > summary');if(!popup||!anchor||!detail.open)return;
+  const viewport=window.visualViewport,left=(viewport?.offsetLeft||0)+8,top=(viewport?.offsetTop||0)+8,right=left+(viewport?.width||innerWidth)-16,bottom=top+(viewport?.height||innerHeight)-16,rect=anchor.getBoundingClientRect();
+  if(rect.right<left||rect.left>right||rect.bottom<top||rect.top>bottom){detail.open=false;return;}
+  popup.dataset.wordFloating='';popup.style.setProperty('--word-popup-width',Math.max(0,right-left)+'px');popup.style.setProperty('--word-popup-height',Math.max(0,bottom-top)+'px');
+  const box=popup.getBoundingClientRect(),below=Math.max(0,bottom-rect.bottom-6),above=Math.max(0,rect.top-top-6),down=box.height<=below||below>=above;
+  popup.style.setProperty('--word-popup-height',Math.min(bottom-top,Math.max(40,down?below:above))+'px');
+  const height=popup.getBoundingClientRect().height;
+  popup.style.setProperty('--word-popup-left',Math.max(left,Math.min(rect.left,right-popup.getBoundingClientRect().width))+'px');popup.style.setProperty('--word-popup-top',Math.max(top,Math.min(down?rect.bottom+6:rect.top-6-height,bottom-height))+'px');
+ };
+ const repositionPopups=()=>{for(const detail of toolbar.querySelectorAll('.ribbon-details:not(.word-merge-tools)[open]'))placePopup(detail);};
+ const events=new AbortController();toolbar.addEventListener('toggle',event=>{if(event.target.matches('.ribbon-details:not(.word-merge-tools)'))placePopup(event.target);},{capture:true,signal:events.signal});window.addEventListener('resize',repositionPopups,{signal:events.signal});document.addEventListener('scroll',repositionPopups,{capture:true,signal:events.signal});window.visualViewport?.addEventListener('resize',repositionPopups,{signal:events.signal});document.addEventListener('pointerdown',event=>{for(const detail of toolbar.querySelectorAll('.ribbon-details:not(.word-merge-tools)[open]'))if(!detail.contains(event.target))detail.open=false;},{signal:events.signal});
  document.addEventListener('keydown',event=>{if(event.key!=='Escape')return;const opened=[...toolbar.querySelectorAll('.ribbon-details:not(.word-merge-tools)[open]')].at(-1);if(opened){event.preventDefault();opened.open=false;opened.querySelector('summary').focus({preventScroll:true});}else if(properties?.getAttribute('aria-expanded')==='true'){event.preventDefault();properties.click();properties.focus({preventScroll:true});}},{signal:events.signal});
  const presets={normal:{marginTop:25.4,marginBottom:25.4,marginLeft:25.4,marginRight:25.4},narrow:{marginTop:12.7,marginBottom:12.7,marginLeft:12.7,marginRight:12.7},wide:{marginTop:25.4,marginBottom:25.4,marginLeft:50.8,marginRight:50.8}};
  function apply(patch){
@@ -95,7 +106,7 @@ function mountWordWorkspace(cfg){
   if(previewing)status.textContent='入力データを反映した確認表示（編集不可）';else if(editor){const range=editor.state.selection;status.textContent=range.empty?(editor.isActive('table')?'表のセルを編集中':'本文を編集中'):'選択中：'+editor.state.doc.textBetween(range.from,range.to,'\n').length+'文字';}
   const contexts={table:!!editor?.isActive('table'),object:!panes.get('object').querySelector('#word-block-tools').hidden,range:!panes.get('range').querySelector('#word-range-tools').hidden};for(const [id,available]of Object.entries(contexts)){shortcuts.querySelector('[data-word-tab="'+id+'"]').hidden=!available;if(!available&&currentTab===id)setTab('home');}
  }
- sync();return {sync,destroy(){fieldPicker.destroy();events.abort();release();result.remove();},isPreview:()=>previewing};
+ sync();return {sync,tab:()=>currentTab,restoreTab:id=>{const button=shortcuts.querySelector('[data-word-tab="'+id+'"]');if(button&&!button.hidden)setTab(id);},destroy(){fieldPicker.destroy();events.abort();release();result.remove();},isPreview:()=>previewing};
 }
 Object.assign(D,{mountWordWorkspace});
 })(globalThis);
