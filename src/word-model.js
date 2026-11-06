@@ -69,6 +69,6 @@ function expandRich(content,def,values,input=D.inputState(def,values)){
   if(n.content)copy.content=n.content.flatMap(c=>expand(c,scopes,depth+1));return [copy];
  }return expand(content)[0]||{type:'doc',content:[]};
 }
-function wordControlLabel(n,def){const a=n.attrs||{},type=typeof n.type==='string'?n.type:n.type?.name;if(type==='repeatBlock')return '繰り返し：'+(richFieldAt(def,a.field)?.label||a.field||'項目未指定')+' の各行';if(type==='conditionBlock'){const c=D.simpleCondition(def,a.when)||a.when;return '条件：'+(c?.field?(D.fieldAt(def,c.field)?.label||c.field)+' = '+String(Array.isArray(c.equals)?D.display(D.fieldAt(def,c.field),c.equals):c.equals):D.ruleGraph(def).nodes.find(x=>x.id===c?.nodeId)?.label||'条件を設定');}return '';}
+function wordControlLabel(n,def){const a=n.attrs||{},type=typeof n.type==='string'?n.type:n.type?.name;if(type==='repeatBlock')return '繰り返し：'+(richFieldAt(def,a.field)?.label||a.field||'項目未指定')+' のデータ1件分';if(type==='conditionBlock'){const c=D.simpleCondition(def,a.when)||a.when;return '条件：'+(c?.field?(D.fieldAt(def,c.field)?.label||c.field)+' = '+String(Array.isArray(c.equals)?D.display(D.fieldAt(def,c.field),c.equals):c.equals):D.ruleGraph(def).nodes.find(x=>x.id===c?.nodeId)?.label||'条件を設定');}return '';}
 Object.assign(D,{richFieldAt,richNodes,richReferences,validateRichDefinition,expandRich,wordControlLabel,wordEditorDocument,wordEditorBlocks,wordRowRepeatErrors});
 })(globalThis);

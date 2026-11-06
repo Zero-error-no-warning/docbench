@@ -203,7 +203,7 @@ function canvasToolbar(f) {
 function wordInsertFields(type='field'){
  const scopes=canvasController?.controlScopes?.()||[],all=D.allFields(ws.definition),blocked=all.filter(p=>['Array','Table'].includes(p.field.type)&&!scopes.includes(p.path)),result=all.filter(x=>type==='table'?['Array','Table'].includes(x.field.type):!['Array','Table','Object'].includes(x.field.type)).filter(x=>!blocked.some(p=>x.path.startsWith(p.path+'.')));
  if(type!=='table')for(const path of scopes){const f=D.fieldAt(ws.definition,path);if(f?.type==='Array'&&!['Object','Array','Table'].includes(f.itemType)&&!result.some(x=>x.path===path+'.value'))result.push({path:path+'.value',field:{label:f.label+' の現在の値'}});}
- return result.map(x=>({value:x.path,label:wordFieldName(x.path)+(scopes.some(p=>x.path.startsWith(p+'.'))?'（現在の行）':'')}));
+ return result.map(x=>({value:x.path,label:wordFieldName(x.path)+(scopes.some(p=>x.path.startsWith(p+'.'))?'（この1件の値）':'')}));
 }
 function wordFieldName(path){const names=[];let prefix='';for(const key of path.split('.')){prefix=prefix?prefix+'.'+key:key;const f=D.richFieldAt(ws.definition,prefix);if(f)names.push(f.label);}return names.join(' › ')||path;}
 function syncWordInsertion(){
@@ -217,8 +217,9 @@ function syncWordInsertion(){
  if(title)title.textContent=collection?'要件の一覧を表にする':'要件の入力値を差し込む';if(back)back.hidden=!collection;
  if(jump)jump.textContent=hasField?'この項目の要件を開く':'要件で項目を追加';
  if(example){
+  const inItem=(canvasController?.controlScopes?.()||[]).some(path=>select.value.startsWith(path+'.'));
   const f=D.richFieldAt(ws.definition,select.value),value=D.get(ws.data.values,select.value),text=f?D.display(f,value):'';
-  example.textContent=!hasField?'差し込める項目がありません。「要件を定義」で項目を追加してください。':collection?'選んだ配列・表の入力データを、見出し付きの一覧表にします。':part?.value==='label'?'入力値の代わりに、項目名「'+(f?.label||'')+'」を差し込みます。':'入力画面で記入した値が入ります'+(text?'。現在の値：'+String(text).slice(0,45):'。未入力なら空欄になります。');
+  example.textContent=!hasField?'差し込める項目がありません。「要件を定義」で項目を追加してください。':collection?'選んだ配列・表の入力データを、見出し付きの一覧表にします。':part?.value==='label'?'入力値の代わりに、項目名「'+(f?.label||'')+'」を差し込みます。':inItem?'この位置に、くり返し中のデータ1件分の値が入ります。':'入力画面で記入した値が入ります'+(text?'。現在の値：'+String(text).slice(0,45):'。未入力なら空欄になります。');
  }
  const insert=$('#canvas-insert');if(insert){insert.textContent=collection?'一覧表を挿入':'カーソル位置に差し込む';insert.disabled=['field','table'].includes(type)&&!hasField;}
  const control=canvasController?.control?.();$('#word-range-tools').hidden=!control;if(control)$('#word-range-label').textContent=D.wordControlLabel({type:control.type,attrs:control.attrs},ws.definition);
