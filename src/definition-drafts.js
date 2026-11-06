@@ -38,15 +38,20 @@ function rebasePreviewValues(before,after,values,actor){
  return fields(before,after,values);
 }
 function createDefinitionDrafts(){
- let documentId=null,sessions={},active=null,failed=false;const prefix='docbench:definitionDrafts:';
- function persist(){if(!documentId)return;try{localStorage.setItem(prefix+documentId,JSON.stringify({version:1,sessions}));failed=false;}catch{failed=true;}}
- function selectDocument(id){if(documentId===id)return;documentId=id;active=null;sessions={};try{const saved=JSON.parse(localStorage.getItem(prefix+id)||'null');if(saved?.version===1&&saved.sessions&&typeof saved.sessions==='object')sessions=saved.sessions;}catch{failed=true;}}
+ let documentId=null,sessions={},active=null,published=null,failed=false;const prefix='docbench:definitionDrafts:';
+ function persist(){if(!documentId)return;try{localStorage.setItem(prefix+documentId,JSON.stringify({version:2,sessions}));failed=false;}catch{failed=true;}}
+ // Version 1 advanced the session base without updating history. Its original
+ // ancestors cannot be recovered safely; retain the draft, discard only history.
+ function selectDocument(id){if(documentId===id)return;documentId=id;active=null;published=null;sessions={};try{const saved=JSON.parse(localStorage.getItem(prefix+id)||'null');if([1,2].includes(saved?.version)&&saved.sessions&&typeof saved.sessions==='object'){sessions=saved.sessions;if(saved.version===1)for(const session of Object.values(sessions)){session.undo=[];session.redo=[];}}}catch{failed=true;}}
  function capture(value){if(!active)return;const session=sessions[active];session.value=copy(value);persist();}
- function enter(key,published){selectDocument(published.definition.id);active=key;if(!key)return published;let session=sessions[key];if(!session||session.base?.definition?.id!==documentId||session.value?.definition?.id!==documentId){session=sessions[key]={base:copy(published),value:copy(published),undo:[],redo:[]};}
+ function enter(key,current){selectDocument(current.definition.id);published=copy(current);active=key;if(!key)return current;let session=sessions[key];if(!session||session.base?.definition?.id!==documentId||session.value?.definition?.id!==documentId){session=sessions[key]={base:copy(published),value:copy(published),undo:[],redo:[]};}
   const next=mergeDefinitionDraft(session.base,session.value,published);session.conflicts=next.conflicts;if(!next.conflicts.length){session.base=copy(published);session.value=next.value;}return copy(session.value);
  }
- function change(before,value){if(!active)return;const s=sessions[active];s.undo||=[];s.redo=[];if(!equal(before,value)){s.undo.push(copy(before));if(s.undo.length>30)s.undo.shift();}capture(value);}
- function history(direction,value){if(!active)return null;const s=sessions[active],source=s[direction]||=[],other=direction==='undo'?'redo':'undo';if(!source.length)return null;(s[other]||=[]).push(copy(value));const next=source.pop();s.value=copy(next);persist();return next;}
+ // Each history value keeps its own merge ancestor. Advancing the live draft's
+ // base on re-entry must never turn old input in Undo/Redo into a new edit.
+ function record(session,value){return {base:copy(session.base),value:copy(value)};}
+ function change(before,value){if(!active)return;const s=sessions[active];s.undo||=[];s.redo=[];if(!equal(before,value)){s.undo.push(record(s,before));if(s.undo.length>30)s.undo.shift();}capture(value);}
+ function history(direction,value){if(!active)return null;const s=sessions[active],source=s[direction]||=[],other=direction==='undo'?'redo':'undo';if(!source.length)return null;(s[other]||=[]).push(record(s,value));const entry=source.pop(),next=mergeDefinitionDraft(entry.base,entry.value,published);s.conflicts=next.conflicts;s.base=copy(next.conflicts.length?entry.base:published);s.value=copy(next.conflicts.length?entry.value:next.value);persist();return copy(s.value);}
  function status(){const s=sessions[active];return {key:active,dirty:!!s&&!equal(s.base,s.value),conflicts:s?.conflicts||[],canUndo:!!s?.undo?.length,canRedo:!!s?.redo?.length,storageFailed:failed};}
  function clear(key=active){if(key)delete sessions[key];if(active===key)active=null;persist();}
  function reset(id){if(id){try{localStorage.removeItem(prefix+id);}catch{}}if(!id||id===documentId){sessions={};active=null;persist();}}
