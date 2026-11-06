@@ -579,7 +579,7 @@ body.app-shell.word-authoring .word-view-switch button[aria-pressed=true]{color:
 .app-shell.word-authoring #word-panel-insert .word-control-actions h4{display:none}
 .app-shell.word-authoring #word-panel-insert .word-control-actions .button-row{flex-direction:row;flex-wrap:wrap}
 .app-shell.word-authoring #word-panel-insert .word-control-actions .button-row button{height:36px;font-size:12px;padding-inline:10px;background:#fff;border:1px solid var(--line)}
-.app-shell.word-authoring #word-panel-insert .word-ordinary-insert{grid-column:3;grid-row:1/3;gap:0}
+.app-shell.word-authoring #word-panel-insert .word-ordinary-insert{display:grid;grid-template-columns:1fr 1fr;grid-column:3;grid-row:1/3;gap:3px;width:100%;align-content:start}.app-shell.word-authoring #word-panel-insert .word-ordinary-insert>button:nth-of-type(3){grid-column:1/-1}
 .app-shell.word-authoring #word-panel-insert .word-ordinary-insert>h4{display:none}
 .app-shell.word-authoring #word-panel-insert .word-insertion-advanced .word-merge-tools{min-width:0;margin:0;width:100%!important}
 .app-shell.word-authoring #word-panel-insert .word-insertion-advanced .word-insertion{display:grid;grid-template-columns:minmax(0,1fr);gap:12px!important}
