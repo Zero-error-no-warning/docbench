@@ -1,0 +1,85 @@
+/* Only the four definition/input workspaces use this shell. Other output designers keep their layout. */
+body.app-shell.workflow-screen{--header-height:44px;--control-width:calc((100vw - var(--sidebar-width)) * .52)}
+body.workflow-screen>.topbar{height:44px;width:100%;display:flex;flex-wrap:nowrap;gap:10px;padding:5px 12px;overflow-x:auto;overflow-y:hidden}
+body.workflow-screen>.topbar .brand{font-size:16px;flex:none}
+body.workflow-screen>.topbar .workspace-heading{display:flex;align-items:center;min-width:100px;flex:1}
+body.workflow-screen>.topbar #workspace-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0}
+body.workflow-screen>.topbar .header-right{display:flex;flex-wrap:nowrap;margin-left:auto;flex:none}
+body.workflow-screen>.topbar .save-status{display:block;white-space:nowrap;font-size:12px;max-width:180px}
+body.workflow-screen>.app-sidebar{margin-top:44px}
+body.workflow-screen>#app{padding:84px 0 0;position:relative;overflow:hidden}
+.workflow-stage-bar{position:absolute;top:44px;left:0;right:0;height:40px;display:flex;align-items:center;gap:12px;padding:4px 20px;border-bottom:1px solid var(--line);background:#fff;z-index:3;min-width:0}
+.workflow-stage-bar strong{font-size:15px;font-weight:650;white-space:nowrap}
+.workflow-stage-bar>span{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.workflow-stage-bar #input-item-search{width:190px;min-width:80px;height:30px;min-height:30px;margin:0 0 0 auto;padding:4px 8px;font-size:13px}
+.workflow-stage-bar button{padding:3px 8px;min-height:30px}
+body.workflow-screen #app>.builder,body.workflow-screen #app>.rule-workbench,body.workflow-screen #app>.form-grid{height:100%;margin:0;padding:0;flex:1;gap:0;min-height:0;overflow:hidden}
+body.workflow-screen #app>.builder{grid-template-rows:minmax(0,1fr) auto}
+body.workflow-screen #app>.builder>.panel,body.workflow-screen #app>.rule-workbench>.panel,body.workflow-screen #app>.form-grid>.panel{margin-top:0;height:auto;min-height:0;border-radius:0;border:0;border-right:1px solid var(--line);max-height:none}
+body.workflow-screen #app>.builder>.form-preview{grid-row:1/-1;display:flex;flex-direction:column}
+body.workflow-screen #app>.task-focused>.form-preview{grid-row:1/-1}
+body.workflow-screen .flow-source,body.workflow-screen .flow-settings{min-height:0!important;margin-top:0!important}
+body.workflow-screen .panel-head{min-height:48px;padding:10px 20px;gap:8px;background:#fff}
+body.workflow-screen .panel-head h3{font-size:15px}
+body.workflow-screen .panel-body{padding:20px 24px}
+body.workflow-screen .flow-settings>.panel-body{padding:20px 24px}
+body.workflow-screen .selection-context{padding:12px 24px;background:var(--bg);border-bottom:1px solid var(--line)}
+body.workflow-screen .selection-context>strong{font-size:19px}
+body.workflow-screen :is(.panel-body,.type-file-actions,.type-order-actions) button{font-size:13px;min-height:34px}
+body.workflow-screen :is(.panel-body,.type-settings) label{font-size:14px;line-height:1.7}
+body.workflow-screen :is(.panel-body,.type-settings) :is(input:not([type=checkbox]):not([type=color]),select,textarea){font-size:14px;min-height:38px}
+body.workflow-screen .workbench-flow-footer{padding:12px 20px}
+body.workflow-screen .workbench-flow-footer>button{min-height:36px;font-size:13px}
+.definition-draft-actions{grid-column:1/3;grid-row:2;display:flex;align-items:center;gap:10px;padding:12px 18px;background:#fff;border-top:1px solid var(--line);min-height:66px;min-width:0;z-index:2}
+.task-focused>.definition-draft-actions{grid-column:1}
+.definition-draft-actions>div{flex:1;min-width:0}
+.definition-draft-actions strong{display:block;font-size:13px;font-weight:600}
+.definition-draft-actions small{display:block;font-size:12px;color:var(--muted);line-height:1.5}
+.definition-draft-actions button{flex:none;min-height:36px;font-size:13px}
+body.workflow-screen .builder>.form-preview>.panel-body{flex:1;overflow:auto}
+body.workflow-screen .panel-note{font-size:12px;line-height:1.6;padding:12px 20px}
+body.workflow-screen #app>.workflow-rule-workbench{grid-template-rows:minmax(0,1fr) auto;grid-template-columns:minmax(0,1fr) 340px}
+body.workflow-screen #app>.workflow-rule-workbench>.rule-stage{grid-column:1;grid-row:1/-1;height:auto;min-height:0}
+body.workflow-screen #app>.workflow-rule-workbench>.rule-palette,body.workflow-screen #app>.workflow-rule-workbench>.rule-properties{grid-column:2;grid-row:1;min-width:0}
+body.workflow-screen #app>.workflow-rule-workbench>.definition-draft-actions{grid-column:2;grid-row:2;flex-wrap:wrap}
+body.workflow-screen .workflow-rule-workbench .definition-draft-actions>div{flex-basis:100%}
+body.workflow-screen .workflow-rule-workbench .definition-draft-actions button:last-child{margin-left:auto}
+body.workflow-screen .rule-palette [data-add-rule][hidden]{display:none!important}
+.workflow-rule-explanation{position:relative;margin:8px 12px;max-height:220px;overflow:auto;border:1px solid var(--line);border-radius:6px;padding:10px 14px;background:#fff;font-size:13px}
+.workflow-rule-explanation summary{cursor:pointer;font-weight:600}
+.workflow-rule-explanation p{font-size:13px;line-height:1.8;margin:8px 0}
+body.workflow-screen .form-grid>.panel:first-child>.panel-body{overflow:auto}
+body.workflow-screen .form-grid .paper-frame{min-height:0;flex:1;overflow:hidden;padding:18px}
+body.workflow-screen .form-grid .paper{height:100%;min-height:0}
+body.workflow-screen .form-grid .panel-head{flex-wrap:wrap}
+.workflow-input-save{font-size:12px;color:var(--muted);white-space:nowrap}
+#input-issues li>button{font-size:13px;text-align:left;color:inherit;white-space:normal;text-decoration:underline;padding:3px 0}
+body.workflow-screen .input-section-navigation{top:-20px;padding-block:4px 12px}
+body.workflow-screen .form-field .required{font-size:12px}
+@media(max-width:1100px){body.workflow-screen .brand-name{display:none}.workflow-stage-bar>span:not(.input-search-state){display:none}body.workflow-screen .definition-draft-actions{flex-wrap:wrap}.definition-draft-actions>div{flex-basis:100%}body.workflow-screen .definition-draft-actions button:last-child{margin-left:auto}}
+@media(max-width:850px){
+ body.workflow-screen>.topbar{display:flex!important;height:44px!important;width:100%!important;padding:5px 8px!important;gap:8px!important;grid-template:none!important}
+ body.workflow-screen>.topbar .header-right{display:flex!important}
+ body.workflow-screen>.topbar .header-right .save-status{display:none!important}
+ body.workflow-screen>.topbar .header-right button{height:32px;font-size:12px}
+ body.workflow-screen>.topbar .workspace-heading{flex:none;width:140px}
+ body.workflow-screen>.app-sidebar{margin-top:44px!important;top:0}
+ body.workflow-screen>#app{overflow:auto;padding-top:84px!important}
+ .workflow-stage-bar{padding-inline:12px}
+ .workflow-stage-bar strong{font-size:14px}
+ .workflow-stage-bar #input-item-search{width:110px;font-size:16px}
+ body.workflow-screen #app>.builder,body.workflow-screen #app>.form-grid,body.workflow-screen #app>.workflow-rule-workbench{display:flex;flex-direction:column;overflow:visible;height:auto;min-height:calc(100dvh - 84px);flex:none}
+ body.workflow-screen #app>.builder>.flow-source,body.workflow-screen #app>.builder>.flow-settings{height:auto;min-height:calc(100dvh - 170px)!important;order:0}
+ body.workflow-screen #app>.builder>.form-preview{height:600px;flex:none;order:2}
+ .definition-draft-actions{order:1;flex:none}
+ body.workflow-screen #app>.workflow-rule-workbench>.rule-stage{height:520px;flex:none;order:0}
+ body.workflow-screen #app>.workflow-rule-workbench>.rule-palette,body.workflow-screen #app>.workflow-rule-workbench>.rule-properties{height:auto;min-height:300px;order:1}
+ body.workflow-screen #app>.workflow-rule-workbench>.definition-draft-actions{order:2}
+ body.workflow-screen .form-grid>.panel{height:auto;min-height:400px;flex:none}
+ body.workflow-screen .form-grid>.panel:last-child{height:650px}
+ body.workflow-screen :is(.panel-body,.type-settings) :is(input:not([type=checkbox]):not([type=color]),select,textarea){font-size:16px}
+}
+
+.workflow-rule-viewport-tools{display:flex;gap:4px;flex:none}.workflow-rule-viewport-tools button{padding:5px 8px;white-space:nowrap}@media(max-width:650px){.workflow-rule-viewport-tools #rule-arrange{display:none}}
+
+body.workflow-screen .rule-stage{grid-template-rows:46px minmax(0,1fr) auto}.workflow-rule-canvas-area{position:relative;min-width:0;min-height:0}.workflow-rule-canvas-area>.rule-canvas{width:100%;height:100%}
