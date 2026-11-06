@@ -9,10 +9,10 @@ specification=(ROOT/'docs/specification.md').read_text()
 (ROOT/'src/specification.js').write_text('/* Generated from docs/specification.md by scripts/build.py. */\nDocBench.specification='+json.dumps(specification,ensure_ascii=False)+';\n',encoding='utf-8')
 libs=['jszip.min.js','pako.min.js','docx.js','pptxgen.min.js','exceljs.min.js','jsuites.js','jspreadsheet.js','konva.min.js','tiptap.min.js','rete.min.js']
 source=(ROOT/'index.html').read_text()
-css=re.sub(r'\s+',' ',(ROOT/'src/style.css').read_text()).strip()
+css=re.sub(r'\s+',' ', '\n'.join((ROOT/'src'/name).read_text() for name in ['style.css','workflow.css','word-workspace.css'])).strip()
 # CSS uses its own escape syntax; HTML character entities do not apply inside style.
 css=''.join(c if ord(c)<128 else '\\'+format(ord(c),'x')+' ' for c in css)
-app=rjsmin.jsmin('\n;\n'.join((ROOT/'src'/p).read_text() for p in ['core.js','tree-enum.js','tree-outline.js','types.js','rules.js','layout.js','word-format.js','word-model.js','render.js','word-export.js','designer.js','word-editor.js','editors.js','specification.js','rule-editor.js','type-editor.js','pane-layout.js','word-format-ui.js','field-picker.js','word-field-dock.js','word-workspace.js','word-import.js','workbench-ui.js','task-flow.js','ui-continuity.js','app.js']))
+app=rjsmin.jsmin('\n;\n'.join((ROOT/'src'/p).read_text() for p in ['core.js','tree-enum.js','tree-outline.js','types.js','rules.js','layout.js','word-format.js','word-model.js','render.js','word-export.js','designer.js','word-editor.js','editors.js','specification.js','rule-editor.js','type-editor.js','pane-layout.js','word-format-ui.js','field-picker.js','word-field-dock.js','word-workspace.js','word-import.js','workbench-ui.js','task-flow.js','ui-continuity.js','workflow-shell.js','definition-drafts.js','app.js']))
 # Vendor libraries remain separate; local pako loads before the bootstrap.
 program=app
 licenses='\n\n'.join(p.name+'\n'+p.read_text() for p in sorted((ROOT/'vendor').glob('*LICENSE*')))
@@ -26,7 +26,7 @@ def ascii_js(value):
  return ''.join(c if ord(c)<128 else ('\\u'+format(ord(c),'04x') if ord(c)<=0xffff else '\\u'+format(0xd800+((ord(c)-0x10000)>>10),'04x')+'\\u'+format(0xdc00+((ord(c)-0x10000)&1023),'04x')) for c in value)
 def script(value):
  return '<script>'+re.sub(r'</script',r'<\\/script',ascii_js(value),flags=re.I)+'</script>'
-portable=source.replace('<link rel="stylesheet" href="src/style.css">','<style>'+css+'</style>')
+portable=source.replace('<link rel="stylesheet" href="src/style.css">','<style>'+css+'</style>').replace('<link rel="stylesheet" href="src/workflow.css">','').replace('<link rel="stylesheet" href="src/word-workspace.css">','')
 portable=re.sub(r'<script src="src/[^"]+"></script>','',portable)
 portable=portable.replace('src="vendor/','src="../vendor/').replace('href="vendor/','href="../vendor/')
 portable=portable.replace('</footer>','<button id="portable-licenses" class="small">ライセンス</button></footer>')

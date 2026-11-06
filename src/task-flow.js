@@ -7,12 +7,12 @@ function revealTaskInspector(host){const work=host.querySelector('.rule-workbenc
 function mountTaskFlow(host,screen,definition,cfg){
  const work=host.querySelector(':scope > .builder,:scope > .rule-workbench');if(!work||!['types','definition','rules'].includes(screen))return;
  const library=screen==='types',rule=screen==='rules',source=rule?work.querySelector('.rule-palette'):work.children[0],settings=rule?work.querySelector('.rule-properties'):work.children[1],key=definition.id+':'+screen;
- let pinned=false;try{pinned=localStorage.getItem(pinKey)==='true';}catch{}
+ let pinned=false;try{pinned=!rule&&localStorage.getItem(pinKey)==='true';}catch{}
  source.classList.add('flow-source');settings.classList.add('flow-settings');work.classList.toggle('task-focused',!pinned);work.dataset.flowLayout=pinned?'pinned':'focused';
  if(!panes.has(key))panes.set(key,'list');
  function show(pane,focus){panes.set(key,pane);work.dataset.taskPane=pane;source.hidden=pane!=='list';settings.hidden=!source.hidden;const target=focus?host.querySelector(focus.selector):settings.querySelector('input:not(:disabled),select:not(:disabled),textarea:not(:disabled)');if(target?.checkVisibility())target.focus({preventScroll:true});}
  function button(text,attrs,run){const b=document.createElement('button');b.type='button';b.textContent=text;for(const [k,v]of Object.entries(attrs||{}))b.setAttribute(k,v);b.onclick=run;return b;}
- for(const panel of [source,settings]){const head=panel.querySelector('.panel-head'),pin=button(pinned?'集中表示に戻す':'一覧と設定を並べる',{'data-pin-workbench':'','aria-pressed':String(pinned)},()=>{try{localStorage.setItem(pinKey,String(!pinned));}catch{}cfg.render();});pin.className='workbench-layout-toggle';head.append(pin);}
+ for(const panel of [source,settings]){const head=panel.querySelector('.panel-head'),pin=button(pinned?'集中表示に戻す':'一覧と設定を並べる',{'data-pin-workbench':'','aria-pressed':String(pinned)},()=>{try{localStorage.setItem(pinKey,String(!pinned));}catch{}cfg.render();});pin.className='workbench-layout-toggle';if(!rule)head.append(pin);}
  if(pinned){source.hidden=settings.hidden=false;return;}
  work.dataset.taskPane=panes.get(key);source.hidden=panes.get(key)!=='list';settings.hidden=!source.hidden;
  const back=button(rule?'＋ ノードを追加':library?'← 型・子項目を選ぶ':'← 入力項目の一覧',{'data-task-back':''},()=>show('list',{selector:rule?'#rule-source-field':'#workbench-list-search'}));settings.querySelector('.panel-head').prepend(back);

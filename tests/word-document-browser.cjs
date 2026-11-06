@@ -1,3 +1,4 @@
+const {publishDefinition,clickWorkspaceHistory}=require('./ui-helpers.cjs');
 const {reveal}=require('./ui-helpers.cjs');
 /* Real selection, clipboard and Undo across independently saved Word blocks. */
 const assert=require('node:assert/strict'),path=require('node:path');
@@ -9,7 +10,7 @@ module.exports=async function({page,url,root,out}){
    await page.evaluate(bound=>{
     const w=DocBench.sample(),d=DocBench.ensureDesign(w.render,'docx');w.render.documents[0].outputFormat='docx';
     d.blocks=[{id:'first',type:'text',text:'Alpha'},{id:'second',type:'text',text:'Beta'},...(bound?[{id:'bound',type:'field',field:'budget',valueStyle:{color:'#123456'}}]:[])];DocBenchApp.setWorkspace(w);
-   },bound);await page.locator('[data-view="render"]').click();
+   },bound);await publishDefinition(page);await page.locator('[data-view="render"]').click();
   };
   const preview=page.locator('#document-preview'),first=preview.locator('[data-block-id="first"] .tiptap'),second=preview.locator('[data-block-id="second"] .tiptap');
   const blocks=()=>page.evaluate(()=>DocBenchApp.getWorkspace().render.documents[0].designs.docx.blocks);
@@ -44,7 +45,7 @@ module.exports=async function({page,url,root,out}){
   assert(!(await blocks()).some(b=>b.id==='bound'));await page.keyboard.press('Control+z');
   assert.deepEqual((await blocks()).map(b=>b.id),before.map(b=>b.id));assert.equal((await blocks()).find(b=>b.id==='bound').field,'budget');assert.deepEqual(await page.evaluate(()=>DocBenchApp.getWorkspace().data),input);
   // Persistence keeps saved source blocks, not editor-only wrappers or real input.
-  await page.evaluate(()=>DocBenchApp.save());await page.reload();await page.waitForFunction(()=>window.DocBenchApp);await page.locator('[data-view="render"]').click();
+  await page.evaluate(()=>DocBenchApp.save());await page.reload();await page.waitForFunction(()=>window.DocBenchApp);await publishDefinition(page);await page.locator('[data-view="render"]').click();
   assert.deepEqual((await blocks()).map(b=>b.id),before.map(b=>b.id));assert(!(await blocks()).some(b=>JSON.stringify(b).includes('wordSection')));
   await page.screenshot({path:path.join(out,portable?'word-document-portable.png':'word-document.png'),fullPage:true});
   await page.evaluate(w=>DocBenchApp.setWorkspace(w),original);await page.evaluate(()=>DocBenchApp.save());

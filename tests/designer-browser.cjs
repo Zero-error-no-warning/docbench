@@ -1,3 +1,4 @@
+const {publishDefinition,clickWorkspaceHistory}=require('./ui-helpers.cjs');
 const {reveal,chooseField}=require('./ui-helpers.cjs');
 /* Real pointer / keyboard actions in the same preview used by the UI. */
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
@@ -22,7 +23,7 @@ module.exports=async function({page,out,url,root}){
    if(format==='docx')d.blocks=[{id:'word-title',type:'heading',text:'Word heading'},{id:'word-text',type:'text',text:'Paragraph body'},{id:'word-table',type:'table',field:'expenses'}];
    DocBenchApp.setWorkspace(w);
   },format);
-  await page.locator('[data-view="render"]').click();
+  await publishDefinition(page);await page.locator('[data-view="render"]').click();
   await frame().locator(format==='xlsx'?'[data-cell]':'.db-object').first().waitFor();if(format==='xlsx')await page.waitForFunction(()=>document.querySelector('#document-preview')?.dataset.editorReady==='true');
  };
  const readBlock=id=>page.evaluate(id=>{const w=DocBenchApp.getWorkspace();return w.render.documents[0].designs[w.render.documents[0].outputFormat].blocks.find(b=>b.id===id);},id);
@@ -36,8 +37,8 @@ module.exports=async function({page,out,url,root}){
 
  await fixture('pptx');const start=await readBlock('drag');
  await drag(shape('drag'),55,26);await shape('drag').waitFor();const moved=await readBlock('drag');assert(moved.layout.x>start.layout.x);assert(moved.layout.y>start.layout.y);assert.equal(moved.layout.w,start.layout.w);
- await page.locator('#undo').click();await shape('drag').waitFor();assert.deepEqual((await readBlock('drag')).layout,start.layout);
- await page.locator('#redo').click();await shape('drag').waitFor();assert.deepEqual((await readBlock('drag')).layout,moved.layout);
+ await clickWorkspaceHistory(page);await shape('drag').waitFor();assert.deepEqual((await readBlock('drag')).layout,start.layout);
+ await clickWorkspaceHistory(page,true);await shape('drag').waitFor();assert.deepEqual((await readBlock('drag')).layout,moved.layout);
  await drag(shape('drag').locator('.db-resize'),35,18);await shape('drag').waitFor();const resized=await readBlock('drag');assert(resized.layout.w>moved.layout.w);assert(resized.layout.h>moved.layout.h);
  await shape('drag').press('ArrowRight');await shape('drag').waitFor();assert((await readBlock('drag')).layout.x>resized.layout.x);
  await shape('drag').press('Control+d');await frame().locator('.db-object').first().waitFor();assert.equal(await frame().locator('.db-object').count(),3);await page.locator('[data-canvas-command="delete"]').click();await frame().locator('.db-object').first().waitFor();assert.equal(await frame().locator('.db-object').count(),2);
@@ -54,14 +55,14 @@ module.exports=async function({page,out,url,root}){
  assert((await page.locator('#canvas-range').innerText()).includes('D12:H14'));await page.locator('#canvas-place').click();await frame().locator('[data-cell="D12"]').waitFor();
  assert.deepEqual((await readBlock('sheet-title')).layout,{cell:'D12',span:5,rowSpan:3});
  assert.equal(await frame().locator('[data-cell="D12"]').getAttribute('rowspan'),'3');
- await page.locator('#undo').click();await frame().locator('[data-cell="C3"]').waitFor();assert.equal((await readBlock('sheet-title')).layout.cell,'C3');await page.locator('#redo').click();await frame().locator('[data-cell="D12"]').waitFor();assert.equal((await readBlock('sheet-title')).layout.cell,'D12');
+ await clickWorkspaceHistory(page);await frame().locator('[data-cell="C3"]').waitFor();assert.equal((await readBlock('sheet-title')).layout.cell,'C3');await clickWorkspaceHistory(page,true);await frame().locator('[data-cell="D12"]').waitFor();assert.equal((await readBlock('sheet-title')).layout.cell,'D12');
  const xlsx=await exportFile('xlsx');assert((await xmlFrom(xlsx,'xl/worksheets/sheet1.xml')).includes('ref="D12:H14"'));
  // Occupied ranges report a conflict without losing either element.
  const blockCount=await page.evaluate(()=>DocBenchApp.getWorkspace().render.documents[0].designs.xlsx.blocks.length);await reveal(page,'#canvas-insert-type');await page.locator('#canvas-insert-type').selectOption('field');await reveal(page,'#canvas-insert-field');await chooseField(page,'canvas-insert-field','budget');await reveal(page,'#canvas-insert');await page.locator('#canvas-insert').click();assert((await page.locator('#toast').innerText()).includes('重複'));assert.equal(await page.evaluate(()=>DocBenchApp.getWorkspace().render.documents[0].designs.xlsx.blocks.length),blockCount);
  await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:path.join(out,'11-interactive-excel.png'),fullPage:true});
 
  await fixture('docx');const wordSource=await shape('word-text').locator('.word-flow-handle').boundingBox(),wordTarget=await shape('word-title').boundingBox();assert(wordSource&&wordTarget);await drag(shape('word-text').locator('.word-flow-handle'),wordTarget.x+20-(wordSource.x+wordSource.width/2),wordTarget.y+3-(wordSource.y+wordSource.height/2));await shape('word-title').waitFor();assert.deepEqual(await page.evaluate(()=>DocBenchApp.getWorkspace().render.documents[0].designs.docx.blocks.map(b=>b.id)),['word-text','word-title','word-table']);
- await page.locator('#undo').click();await shape('word-title').waitFor();assert.equal(await page.evaluate(()=>DocBenchApp.getWorkspace().render.documents[0].designs.docx.blocks[0].id),'word-title');
+ await clickWorkspaceHistory(page);await shape('word-title').waitFor();assert.equal(await page.evaluate(()=>DocBenchApp.getWorkspace().render.documents[0].designs.docx.blocks[0].id),'word-title');
  await shape('word-title').dblclick();await shape('word-title').locator('.tiptap').fill('Edited Word heading');await shape('word-title').locator('.tiptap').click();assert.equal(await shape('word-title').locator('.tiptap').getAttribute('contenteditable'),'true');await page.locator('#canvas-selection').click();await shape('word-title').waitFor();assert.equal((await readBlock('word-title')).text,'Edited Word heading');
  await shape('word-title').locator('.tiptap').press('Control+a');await page.locator('#canvas-font-size').fill('28');await page.locator('#canvas-font-size').dispatchEvent('change');await shape('word-title').waitFor();
  const docx=await exportFile('docx'),wordXml=await xmlFrom(docx,'word/document.xml');assert(wordXml.includes('Edited Word heading'));assert(wordXml.includes('w:sz w:val="56"'));
@@ -70,5 +71,5 @@ module.exports=async function({page,out,url,root}){
  assert.equal(await page.locator('#document-preview').evaluate(el=>el.tagName),'DIV');
  assert.equal(await frame().locator('script,[onclick],[onerror]').count(),0);
  await page.evaluate(w=>DocBenchApp.setWorkspace(w),original);await page.evaluate(()=>DocBenchApp.save());
- await page.goto('file://'+path.join(root,'portable/docbench.html')+'#editor');await page.waitForFunction(()=>window.DocBenchApp);await fixture('pptx');const portableStart=await readBlock('drag');await drag(shape('drag'),30,0);await shape('drag').waitFor();assert((await readBlock('drag')).layout.x>portableStart.layout.x);await page.locator('#mode-switch').click();assert.equal(new URL(page.url()).hash,'');assert(await page.locator('#mode-switch').isVisible());assert(!await page.locator('[data-view="definition"]').isVisible());await page.locator('#mode-switch').click();assert.equal(new URL(page.url()).hash,'#editor');assert(await page.locator('[data-view="render"]').isVisible());
+ await page.goto('file://'+path.join(root,'portable/docbench.html')+'#editor');await page.waitForFunction(()=>window.DocBenchApp);await fixture('pptx');const portableStart=await readBlock('drag');await drag(shape('drag'),30,0);await shape('drag').waitFor();assert((await readBlock('drag')).layout.x>portableStart.layout.x);await publishDefinition(page);await page.locator('#mode-switch').click();assert.equal(new URL(page.url()).hash,'');assert(await page.locator('#mode-switch').isVisible());assert(!await page.locator('[data-view="definition"]').isVisible());await publishDefinition(page);await page.locator('#mode-switch').click();assert.equal(new URL(page.url()).hash,'#editor');assert(await page.locator('[data-view="render"]').isVisible());
 };
