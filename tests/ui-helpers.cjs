@@ -12,6 +12,7 @@ exports.chooseFormat=async(page,format)=>{
 };
 exports.chooseField=async(page,id,value)=>{
  const picker=page.locator('#'+id+'-picker');
+ if(await picker.count())await exports.reveal(page,'#'+id+'-picker');
  if(await picker.isVisible()){await picker.click();const dialog=page.locator('.field-picker-dialog');await dialog.locator('input[type=search]').fill(value);await dialog.locator('[data-field-choice="'+value+'"]').click();await dialog.waitFor({state:'hidden'});}
  else await page.locator('#'+id).selectOption(value);
 };

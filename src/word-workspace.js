@@ -28,7 +28,7 @@ function mountWordWorkspace(cfg){
  const release=()=>{if(resultURL){URL.revokeObjectURL(resultURL);resultURL=null;}};
  function showResult(show){
   if(show){let html;try{html=cfg.preview();}catch(err){cfg.notify(err.message);return;}saved=cfg.controller()?.capture();release();resultURL=URL.createObjectURL(new Blob([html],{type:'text/html;charset=utf-8'}));result.src=resultURL;}
-  previewing=show;surface.hidden=show;result.hidden=!show;note.hidden=!show;if(properties)properties.disabled=show;toolbar.closest('.word-workbench').classList.toggle('word-proof-mode',show);selection.querySelector('#word-write').hidden=show;zoom.disabled=show;
+  previewing=show;if(show)fieldDock.hide();surface.hidden=show;result.hidden=!show;note.hidden=!show;if(properties)properties.disabled=show;toolbar.closest('.word-workbench').classList.toggle('word-proof-mode',show);selection.querySelector('#word-write').hidden=show;zoom.disabled=show;
   for(const item of editable)item.classList.toggle('word-preview-hidden',show);
   shortcuts.hidden=show;modes.querySelector('#word-view-edit').setAttribute('aria-pressed',String(!show));modes.querySelector('#word-view-result').setAttribute('aria-pressed',String(show));
   if(!show){release();result.removeAttribute('src');cfg.controller()?.restore(saved);saved=null;}sync();
@@ -39,6 +39,7 @@ function mountWordWorkspace(cfg){
  page.innerHTML='<summary>ページ設定</summary><p class="canvas-hint">用紙・余白は文書全体に適用します。</p><div class="word-page-grid"><label>用紙<select data-word-page="pageSize"><option>A4</option><option>Letter</option></select></label><label>印刷の向き<select data-word-page="orientation"><option value="portrait">縦</option><option value="landscape">横</option></select></label><label class="word-margin-preset">余白<select id="word-margin-preset"><option value="custom">ユーザー設定</option><option value="normal">標準（上下左右 25.4 mm）</option><option value="narrow">狭い（上下左右 12.7 mm）</option><option value="wide">広い（左右 50.8 mm）</option></select></label>'+[['marginTop','上'],['marginBottom','下'],['marginLeft','左'],['marginRight','右']].map(([key,title])=>'<label>'+title+'余白（mm）<input data-word-page="'+key+'" type="number" min="0" max="100" step="0.1"></label>').join('')+'</div><p id="word-page-summary" class="canvas-hint"></p>';
  insertGroup.after(page);editable.push(page);
  const controls=toolbar.closest('.output-controls'),grid=controls.parentElement,stage=grid.querySelector('.output-stage'),head=controls.querySelector(':scope > .panel-head');
+ stage.append(inspector);
  const fileMenu=controls.querySelector('.output-document-settings'),manager=fileMenu.querySelector('.document-manager'),documentLabel=manager.querySelector('label'),fileActions=document.createElement('div');
  fileMenu.className='action-menu word-file-menu';fileMenu.querySelector(':scope > summary').textContent='ファイル';fileActions.className='word-file-actions';
  const add=manager.querySelector('#document-add');if(add)fileActions.append(add);for(const button of manager.querySelectorAll('.action-menu-body button'))fileActions.append(button);fileMenu.append(fileActions);manager.remove();
@@ -66,10 +67,13 @@ function mountWordWorkspace(cfg){
  rules.querySelector('#word-repeat-insert').textContent='件数分くり返す';rules.querySelector('#word-condition-insert').textContent='条件で表示を切り替える';
  const ruleHint=document.createElement('p');ruleHint.className='canvas-hint';ruleHint.textContent='対象にしたい段落・表を選んでから設定します。未選択なら、文章を書き込む枠を追加します。';rulesSection.append(ruleHint);
  const ordinary=section('文章・表を追加',[]);ordinary.classList.add('word-ordinary-insert');
- for(const [value,title]of [['heading','見出し'],['text','文章'],['table','要件の一覧を表にする']]){const button=document.createElement('button');button.type='button';button.textContent=title;button.onmousedown=ev=>ev.preventDefault();button.onclick=()=>{kind.value=value;kind.onchange();if(value!=='table'){insert.click();kind.value='field';kind.onchange();}};ordinary.append(button);}
+ for(const [value,title]of [['heading','見出し'],['text','文章'],['table','入力データを表にする']]){const button=document.createElement('button');button.type='button';button.textContent=title;button.onmousedown=ev=>ev.preventDefault();button.onclick=()=>{kind.value=value;kind.onchange();if(value!=='table'){insert.click();kind.value='field';kind.onchange();}else advanced.open=true;};ordinary.append(button);}
  const back=document.createElement('button');back.type='button';back.id='word-insert-values';back.textContent='入力値の差込みへ戻る';back.onclick=()=>{kind.value='field';kind.onchange();};source.append(back);
  for(const node of [...insertGroup.children])if(node!==mergeTools&&node.tagName!=='H4')ordinary.append(node);
  insertGroup.append(rulesSection,ordinary);
+ const fieldDock=D.mountWordFieldDock({stage,definition:cfg.definition,controller:cfg.controller,fields:cfg.fields,onOpen:()=>{if(properties?.getAttribute('aria-expanded')==='true')properties.click();}});
+ properties?.addEventListener('click',()=>{if(properties.getAttribute('aria-expanded')==='true')fieldDock.hide();});
+ const advanced=document.createElement('details');advanced.className='ribbon-details word-insertion-advanced';advanced.dataset.disclosure='word-insertion-advanced';advanced.innerHTML='<summary>項目名・一覧表などの差し込み</summary>';mergeTools.before(fieldDock.trigger,advanced);const advancedBody=document.createElement('div');advancedBody.className='ribbon-popup';advancedBody.append(mergeTools);advanced.append(advancedBody);
  const hint=toolbar.querySelector(':scope > .canvas-hint');if(hint)hint.remove();toolbar.replaceChildren(shortcuts,panels);controls.append(note);navigation.remove();
  const closeSettings=document.createElement('button');closeSettings.className='word-details-close';closeSettings.textContent='設定を閉じる';closeSettings.onclick=()=>properties?.click();inspector.querySelector('.panel-head').append(closeSettings);
  for(const button of toolbar.querySelectorAll('[data-canvas-align]')){const align=button.dataset.canvasAlign,title=button.textContent;button.title=title;button.setAttribute('aria-label',title);const widths=align==='justify'?[16,16,16,16]:[16,11,16,11];button.innerHTML='<svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">'+widths.map((w,i)=>'<path d="M'+(align==='center'?(20-w)/2:align==='right'?18-w:2)+' '+(4+i*4)+'h'+w+'" stroke="currentColor" stroke-width="1.7"/>').join('')+'</svg>';}
@@ -87,7 +91,7 @@ function mountWordWorkspace(cfg){
   popup.style.setProperty('--word-popup-left',Math.max(left,Math.min(rect.left,right-popup.getBoundingClientRect().width))+'px');popup.style.setProperty('--word-popup-top',Math.max(top,Math.min(down?rect.bottom+6:rect.top-6-height,bottom-height))+'px');
  };
  const repositionPopups=()=>{for(const detail of toolbar.querySelectorAll('.ribbon-details:not(.word-merge-tools)[open]'))placePopup(detail);};
- const events=new AbortController();toolbar.addEventListener('toggle',event=>{if(event.target.matches('.ribbon-details:not(.word-merge-tools)'))placePopup(event.target);},{capture:true,signal:events.signal});window.addEventListener('resize',repositionPopups,{signal:events.signal});document.addEventListener('scroll',repositionPopups,{capture:true,signal:events.signal});window.visualViewport?.addEventListener('resize',repositionPopups,{signal:events.signal});document.addEventListener('pointerdown',event=>{for(const detail of toolbar.querySelectorAll('.ribbon-details:not(.word-merge-tools)[open]'))if(!detail.contains(event.target))detail.open=false;},{signal:events.signal});
+ const events=new AbortController();toolbar.addEventListener('toggle',event=>{if(event.target.matches('.ribbon-details:not(.word-merge-tools)'))placePopup(event.target);},{capture:true,signal:events.signal});window.addEventListener('resize',repositionPopups,{signal:events.signal});document.addEventListener('scroll',repositionPopups,{capture:true,signal:events.signal});window.visualViewport?.addEventListener('resize',repositionPopups,{signal:events.signal});document.addEventListener('pointerdown',event=>{if(event.target.closest('.field-picker-dialog'))return;for(const detail of toolbar.querySelectorAll('.ribbon-details:not(.word-merge-tools)[open]'))if(!detail.contains(event.target))detail.open=false;},{signal:events.signal});
  document.addEventListener('keydown',event=>{if(event.key!=='Escape')return;const opened=[...toolbar.querySelectorAll('.ribbon-details:not(.word-merge-tools)[open]')].at(-1);if(opened){event.preventDefault();opened.open=false;opened.querySelector('summary').focus({preventScroll:true});}else if(properties?.getAttribute('aria-expanded')==='true'){event.preventDefault();properties.click();properties.focus({preventScroll:true});}},{signal:events.signal});
  const presets={normal:{marginTop:25.4,marginBottom:25.4,marginLeft:25.4,marginRight:25.4},narrow:{marginTop:12.7,marginBottom:12.7,marginLeft:12.7,marginRight:12.7},wide:{marginTop:25.4,marginBottom:25.4,marginLeft:50.8,marginRight:50.8}};
  function apply(patch){
@@ -98,7 +102,7 @@ function mountWordWorkspace(cfg){
  for(const input of page.querySelectorAll('[data-word-page]'))input.onchange=()=>{if(!input.checkValidity()||input.value===''){input.reportValidity();return;}apply({[input.dataset.wordPage]:input.type==='number'?input.valueAsNumber:input.value});};
  page.querySelector('#word-margin-preset').onchange=ev=>{if(presets[ev.target.value])apply(presets[ev.target.value]);};
  function sync(){
-  const settings=D.settings({...cfg.design(),outputFormat:'docx'});
+  fieldDock.sync();const settings=D.settings({...cfg.design(),outputFormat:'docx'});
   for(const input of page.querySelectorAll('[data-word-page]'))if(input!==document.activeElement)input.value=settings[input.dataset.wordPage];
   page.querySelector('#word-margin-preset').value=Object.keys(presets).find(key=>Object.entries(presets[key]).every(([k,v])=>Math.abs(settings[k]-v)<.01))||'custom';
   page.querySelector('#word-page-summary').textContent=settings.pageSize+'・'+(settings.orientation==='landscape'?'横':'縦')+'／余白：上 '+settings.marginTop+'、下 '+settings.marginBottom+'、左 '+settings.marginLeft+'、右 '+settings.marginRight+' mm';
@@ -106,7 +110,7 @@ function mountWordWorkspace(cfg){
   if(previewing)status.textContent='入力データを反映した確認表示（編集不可）';else if(editor){const range=editor.state.selection;status.textContent=range.empty?(editor.isActive('table')?'表のセルを編集中':'本文を編集中'):'選択中：'+editor.state.doc.textBetween(range.from,range.to,'\n').length+'文字';}
   const contexts={table:!!editor?.isActive('table'),object:!panes.get('object').querySelector('#word-block-tools').hidden,range:!panes.get('range').querySelector('#word-range-tools').hidden};for(const [id,available]of Object.entries(contexts)){shortcuts.querySelector('[data-word-tab="'+id+'"]').hidden=!available;if(!available&&currentTab===id)setTab('home');}
  }
- sync();return {sync,tab:()=>currentTab,restoreTab:id=>{const button=shortcuts.querySelector('[data-word-tab="'+id+'"]');if(button&&!button.hidden)setTab(id);},destroy(){fieldPicker.destroy();events.abort();release();result.remove();},isPreview:()=>previewing};
+ sync();return {sync,tab:()=>currentTab,restoreTab:id=>{const button=shortcuts.querySelector('[data-word-tab="'+id+'"]');if(button&&!button.hidden)setTab(id);},destroy(){fieldDock.destroy();fieldPicker.destroy();events.abort();release();result.remove();},isPreview:()=>previewing};
 }
 Object.assign(D,{mountWordWorkspace});
 })(globalThis);
