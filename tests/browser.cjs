@@ -10,7 +10,7 @@ const server=http.createServer((req,res)=>{const pathname=decodeURIComponent(new
  await require('./task-flow-browser.cjs')({page,out,url,root});
  // Legacy domain scenarios also cover the optional simultaneous list/settings layout.
  // The dedicated workflow suite above exercises the default focused layout independently.
- await page.context().addInitScript(()=>localStorage.setItem('docbench:workspacePinned','true'));
+ await page.context().addInitScript(()=>{if(window.top===window)localStorage.setItem('docbench:workspacePinned','true');});
  await page.goto(url);await page.waitForFunction(()=>window.DocBenchApp);assert.equal(await page.locator('#mode-switch').innerText(),'編集者画面へ');assert(await page.locator('#mode-switch').isVisible());await page.frameLocator('#document-preview').locator('main').waitFor();assert((await page.locator('#document-preview').getAttribute('src')).startsWith('blob:'));assert.equal(await page.locator('#document-preview').getAttribute('srcdoc'),null);assert(!await page.locator('[data-view="definition"]').isVisible());
  await page.locator('[data-input="projectName"]').fill('モード切替前の入力');await page.locator('#mode-switch').click();assert.equal(new URL(page.url()).hash,'#editor');assert(await page.locator('[data-view="definition"]').isVisible());assert.equal(await page.evaluate(()=>DocBenchApp.getWorkspace().data.values.projectName),'モード切替前の入力');
  await page.locator('#mode-switch').click();assert.equal(new URL(page.url()).hash,'');assert(await page.locator('[data-input="projectName"]').isVisible());assert.equal(await page.locator('[data-input="projectName"]').inputValue(),'モード切替前の入力');
