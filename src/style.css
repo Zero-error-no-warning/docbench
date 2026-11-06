@@ -556,6 +556,9 @@ body.app-shell.word-authoring .word-view-switch button[aria-pressed=true]{color:
 
 /* Direct field insertion is a searchable dock, separate from the ribbon. */
 .app-shell.word-authoring .output-stage{position:relative}
+.app-shell.word-authoring .output-stage>.design-inspector{position:absolute;top:0;right:0;bottom:0;width:min(330px,100%);height:auto;max-height:100%;display:flex;flex-direction:column;overflow:auto;z-index:20;border:1px solid var(--line);border-radius:0;box-shadow:-6px 0 24px #243e6020}
+.app-shell.word-authoring .native-format[data-inspector=false] .output-stage>.design-inspector{display:none}
+.app-shell.word-authoring .output-stage>.design-inspector>.panel-body{flex:none;overflow:visible;padding:14px}
 .word-field-dock{position:absolute;z-index:3;top:12px;right:12px;bottom:12px;width:min(340px,calc(100% - 24px));display:flex;flex-direction:column;min-height:0;background:#fff;border:1px solid #b8c7dd;border-radius:10px;box-shadow:0 8px 32px #1c34532b;overflow:hidden}
 .word-dock-head{padding:16px 18px;display:flex;gap:12px;align-items:center;border-bottom:1px solid var(--line);flex:none}
 .word-dock-head h3{font-size:16px;margin:0;flex:1}
@@ -587,4 +590,4 @@ body.app-shell.word-authoring .word-view-switch button[aria-pressed=true]{color:
 .app-shell.word-authoring .word-insertion-advanced>.ribbon-popup{width:330px!important;max-width:calc(100vw - 32px)}
 .app-shell.word-authoring #word-panel-insert .word-insertion-advanced .word-insertion>label[hidden]{display:none!important}
 @media(max-width:1100px) and (min-width:851px){.app-shell #app>.task-focused{grid-template-rows:minmax(0,1fr)}.app-shell #app>.task-focused>.flow-settings{margin-top:var(--header-height);grid-row:1}.app-shell.word-authoring .word-ribbon-panels{height:152px;min-height:152px}.app-shell.word-authoring #word-panel-insert>.word-task-section{grid-template-columns:minmax(190px,1fr) minmax(170px,1fr) 140px;gap:4px 12px}}
-@media(max-width:850px){.app-shell .task-focused>.flow-source,.app-shell .task-focused>.flow-settings{height:calc(100dvh - var(--header-height));min-height:450px}.app-shell .task-focused .flow-settings>.panel-body,.app-shell .task-focused .selection-context{padding:16px 20px}.app-shell .task-focused .tree-type{font-size:11px;max-width:100px}.app-shell.word-authoring .word-ribbon-panels{height:152px;min-height:152px}.app-shell.word-authoring #word-panel-insert{min-width:640px}.input-section-navigation{top:-14px}.word-field-dock{top:4px;right:4px;bottom:4px;width:min(340px,calc(100% - 8px))}}
+@media(max-width:850px){.app-shell #app>.task-focused>.flow-source,.app-shell #app>.task-focused>.flow-settings{height:calc(100dvh - var(--header-height));min-height:450px}.app-shell .task-focused .flow-settings>.panel-body,.app-shell .task-focused .selection-context{padding:16px 20px}.app-shell .task-focused .tree-type{font-size:11px;max-width:100px}.app-shell.word-authoring .word-ribbon-panels{height:152px;min-height:152px}.app-shell.word-authoring #word-panel-insert{min-width:640px}.input-section-navigation{top:-14px}.word-field-dock{top:4px;right:4px;bottom:4px;width:min(340px,calc(100% - 8px))}}

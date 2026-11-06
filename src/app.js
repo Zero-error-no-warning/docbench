@@ -492,8 +492,8 @@ function restoreDisclosures(){for(const el of $$('#app [data-disclosure]')){cons
 // Menus close after an action, on Escape, or when focus/click moves away.
 document.addEventListener('click',ev=>{for(const menu of $$('details.action-menu[open]'))if(!menu.contains(ev.target)||ev.target.closest('button'))menu.open=false;});
 document.addEventListener('keydown',ev=>{if(ev.key==='Escape'){const menu=$('details.action-menu[open]');if(menu){ev.preventDefault();menu.open=false;menu.querySelector('summary').focus();}}});
-document.addEventListener('pointerdown',ev=>{if(!ev.target.closest?.('.word-toolbar,.word-field-dock,.pane-resizer'))canvasController?.releaseSelection?.();},true);
-document.addEventListener('focusin',ev=>{if(!ev.target.closest?.('.word-toolbar,.word-field-dock,.pane-resizer'))canvasController?.releaseSelection?.();});
+document.addEventListener('pointerdown',ev=>{if(!ev.target.closest?.('.word-toolbar,.word-field-dock,.field-picker-dialog,.pane-resizer'))canvasController?.releaseSelection?.();},true);
+document.addEventListener('focusin',ev=>{if(!ev.target.closest?.('.word-toolbar,.word-field-dock,.field-picker-dialog,.pane-resizer'))canvasController?.releaseSelection?.();});
 document.addEventListener('focusin',ev=>{for(const menu of $$('details.action-menu[open]'))if(!menu.contains(ev.target))menu.open=false;});
 function compactOutputWorkspace(){
  const grid=$('.render-grid'),stage=grid.querySelector(':scope > .sticky'),inspector=$('.design-inspector'),tools=$('#canvas-tools'),paper=stage.querySelector('.paper-frame'),head=stage.querySelector('.panel-head'),note=stage.querySelector('.panel-note');
