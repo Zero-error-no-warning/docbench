@@ -10,6 +10,8 @@ module.exports=async({page,url,root,out})=>{
   const editor=page.locator('#document-preview .tiptap'),paragraph=editor.locator(':scope > p').first(),workspace=()=>page.evaluate(()=>DocBenchApp.getWorkspace());
   assert.equal(await page.locator('#canvas-zoom').inputValue(),'100');
   await paragraph.click();await page.keyboard.press('Home');await page.keyboard.press('Shift+ArrowRight');await page.keyboard.press('Shift+ArrowRight');
+  // Native selectionchange is delivered asynchronously after keyboard input.
+  await page.waitForFunction(()=>{const frame=document.querySelector('#document-preview'),e=frame.shadowRoot.querySelector('.tiptap').editor;return e.state.selection.to-e.state.selection.from===2&&document.querySelector('#canvas-selection').textContent==='選択中：2文字';});
   const selection=await editor.evaluate(el=>{window.__wordWorkspaceEditor=el.editor;return el.editor.state.selection.toJSON();}),before=await workspace();
   assert.equal(await page.locator('#canvas-selection').innerText(),'選択中：2文字');
   await page.locator('#design-properties').click();assert(await page.locator('.design-inspector').isVisible());

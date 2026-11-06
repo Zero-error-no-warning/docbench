@@ -2,7 +2,7 @@
 (function(root){
 'use strict';const D=root.DocBench;
 function createInteractionContinuity(host){
- let rowAction=false,pointer=false,tabbing=false,composing=false,nativePicker=null,timer=null,drafts=new WeakMap();const pending=new Map();
+ let rowAction=false,pointer=false,tabbing=false,composing=false,nativePicker=null,timer=null,drafts=new WeakMap();const pending=new Map(),editingKeys=new Set();
  const context=()=>JSON.stringify([host.dataset.screen,host.dataset.definitionId,host.dataset.format]);
  function prepareRows(){
   for(const el of host.querySelectorAll('[data-input],[data-row],[data-table-path],[data-collection-path]')){
@@ -43,13 +43,13 @@ function createInteractionContinuity(host){
  }
  function capture(){return {context:context(),focus:captureFocus(),x:window.scrollX,y:window.scrollY,scroll:[...host.querySelectorAll('.panel-body,.field-tree,.form-preview,.table-scroll,.paper-frame,#document-preview,[data-definition-scroll],[data-type-scroll],textarea')].filter(el=>el.scrollTop||el.scrollLeft).map(el=>({selector:selector(el),top:el.scrollTop,left:el.scrollLeft}))};}
  function restore(saved){if(!saved||saved.context!==context())return;restoreFocus(saved.focus);for(const s of saved.scroll){const el=host.querySelector(s.selector);if(el){el.scrollTop=s.top;el.scrollLeft=s.left;}}window.scrollTo(saved.x,saved.y);}
- function blocked(){return rowAction||pointer||tabbing||composing||!!nativePicker||!!document.querySelector('.field-picker-dialog[open]');}
+ function blocked(){return rowAction||pointer||tabbing||composing||editingKeys.size>0||!!nativePicker||!!document.querySelector('.field-picker-dialog[open]');}
  function flush(){timer=null;if(blocked())return;const jobs=pending.has('render')?[pending.get('render')]:[...pending.values()];pending.clear();for(const job of jobs)job();}
  function soon(){if(timer!==null)clearTimeout(timer);timer=setTimeout(flush,0);}
  document.addEventListener('pointerdown',event=>{pointer=true;nativePicker=event.target.matches('select,input[type=color],input[type=date],input[type=datetime-local],input[type=file]')?event.target:null;},true);for(const name of ['pointerup','pointercancel'])document.addEventListener(name,()=>{pointer=false;soon();},true);
- window.addEventListener('blur',()=>{pointer=false;tabbing=false;soon();});
- document.addEventListener('keydown',event=>{if(event.key==='Tab'){pointer=false;nativePicker=null;tabbing=true;setTimeout(()=>{tabbing=false;soon();},0);}},true);
- document.addEventListener('keyup',event=>{if(['Escape','Enter'].includes(event.key)){nativePicker=null;pointer=false;soon();}},true);
+ window.addEventListener('blur',()=>{pointer=false;tabbing=false;editingKeys.clear();soon();});
+ document.addEventListener('keydown',event=>{if(event.key!=='Tab'&&event.composedPath().some(el=>el instanceof Element&&el.matches('input,textarea,select,[contenteditable=true]')))editingKeys.add(event.code||event.key);if(event.key==='Tab'){pointer=false;nativePicker=null;tabbing=true;setTimeout(()=>{tabbing=false;soon();},0);}},true);
+ document.addEventListener('keyup',event=>{if(editingKeys.delete(event.code||event.key))soon();if(['Escape','Enter'].includes(event.key)){nativePicker=null;pointer=false;soon();}},true);
  document.addEventListener('compositionstart',()=>{composing=true;},true);document.addEventListener('compositionend',()=>{composing=false;soon();},true);
  document.addEventListener('close',soon,true);document.addEventListener('cancel',()=>{nativePicker=null;pointer=false;soon();},true);
  document.addEventListener('input',event=>{const el=event.target;if(host.contains(el)&&el.matches('input,textarea,select,[contenteditable=true]')&&!el.closest('.ProseMirror,.jss_container'))drafts.set(el,{value:el.value,checked:['checkbox','radio'].includes(el.type)?el.checked:undefined,html:el.isContentEditable?el.innerHTML:undefined});},true);
