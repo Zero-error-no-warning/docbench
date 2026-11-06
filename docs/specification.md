@@ -661,3 +661,18 @@ Wordの`rich`ブロックは、通常の文章・見出し・リスト・表の�
 追加した出力書類には任意のwordImportメタデータを保持する。sourceNameは元ファイル名、paragraphsとtablesは検出数、warningsはmessage（文字列）とcount（件数）の配列。これは取り込み結果表示用であり、出力文書の内容や参照先を変更しない。
 
 初期対応は文章・見出し・基本文字書式・段落書式・段落スタイル・基本番号・表の横縦結合・列幅比率・A4/Letterのページ設定。画像・図形・脚注等は文字の目印、ヘッダー/フッターは共通文字列へ変換する。元のDOCXのレイアウト・未対応要素を完全保存する機能ではない。20MB、展開後40MB、XML部品10MB、2,000部品、文書5,000要素の上限を設け、マクロ・外部実体宣言・暗号化ファイルを受け付けない。外部参照は取得せず、スクリプトを実行しない。
+
+
+### Word表の明細行の繰り返し
+
+`tableRow.attrs`に`field`（ArrayまたはTableのスキーマパス）と`repeatGroup`（200文字以内の空でない文字列）を指定する。同じ表内で、同じrepeatGroupを持つ連続行が「入力データ1件分」のテンプレートになる。同じグループのfieldはすべて一致させる。固定行のfield・repeatGroupは省略またはnullとする。行を新しいノードで包まないため、既存のtable／tableRow／tableCellの構造を維持する。
+
+```json
+{"type":"tableRow","attrs":{"id":"detail-row-1","field":"expenses","repeatGroup":"expense-detail"},"content":[
+  {"type":"tableCell","attrs":{"colspan":1,"rowspan":1},"content":[
+    {"type":"paragraph","content":[{"type":"fieldRef","attrs":{"field":"expenses.category","part":"value"}}]}
+  ]}
+]}
+```
+
+出力時はグループの行配列を各データについて順に展開する。子のfieldRefは対応するデータ行に解決し、固定の見出し行・合計行は1回だけ出力する。0件や非表示の場合はグループの行だけを省き、表に行が残らなければ表自体を省く。罫線・文字書式・列幅・セル結合を保持する。縦結合はグループの境界をまたげない。同じrepeatGroupを離れた行に再使用する設定や、同じ配列を自身の内側で再度くり返す設定はエラーにする。入れ子の配列は親のrepeatBlockまたは親の行グループの内側で参照する。編集用の目印や展開済みデータは出力定義へ保存しない。元のDOCXへこの制御情報を書き戻す機能ではなく、生成するDOCXには展開後の通常の表を出力する。

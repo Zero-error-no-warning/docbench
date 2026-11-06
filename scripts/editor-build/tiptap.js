@@ -102,6 +102,26 @@ const WordObject=Node.create({
 });
 const ControlRanges=Extension.create({name:'controlRanges',addCommands(){return {exitControlRange:()=>({state,dispatch})=>{const {selection}=state,{$from}=selection;let pos=['repeatBlock','conditionBlock'].includes(selection.node?.type.name)?selection.to:null;for(let depth=$from.depth;pos===null&&depth>0;depth--)if(['repeatBlock','conditionBlock'].includes($from.node(depth).type.name))pos=$from.after(depth);if(pos===null)return false;const tr=state.tr.insert(pos,state.schema.nodes.paragraph.create());if(dispatch)dispatch(tr.setSelection(TextSelection.near(tr.doc.resolve(pos+1))).scrollIntoView());return true;}};},addKeyboardShortcuts(){return {'Mod-Enter':()=>this.editor.commands.exitControlRange()||this.editor.commands.insertContent({type:'pageBreak'})};}});
 
+// Row templates remain ordinary table rows, preserving native table editing and merged cells.
+function rowRepeatInfo(state){
+ if(!isInTable(state))return null;const rect=selectedRect(state),rows=[];rect.table.forEach((node,offset)=>rows.push({node,pos:rect.tableStart+offset}));let from=rect.top,to=rect.bottom;
+ const group=rows[from]?.node.attrs.repeatGroup,field=rows[from]?.node.attrs.field;
+ if(group){while(from>0&&rows[from-1].node.attrs.repeatGroup===group)from--;while(to<rows.length&&rows[to].node.attrs.repeatGroup===group)to++;}
+ return {...rect,rows,from,to,group,field};
+}
+const RowRepeats=Extension.create({
+ name:'rowRepeats',addOptions(){return {definition:{fields:[]},onInvalid:()=>{}};},
+ addGlobalAttributes(){return [{types:['tableRow'],attributes:{field:{default:null,parseHTML:el=>el.getAttribute('data-repeat-field'),renderHTML:a=>a.field?{'data-repeat-field':a.field}:{}},repeatGroup:{default:null,parseHTML:el=>el.getAttribute('data-repeat-group'),renderHTML:a=>a.repeatGroup?{'data-repeat-group':a.repeatGroup}:{}}}}];},
+ addCommands(){return {setRepeatedRows:({field,from,to,remove=false})=>({state,tr,dispatch})=>{
+  const info=rowRepeatInfo(state);if(!info||!Number.isInteger(from)||!Number.isInteger(to)||from<0||to>info.rows.length||from>=to)return false;
+  const touched=new Set(info.rows.slice(from,to).map(r=>r.node.attrs.repeatGroup).filter(Boolean)),group=globalThis.DocBench.uid(),copy=info.table.toJSON();
+  for(let i=0;i<copy.content.length;i++){const a={...copy.content[i].attrs};if(touched.has(a.repeatGroup)){a.field=null;a.repeatGroup=null;}if(!remove&&i>=from&&i<to){a.field=field;a.repeatGroup=group;}copy.content[i].attrs=a;}
+  const errors=globalThis.DocBench.wordRowRepeatErrors(copy);if(errors.length){this.options.onInvalid(errors[0]);return false;}
+  if(dispatch){for(let i=0;i<info.rows.length;i++)tr.setNodeMarkup(info.rows[i].pos,undefined,copy.content[i].attrs);dispatch(tr);}return true;
+ }};},
+ addProseMirrorPlugins(){const cfg=this.options;return [new Plugin({filterTransaction(tr){if(!tr.docChanged)return true;let error=null;tr.doc.descendants(n=>{if(n.type.name==='table'){error||=globalThis.DocBench.wordRowRepeatErrors(n.toJSON())[0];}});if(error){cfg.onInvalid(error);return false;}return true;},props:{decorations(state){const decorations=[];state.doc.descendants((table,pos)=>{if(table.type.name!=='table')return;let previous=null;table.forEach((row,offset,index)=>{const a=row.attrs;if(!a.repeatGroup){previous=null;return;}decorations.push(Decoration.node(pos+1+offset,pos+1+offset+row.nodeSize,{class:'word-repeated-row','data-repeat-field':a.field,'aria-label':'データ1件分の明細行'}));if(a.repeatGroup!==previous&&row.firstChild){let count=1;while(index+count<table.childCount&&table.child(index+count).attrs.repeatGroup===a.repeatGroup)count++;const label=(globalThis.DocBench.richFieldAt(cfg.definition,a.field)?.label||a.field)+'：'+count+'行を1件分としてくり返す';decorations.push(Decoration.node(pos+offset+2,pos+offset+2+row.firstChild.nodeSize,{class:'word-repeat-start-cell','data-repeat-label':label}));}previous=a.repeatGroup;});});return DecorationSet.create(state.doc,decorations);}}})];}
+});
+
 const cellExtension=tag=>({addAttributes(){return {...this.parent?.(),border:{default:null},borderWidth:{default:0.5},borders:{default:null},fill:{default:null},padding:{default:null},valign:{default:null}};},renderHTML({node,HTMLAttributes}){const a={padding:6,valign:'top',...Object.fromEntries(Object.entries(node.attrs).filter(([,v])=>v!=null))};return [tag,mergeAttributes(HTMLAttributes,{style:globalThis.DocBench.cellBorderCSS(a)+'background:'+(a.fill||'transparent')+';padding:'+a.padding+'px;vertical-align:'+a.valign}),0];}});
 const Cell = TableCell.extend(cellExtension('td'));
 const CellHeader = TableHeader.extend(cellExtension('th'));
@@ -130,4 +150,4 @@ const TableBorders=Extension.create({name:'tableBorders',addCommands(){return {s
  if(dispatch){const tr=state.tr;for(const [pos,a] of changes)tr.setNodeMarkup(tableStart+pos,undefined,a);dispatch(tr);}return true;
  }};}});
 const Identity = Extension.create({name:'richIdentity',addGlobalAttributes(){return [{types:['paragraph','heading','table','tableRow','tableCell','tableHeader','fieldRef','listItem','bulletList','orderedList','blockquote','horizontalRule','repeatBlock','conditionBlock','pageBreak'],attributes:{id:{default:null,parseHTML:element=>element.getAttribute('data-rich-id'),renderHTML:attrs=>attrs.id?{'data-rich-id':attrs.id}:{}}}}];},addProseMirrorPlugins(){return [new Plugin({appendTransaction(transactions,oldState,state){if(!transactions.some(t=>t.docChanged))return null;const seen=new Set(),tr=state.tr;state.doc.descendants((node,pos)=>{if(!('id' in node.attrs))return;let id=node.attrs.id;if(!id||seen.has(id)){id=globalThis.DocBench.uid();tr.setNodeMarkup(pos,undefined,{...node.attrs,id});}seen.add(id);});return tr.docChanged?tr:null;}})];}});
-globalThis.DocBenchEditorLib={Editor,StarterKit,Table,TableRow,Cell,CellHeader,TextStyleKit,FieldRef,ParagraphFormat,Identity,TableBorders,Subscript,Superscript,Selection,TextSelection,StepMap,RepeatBlock,ConditionBlock,PageBreakNode,ControlRanges,ToolbarSelection,ListTypography,CharacterStyle,WordTab,WordFormatting,WordDocument,WordSection,WordObject,WordEditing};
+globalThis.DocBenchEditorLib={Editor,StarterKit,Table,TableRow,Cell,CellHeader,TextStyleKit,FieldRef,ParagraphFormat,Identity,TableBorders,Subscript,Superscript,Selection,TextSelection,StepMap,RepeatBlock,ConditionBlock,PageBreakNode,ControlRanges,ToolbarSelection,ListTypography,CharacterStyle,WordTab,WordFormatting,WordDocument,WordSection,WordObject,WordEditing,RowRepeats,rowRepeatInfo};

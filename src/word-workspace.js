@@ -57,6 +57,7 @@ function mountWordWorkspace(cfg){
  // Separate choosing a requirement from adding ordinary prose or a table.
  insertGroup.querySelector(':scope > h4').hidden=true;
  const insertion=mergeTools.querySelector('.word-insertion'),kind=insertion.querySelector('#canvas-insert-type'),part=insertion.querySelector('#word-field-part'),insert=insertion.querySelector('#canvas-insert'),rules=mergeTools.querySelector('.button-row');
+ const fieldPicker=D.mountFieldPicker(insertion.querySelector('#canvas-insert-field'),{label:'要件で定義した項目',definition:cfg.definition,onOpen:()=>cfg.controller()?.holdSelection?.(),scopes:()=>cfg.controller()?.controlScopes?.()||[]});
  kind.closest('label').hidden=true;part.options[0].textContent='入力された値';part.options[1].textContent='項目名（見出し用）';
  const fieldsTitle=document.createElement('h4');fieldsTitle.id='word-insertion-title';fieldsTitle.textContent='要件の入力値を差し込む';
  const source=document.createElement('div');source.className='word-binding-source';source.innerHTML='<span id="word-binding-example"></span><button type="button" id="word-binding-definition">この項目の要件を開く</button>';
@@ -94,7 +95,7 @@ function mountWordWorkspace(cfg){
   if(previewing)status.textContent='入力データを反映した確認表示（編集不可）';else if(editor){const range=editor.state.selection;status.textContent=range.empty?(editor.isActive('table')?'表のセルを編集中':'本文を編集中'):'選択中：'+editor.state.doc.textBetween(range.from,range.to,'\n').length+'文字';}
   const contexts={table:!!editor?.isActive('table'),object:!panes.get('object').querySelector('#word-block-tools').hidden,range:!panes.get('range').querySelector('#word-range-tools').hidden};for(const [id,available]of Object.entries(contexts)){shortcuts.querySelector('[data-word-tab="'+id+'"]').hidden=!available;if(!available&&currentTab===id)setTab('home');}
  }
- sync();return {sync,destroy(){events.abort();release();result.remove();},isPreview:()=>previewing};
+ sync();return {sync,destroy(){fieldPicker.destroy();events.abort();release();result.remove();},isPreview:()=>previewing};
 }
 Object.assign(D,{mountWordWorkspace});
 })(globalThis);

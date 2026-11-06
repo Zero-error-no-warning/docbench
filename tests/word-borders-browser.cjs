@@ -1,7 +1,7 @@
 /* Preserve inherited/positional DOCX borders and edit one shared edge without changing others. */
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const JSZip=require('../scripts/qa/node_modules/jszip');
-const {reveal}=require('./ui-helpers.cjs');
+const {reveal,chooseField}=require('./ui-helpers.cjs');
 const ns='http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 const edge=(side,color,size=8,style='single')=>`<w:${side} w:val="${style}" w:color="${color}" w:sz="${size}"/>`;
 const cell=(text,props='')=>`<w:tc><w:tcPr>${props}</w:tcPr><w:p><w:r><w:t>${text}</w:t></w:r></w:p></w:tc>`;
@@ -29,6 +29,6 @@ module.exports=async({page,url,root,out})=>{
   await page.locator('#word-border-erase').check();await page.locator('[data-word-border=bottom]').click();changed=await borders();assert.equal(changed[0][0].bottom,'none');assert.equal(changed[1][0].top,'none');assert.equal(changed[0][0].top.color,'#123456');assert.equal(changed[0][0].left.color,'#555555');
   await page.locator('#undo').click();changed=await borders();assert.deepEqual(changed[0][0].bottom,a.bottom);assert.deepEqual(changed[1][0].top,c.top);
   await page.evaluate(()=>DocBenchApp.save());await page.reload();await page.waitForFunction(()=>window.DocBenchApp);await page.locator('[data-view=render]').click();assert.equal((await borders())[0][0].top.color,'#123456');
-  await page.locator('#word-tab-insert').click();assert(!await page.locator('#canvas-insert-type').isVisible());assert(await page.locator('#word-binding-example').innerText().then(t=>t.includes('入力画面')));await page.locator('#canvas-insert-field').selectOption('projectName');assert((await page.locator('#word-binding-example').innerText()).includes('窓口業務'));await page.locator('#word-binding-definition').click();assert.equal(await page.locator('[data-prop=key]').inputValue(),'projectName');
+  await page.locator('#word-tab-insert').click();assert(!await page.locator('#canvas-insert-type').isVisible());assert(await page.locator('#word-binding-example').innerText().then(t=>t.includes('入力画面')));await chooseField(page,'canvas-insert-field','projectName');assert((await page.locator('#word-binding-example').innerText()).includes('窓口業務'));await page.locator('#word-binding-definition').click();assert.equal(await page.locator('[data-prop=key]').inputValue(),'projectName');
  }
 };
