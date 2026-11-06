@@ -7,6 +7,7 @@
 - **入力者画面**: https://zero-error-no-warning.github.io/docbench/
 - **編集者画面**: https://zero-error-no-warning.github.io/docbench/#editor
 - **全JS・HTML・CSSのTXT版ZIP**: [ダウンロード](downloads/docbench-all-js-html-css-txt-a47fe6c.zip)（UI改善版 a47fe6c）
+- [画面設計の基準](design-system/docbench/MASTER.md) / [編集継続の基準](docs/interaction-guidelines.md)
 - [公開JSON仕様](docs/specification.md) / [要件と実装範囲](docs/requirements.md) / [操作ガイド](docs/manual.md)
 
 Wordでは、上部のリボンと広い文書領域を中心に編集します。その他のPC画面では右半分を編集・プレビュー領域として確保し、書類名・保存・履歴の上部バーを左半分の上に配置しています。工程選択と設定・書式操作はその下に置きます。型・要件・条件・入力の切替でも左右の境界と上部バーの位置を維持し、右側は画面の上端から下端まで使います。左上のボタンで折りたためます。書類全体の名前・説明は上部の書類名の横にある「書類名・説明」から編集できます。作成者・派生とDefinition／出力仕様はサイドバー下部から開きます。PC画面では作業領域をウィンドウの高さに収め、設定・入力・プレビューは各ペイン内でスクロールします。 条件や説明、型の管理は名前付きの開閉欄にまとめ、書類の複製・削除等は「書類の操作」から開きます。閉じた条件・説明欄にも設定の有無を表示します。通常ボタンの枠線を抑え、主操作・選択中の状態・キーボードフォーカスを色や下線で区別します。
