@@ -51,14 +51,17 @@ $('#workspace-new').onclick=()=>{
  $('#workspace-create').onclick=async()=>{const title=$('#new-workspace-title').value.trim(),description=$('#new-workspace-description').value,format=$('#new-workspace-format').value;if(!title){notify('書類名を入力してください');$('#new-workspace-title').focus();return;}const button=$('#workspace-create');button.disabled=true;try{await writeStore('backup',D.clone(ws));mutate(()=>{ws=D.createWorkspace(title,ws.actor,format,description);selected=typeSelected=typeFieldSelected=selectedRuleId=ruleFocusTarget=ruleViewport=ruleSearch=editorDocumentId=outputDocumentId=canvasSelected=canvasRange=null;errors=[];view=editorView='definition';});$('#modal').close();notify('空の新規書類を作成しました');}catch(err){report(err);if(button.isConnected)button.disabled=false;}};
 };
 
-let sidebarCollapsed=false;try{sidebarCollapsed=localStorage.getItem('docbench:sidebarCollapsed')==='true';}catch{}
-function updateSidebar(){document.body.classList.toggle('sidebar-collapsed',sidebarCollapsed);const button=$('#sidebar-toggle');button.setAttribute('aria-expanded',String(!sidebarCollapsed));button.title=sidebarCollapsed?'サイドバーを開く':'サイドバーを折りたたむ';button.setAttribute('aria-label',button.title);}
-$('#sidebar-toggle').onclick=()=>{sidebarCollapsed=!sidebarCollapsed;updateSidebar();try{localStorage.setItem('docbench:sidebarCollapsed',String(sidebarCollapsed));}catch{}};updateSidebar();
-$('.workspace-info').addEventListener('toggle',()=>{if($('.workspace-info').open&&sidebarCollapsed){sidebarCollapsed=false;updateSidebar();try{localStorage.setItem('docbench:sidebarCollapsed','false');}catch{}}});
+let sidebarCollapsed=false,mobileSidebarOpen=false;const narrowSidebar=matchMedia('(max-width:850px)');try{sidebarCollapsed=localStorage.getItem('docbench:sidebarCollapsed')==='true';}catch{}
+function updateSidebar(){const collapsed=narrowSidebar.matches?!mobileSidebarOpen:sidebarCollapsed;document.body.classList.toggle('sidebar-collapsed',collapsed);const button=$('#sidebar-toggle');button.setAttribute('aria-expanded',String(!collapsed));button.title=collapsed?'サイドバーを開く':'サイドバーを折りたたむ';button.setAttribute('aria-label',button.title);}
+$('#sidebar-toggle').onclick=()=>{if(narrowSidebar.matches)mobileSidebarOpen=!mobileSidebarOpen;else{sidebarCollapsed=!sidebarCollapsed;try{localStorage.setItem('docbench:sidebarCollapsed',String(sidebarCollapsed));}catch{}}updateSidebar();};updateSidebar();
+narrowSidebar.addEventListener('change',()=>{mobileSidebarOpen=false;updateSidebar();});
+document.addEventListener('pointerdown',event=>{if(narrowSidebar.matches&&mobileSidebarOpen&&!event.target.closest('#app-sidebar,#sidebar-toggle')){mobileSidebarOpen=false;updateSidebar();}},true);
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&narrowSidebar.matches&&mobileSidebarOpen){const fromSidebar=$('#app-sidebar').contains(document.activeElement);mobileSidebarOpen=false;updateSidebar();if(fromSidebar)$('#sidebar-toggle').focus({preventScroll:true});}});
+$('.workspace-info').addEventListener('toggle',()=>{if($('.workspace-info').open&&document.body.classList.contains('sidebar-collapsed')){if(narrowSidebar.matches)mobileSidebarOpen=true;else{sidebarCollapsed=false;try{localStorage.setItem('docbench:sidebarCollapsed','false');}catch{}}updateSidebar();}});
 
 window.addEventListener('hashchange',syncModeFromURL);
 window.addEventListener('popstate',syncModeFromURL);
-$$('[data-view]').forEach(b=>b.onclick=()=>{view=b.dataset.view;if(view==='rules'){openRuleEditor();return;}if(!userMode&&['types','definition','render','rules'].includes(view))editorView=view;render();});
+$$('[data-view]').forEach(b=>b.onclick=()=>{if(narrowSidebar.matches){mobileSidebarOpen=false;updateSidebar();}view=b.dataset.view;if(view==='rules'){openRuleEditor();return;}if(!userMode&&['types','definition','render','rules'].includes(view))editorView=view;render();});
 function typeOwner(id){const current=D.allFields(ws.definition).find(x=>x.field.id===id);if(!current)return null;return D.allFields(ws.definition).filter(x=>x.field.typeRef&&(current.path===x.path||current.path.startsWith(x.path+'.'))).sort((a,b)=>a.path.length-b.path.length)[0]||null;}
 function fieldTypeOptions(f){return '<optgroup label="基本型">'+options(D.types,f.typeRef?'':f.type)+'</optgroup><optgroup label="登録した型">'+options(D.availableTypes(ws.definition).map(t=>({value:'@'+t.id,label:t.name})),f.typeRef?'@'+f.typeRef.id:'')+'</optgroup>';}
 function openTypeLibrary(id){typeSelected=id;typeFieldSelected=null;view=editorView='types';render();}
