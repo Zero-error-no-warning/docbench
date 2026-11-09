@@ -11,7 +11,7 @@ module.exports=async function({page,url,root,out}){
   assert.equal(await page.locator('#type-prop-type option[value="@'+period.id+'"]').count(),0);
   for(const [key,label]of [['start','開始'],['end','終了']]){
    await page.locator('[data-type-field="'+period.schema.id+'"]').click();await page.locator('#type-add-child').click();
-   await page.locator('#type-prop-label').fill(label);await page.locator('#type-prop-label').dispatchEvent('change');await page.locator('#type-prop-key').fill(key);await page.locator('#type-prop-key').dispatchEvent('change');
+   await page.locator('#type-prop-label').fill(label);await page.locator('#type-prop-label').dispatchEvent('change');await reveal(page,'#type-prop-key');await page.locator('#type-prop-key').fill(key);await page.locator('#type-prop-key').dispatchEvent('change');
    await page.locator('#type-prop-type').selectOption('@builtin_year');assert.equal(await page.locator('#type-prop-type').inputValue(),'@builtin_year');assert(!await page.locator('#type-prop-label').isDisabled());assert(await page.locator('#type-add-child').isDisabled());
   }
   let composed=await page.evaluate(id=>DocBenchApp.getWorkspace().definition.typeDefinitions.find(t=>t.id===id),period.id);
@@ -22,7 +22,7 @@ module.exports=async function({page,url,root,out}){
   for(const [key,value]of [['start','1'],['end','8']]){const input=page.locator('[data-input="'+item.key+'.'+key+'.year"]');await input.fill(value);await input.dispatchEvent('change');}
   const nested=await page.evaluate(id=>DocBenchApp.getWorkspace().definition.fields.find(f=>f.id===id).fields[0],item.id);await page.locator('[data-tree-toggle="'+item.id+'"]').click();await page.locator('[data-select="'+nested.id+'"]').click();assert(await page.locator('[data-prop="type"]').isDisabled());
   await publishDefinition(page);await page.locator('[data-view="types"]').click();await page.locator('[data-type-select="builtin_year"]').click();await page.locator('[data-type-field="builtin_year_year"]').click();
-  await page.locator('#type-prop-key').fill('number');await page.locator('#type-prop-key').dispatchEvent('change');
+  await reveal(page,'#type-prop-key');await page.locator('#type-prop-key').fill('number');await page.locator('#type-prop-key').dispatchEvent('change');
   const values=()=>page.evaluate(k=>DocBenchApp.getPreviewValues()[k],item.key);assert.equal((await values()).start.number,1);assert.equal((await values()).end.number,8);
   await clickWorkspaceHistory(page);assert.equal((await values()).start.year,1);await clickWorkspaceHistory(page,true);assert.equal((await values()).start.number,1);
   assert.deepEqual(await page.evaluate(()=>DocBench.validateDefinition(DocBenchApp.getWorkspace().definition).errors),[]);
