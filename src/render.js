@@ -14,6 +14,9 @@ function text(html){const t=document.createElement('template');t.innerHTML=sanit
 function display(f,v){
  if(f?.type==='TreeEnum')return D.treeDisplay(f,v);
  if(v===null||v===undefined||v==='')return '—';const p=f?.presentation||{};let value;
+ if(f?.type==='Union'){
+  const branch=D.arrayVariant(f,v);return branch?branch.label+'\n'+display(branch,v[branch.key]):'—';
+ }
  if(f?.type==='Object'&&p.layout==='inline'&&typeof v==='object'&&!Array.isArray(v)){const parts=(f.fields||[]).filter(c=>Object.hasOwn(v,c.key)&&v[c.key]!==null&&v[c.key]!==undefined&&v[c.key]!=='').map(c=>display(c,v[c.key]));return parts.length?parts.join(p.separator??''):'—';}
  if(f?.type==='Object'&&typeof v==='object'&&!Array.isArray(v))return (f.fields||[]).filter(c=>Object.hasOwn(v,c.key)).map(c=>(p.hideChildLabels?'':c.label+': ')+display(c,v[c.key])).join(p.separator??'\n')||'—';
  if(f?.itemVariants&&Array.isArray(v))return v.map(row=>{const variant=D.arrayVariant(f,row);return variant?variant.label+'\n'+display(variant,row[variant.key]):'型を確認してください';}).join('\n')||'—';

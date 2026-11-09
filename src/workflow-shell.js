@@ -7,6 +7,7 @@ function mountWorkflowShell(host,screen,cfg={}){
  const bar=document.createElement('div');bar.className='workflow-stage-bar';bar.innerHTML='<strong>'+stage[0]+'</strong><span>'+stage[1]+'</span>';if(cfg.back){const back=document.createElement('button');back.type='button';back.className='workflow-return';back.textContent='元の対象へ戻る';back.onclick=cfg.back;bar.append(back);}host.prepend(bar);
  for(const footer of host.querySelectorAll('.flow-source>.workbench-flow-footer')){footer.querySelector('p')?.remove();for(const button of footer.querySelectorAll('button'))button.classList.remove('primary');}
  const settings=host.querySelector('.flow-settings');if(settings){settings.querySelector('.edit-footer')?.remove();const context=settings.querySelector('.selection-context');if(context)context.classList.add('workflow-target');}
+ D.mountDefinitionPreview(host,screen,bar);
  if(screen==='rules'){
   const source=host.querySelector('.rule-palette'),inspector=host.querySelector('.rule-properties'),work=host.querySelector('.rule-workbench');work.classList.add('workflow-rule-workbench');
   const canvas=host.querySelector('#rule-canvas'),area=document.createElement('div');area.className='workflow-rule-canvas-area';canvas.before(area);area.append(canvas,host.querySelector('.rule-minimap-panel'));

@@ -1,9 +1,10 @@
+const {reveal}=require('./ui-helpers.cjs');
 /* Regression: draft history must not republish input captured before an outside edit. */
 const assert=require('node:assert/strict'),path=require('node:path');
 module.exports=async({page,url,root,out,portableTargets=[false,true]})=>{
  const published=()=>page.evaluate(()=>DocBenchApp.getPublishedWorkspace());
  const select=async view=>page.locator('[data-view='+view+']').click();
- const edit=async(prop,value)=>{const input=page.locator('[data-prop='+prop+']');await input.fill(value);await input.dispatchEvent('change');};
+ const edit=async(prop,value)=>{const selector='[data-prop='+prop+']',input=page.locator(selector);await reveal(page,selector);await input.fill(value);await input.dispatchEvent('change');};
  const input=async value=>{await select('form');const field=page.locator('[data-input=projectName]');await field.fill(value);await field.dispatchEvent('change');await select('definition');};
  const check=async(value)=>{assert.equal((await published()).data.values.projectName,value);assert.equal(await page.evaluate(()=>DocBenchApp.getWorkspace().data.values.projectName),value);assert.deepEqual(await page.evaluate(()=>DocBenchApp.definitionDraftStatus().conflicts),[]);};
  for(const portable of portableTargets){

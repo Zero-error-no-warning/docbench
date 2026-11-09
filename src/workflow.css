@@ -83,3 +83,77 @@ body.workflow-screen .form-field .required{font-size:12px}
 .workflow-rule-viewport-tools{display:flex;gap:4px;flex:none}.workflow-rule-viewport-tools button{padding:5px 8px;white-space:nowrap}@media(max-width:650px){.workflow-rule-viewport-tools #rule-arrange{display:none}}
 
 body.workflow-screen .rule-stage{grid-template-rows:46px minmax(0,1fr) auto}.workflow-rule-canvas-area{position:relative;min-width:0;min-height:0}.workflow-rule-canvas-area>.rule-canvas{width:100%;height:100%}
+
+/* Type and requirement editors share one order and one vocabulary. */
+body.workflow-screen #app>.definition-workbench{
+ grid-template-columns:clamp(190px,21%,270px) minmax(0,1fr) minmax(260px,32%);
+}
+body.workflow-screen #app>.definition-workbench.task-focused{
+ grid-template-columns:minmax(0,1fr) minmax(270px,38%);
+}
+body.workflow-screen #app>.definition-workbench.preview-hidden{
+ grid-template-columns:clamp(190px,23%,290px) minmax(0,1fr);
+}
+body.workflow-screen #app>.definition-workbench.task-focused.preview-hidden{grid-template-columns:minmax(0,1fr)}
+body.workflow-screen #app>.definition-workbench>.form-preview[hidden]{display:none}
+.workflow-stage-bar .editor-preview-toggle{margin-left:auto;flex:none;color:var(--accent);white-space:nowrap}
+body.workflow-screen .definition-workbench .selection-context{padding:10px 20px;gap:2px}
+body.workflow-screen .definition-workbench .selection-context>strong{font-size:17px;line-height:1.4}
+.definition-workbench .selection-context>span{font-size:12px;overflow-wrap:anywhere}
+body.workflow-screen .definition-workbench .flow-settings>.panel-body{padding:18px clamp(14px,3%,28px)}
+.definition-workbench .flow-settings .panel-body>fieldset{border:0;padding:0;margin:0;min-width:0}
+.definition-workbench .flow-settings>.panel-body>fieldset:disabled{opacity:.85}
+.definition-workbench .editor-primary,.definition-workbench .editor-details{max-width:50rem}
+.definition-workbench :is(.editor-primary,.editor-details,.editor-format-settings,.editor-variants)>h4{
+ margin:0 0 12px;font-size:14px;color:var(--ink);line-height:1.4;
+}
+.definition-workbench .editor-primary>.property-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
+.definition-workbench .editor-primary label{margin:0 0 10px;min-width:0}
+.definition-workbench .editor-format-settings,.definition-workbench .editor-variants{
+ padding:12px 14px;background:var(--bg);border-left:3px solid var(--accent);min-width:0;
+}
+.definition-workbench .editor-format-settings .editor-variants{padding:8px 0;border:0}
+.definition-workbench .editor-format-settings button{margin-top:6px}
+.definition-workbench .editor-help{margin:4px 0;font-size:12px;line-height:1.55;color:var(--muted)}
+.definition-workbench .editor-variant-list{list-style:none;padding:0;margin:6px 0 10px}
+.definition-workbench .editor-variant-list>li{display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line);padding:4px 0}
+.definition-workbench .editor-variant-list strong{flex:1;overflow-wrap:anywhere;font-size:13px}
+.definition-workbench .editor-variant-add{display:flex;align-items:end;gap:8px;flex-wrap:wrap}
+.definition-workbench .editor-variant-add label{flex:1 1 140px;margin:0}
+.definition-workbench .editor-variant-add button{margin:0 0 4px;min-height:38px}
+.definition-workbench .editor-details{margin-top:18px;padding-top:14px;border-top:1px solid var(--line)}
+.definition-workbench .editor-details>details{padding:8px 0;margin:0}
+.definition-workbench .editor-details>details>summary{font-size:13px;line-height:1.5}
+.definition-workbench .type-usage{font-size:12px;margin:0 0 10px}
+.definition-workbench .type-field-item small,.definition-workbench .tree-text small{display:none}
+.definition-workbench .type-field-item,.definition-workbench .tree-item{min-height:40px}
+@media(max-width:850px){
+ body.workflow-screen #app>.definition-workbench>.form-preview{height:min(540px,75dvh)}
+ body.workflow-screen .definition-workbench .flow-settings>.panel-body{padding:16px}
+}
+.definition-workbench #definition-apply-errors{margin:0 0 16px}
+.definition-workbench #definition-apply-errors[hidden]{display:none}
+.definition-workbench #definition-apply-errors ul{margin:6px 0;padding-inline-start:20px}
+.definition-workbench .editor-text-action{color:var(--accent);font-weight:600}
+.definition-workbench :is(.editor-primary,.editor-details) :focus-visible{outline-offset:2px}
+@media(pointer:coarse){
+ body.workflow-screen .definition-workbench :is(.editor-primary,.editor-details) :is(button,select,summary){
+  min-height:44px;
+ }
+ body.workflow-screen .definition-workbench .editor-details>details>summary{align-content:center}
+}
+.workflow-stage-bar .editor-view-actions{margin-left:auto;display:flex;gap:8px;flex:none}
+.definition-workbench .editor-list-actions{padding:8px 12px;border-block:1px solid var(--line)}
+.definition-workbench .editor-list-actions summary{cursor:pointer;color:var(--accent);font-size:13px}
+.definition-workbench .editor-list-actions .type-file-actions,.definition-workbench .editor-list-actions .type-order-actions{border:0}
+.definition-workbench .type-list-item{padding-block:8px}
+.definition-workbench .type-list-item small[hidden]{display:none}
+.definition-workbench .tree-icon{display:none}
+.definition-workbench .tree-type{display:block;flex:none;font-size:11px;max-width:43%;white-space:normal;overflow-wrap:anywhere}
+@media(max-width:850px){.workflow-stage-bar .editor-layout-toggle{display:none}}
+
+.definition-workbench .editor-preview-return{display:none}
+@media(max-width:850px){
+ .definition-workbench .editor-preview-return{display:inline-block;color:var(--accent);min-height:36px}
+}
+.definition-workbench .flow-source>[hidden]{display:none}

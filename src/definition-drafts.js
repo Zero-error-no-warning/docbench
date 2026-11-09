@@ -27,6 +27,10 @@ function rebasePreviewValues(before,after,values,actor){
  function fields(oldFields,newFields,oldValues){const out={};for(const f of newFields){const old=oldFields.find(x=>x.id===f.id),value=old&&oldValues?.[old.key];out[f.key]=field(old,f,value);}return out;}
  function field(old,f,value){
   if(!old||value===undefined||old.type!==f.type||old.itemType!==f.itemType||old.itemVariants!==f.itemVariants)return D.defaultValue(f,actor);
+  if(f.type==='Union'){
+   const branch=D.arrayVariant(f,value),previous=D.arrayVariant(old,value);
+   return branch&&previous?fields([previous],[branch],value):copy(value);
+  }
   if(f.type==='Object')return fields(old.fields||[],f.fields||[],value);
   if(['Array','Table'].includes(f.type)){
    if(!Array.isArray(value))return D.defaultValue(f,actor);

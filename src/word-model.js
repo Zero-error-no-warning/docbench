@@ -54,14 +54,24 @@ function wordRowRepeatErrors(table){
 }
 function wordRepeatSource(def,path){
  const field=richFieldAt(def,path);
- if(['Array','Table'].includes(field?.type)&&!field.itemVariants)return {path};
+ if(['Array','Table'].includes(field?.type)&&!D.collectionVariantField(field))return {path};
  if(typeof path!=='string'||!field)return null;
  const dot=path.lastIndexOf('.'),parent=path.slice(0,dot),collection=dot<0?null:D.fieldAt(def,parent);
- return collection?.itemVariants&&field.type==='Object'?{path:parent,variant:field.key}:null;
+  if(field.type!=='Object')return null;
+ if(collection?.itemVariants)return {path:parent,variant:field.key};
+ if(collection?.type==='Union'){
+  const arrayPath=parent.slice(0,parent.lastIndexOf('.')),array=D.fieldAt(def,arrayPath);
+  if(D.collectionVariantField(array)===collection)return {path:arrayPath,variant:field.key,wrapper:collection.key};
+ }
+ return null;
 }
 function wordRepeatParents(def,path,fields=D.allFields(def)){
- return fields.filter(x=>['Array','Table'].includes(x.field.type)&&path.startsWith(x.path+'.')).map(x=>
-  x.field.itemVariants?x.path+'.'+path.slice(x.path.length+1).split('.')[0]:x.path);
+ return fields.filter(x=>['Array','Table'].includes(x.field.type)&&path.startsWith(x.path+'.')).map(({path:base,field})=>{
+  const variants=D.collectionVariantField(field);
+  if(!variants)return base;
+  const depth=variants===field?1:2;
+  return base+'.'+path.slice(base.length+1).split('.').slice(0,depth).join('.');
+ });
 }
 function validateRichDefinition(content,def){const errors=[],fields=D.allFields(def);
  function walk(n,scopes=[]){if(!n||typeof n!=='object')return;const a=n.attrs||{},field=typeof a.field==='string'?a.field:'';
@@ -87,8 +97,9 @@ function expandRich(content,def,values,input=D.inputState(def,values)){
   const collectionPath=pathAt(source.path,scopes),rows=D.get(active,collectionPath);
   if(!Array.isArray(rows))return [];
   return rows.flatMap((row,index)=>{
-   if(source.variant&&!Object.hasOwn(row||{},source.variant))return [];
-   const path=collectionPath+'.'+index+(source.variant?'.'+source.variant:'');
+   const value=source.wrapper?row?.[source.wrapper]:row;
+   if(source.variant&&!Object.hasOwn(value||{},source.variant))return [];
+   const path=collectionPath+'.'+index+(source.wrapper?'.'+source.wrapper:'')+(source.variant?'.'+source.variant:'');
    return [[...scopes,{field,path}]];
   });
  }

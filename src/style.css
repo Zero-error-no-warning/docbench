@@ -312,7 +312,6 @@ input[type=checkbox]{accent-color:var(--accent)}
 .task-focused>.panel[hidden]{display:none!important}
 .app-shell .task-focused .panel-head{flex-wrap:wrap;gap:8px 12px;padding:14px 20px}
 .app-shell .task-focused .panel-head h3{font-size:17px}
-.app-shell .workbench-layout-toggle{font-size:11px;padding:4px 2px;color:var(--muted);margin-left:auto;white-space:normal;text-align:right}
 .app-shell .task-focused .flow-settings>.panel-head h3{display:none}
 .app-shell .task-focused [data-task-back]{font-weight:600;color:var(--accent);padding:5px 0}
 .app-shell .task-focused .flow-source .workbench-search{padding:16px 20px}
