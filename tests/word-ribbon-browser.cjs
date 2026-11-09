@@ -12,8 +12,16 @@ module.exports=async({page,url,root,out})=>{
   const editor=page.locator('#document-preview .tiptap'),paragraph=editor.locator('p').first();
   const geometry=()=>page.locator('.output-stage').boundingBox();
   assert.equal(await page.locator('#canvas-zoom').inputValue(),'100');assert(await page.locator('#word-tab-table').isVisible());
-  await paragraph.click();await page.keyboard.press('Home');for(let i=0;i<5;i++)await page.keyboard.press('Shift+ArrowRight');
-  const selection=await editor.evaluate(el=>{window.__ribbonEditor=el.editor;return el.editor.state.selection.toJSON();}),before=await page.evaluate(()=>DocBenchApp.getWorkspace()),box=await geometry();
+  await paragraph.click();
+  const selection=await editor.evaluate(el=>{
+   const editor=el.editor;
+   const text=el.querySelector('p').firstChild;
+   const from=editor.view.posAtDOM(text,0),to=editor.view.posAtDOM(text,5);
+   editor.commands.setTextSelection({from,to});
+   window.__ribbonEditor=editor;
+   return editor.state.selection.toJSON();
+  });
+  const before=await page.evaluate(()=>DocBenchApp.getWorkspace()),box=await geometry();
   // Arrow keys switch tabs without editing the document or changing its geometry.
   await page.locator('#word-tab-home').focus();await page.keyboard.press('ArrowRight');assert.equal(await page.locator('#word-tab-insert').getAttribute('aria-selected'),'true');
   await page.keyboard.press('End');assert.equal(await page.locator('#word-tab-layout').getAttribute('aria-selected'),'true');await page.keyboard.press('Home');
