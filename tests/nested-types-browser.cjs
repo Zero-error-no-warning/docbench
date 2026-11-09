@@ -10,7 +10,10 @@ module.exports=async function({page,url,root,out}){
   const period=await page.evaluate(()=>DocBenchApp.getWorkspace().definition.typeDefinitions.at(-1));
   assert.equal(await page.locator('#type-prop-type option[value="@'+period.id+'"]').count(),0);
   for(const [key,label]of [['start','開始'],['end','終了']]){
-   await page.locator('[data-type-field="'+period.schema.id+'"]').click();await page.locator('#type-add-child').click();
+   const rootField=page.locator('[data-type-field="'+period.schema.id+'"]');
+   if(await rootField.isVisible())await rootField.click();
+   else assert.equal(await rootField.getAttribute('class'),'type-field-item selected');
+   await page.locator('#type-add-child').click();
    await page.locator('#type-prop-label').fill(label);await page.locator('#type-prop-label').dispatchEvent('change');await reveal(page,'#type-prop-key');await page.locator('#type-prop-key').fill(key);await page.locator('#type-prop-key').dispatchEvent('change');
    await page.locator('#type-prop-type').selectOption('@builtin_year');assert.equal(await page.locator('#type-prop-type').inputValue(),'@builtin_year');assert(!await page.locator('#type-prop-label').isDisabled());assert(await page.locator('#type-add-child').isDisabled());
   }
