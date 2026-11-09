@@ -69,6 +69,8 @@ body.word-authoring .output-stage #word-result-preview{height:100%;background:#f
 .word-task-panel .check input{width:16px;min-height:16px;margin:0}
 .word-task-panel .word-insertion{display:flex;flex-direction:column;align-items:stretch;gap:0}
 .word-task-panel .word-insertion>label{width:100%}
+.word-task-panel .field-picker-button{width:100%;margin-top:6px;border:1px solid #8492a7;border-radius:5px;background:#fff;color:var(--accent);overflow-wrap:anywhere}
+.word-task-panel .field-picker-button:hover:not(:disabled),.word-task-panel .field-picker-button[aria-expanded=true]{background:var(--soft);border-color:var(--accent)}
 .word-task-panel #canvas-insert{width:100%;min-height:38px;margin-top:4px}
 .word-task-panel #word-fields-open{width:100%;margin-bottom:14px;text-align:left;color:var(--accent);border:1px solid var(--line)}
 .word-task-panel .word-field-dock{display:block;position:static;width:auto;max-width:none;box-shadow:none;border:0;border-radius:0;overflow:visible;padding:0}

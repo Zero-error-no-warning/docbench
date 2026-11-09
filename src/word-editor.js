@@ -64,7 +64,7 @@ function attachWordEditor(surface,config,doc){
  .word-repeat-start-cell::before{content:attr(data-repeat-label);position:absolute;left:5px;top:2px;font:10px/1.5 sans-serif;color:#21636b;background:#e8f5f5;padding:2px 5px;white-space:nowrap;max-width:calc(100% - 10px);overflow:hidden;text-overflow:ellipsis;pointer-events:none}
  .word-held-selection{background:#accfd9;color:inherit}
  .word-document li::marker{font-size:var(--word-marker-size,1em);color:var(--word-marker-color,currentColor)}
- .field-token{display:inline-block;background:#e5f3f1;color:#085e64;padding:1px 4px;border-radius:3px;font-size:.85em}
+ .field-token{display:inline-block;width:1em;text-align:center;background:#e5f3f1;color:#085e64;border-radius:3px;line-height:1;cursor:help}
  .word-control-range{position:relative;border-left:2px solid #8bb5bb;margin:8pt 0;padding:0 0 0 10px}
  .word-control-range.conditionBlock{border-color:#baa3cf}
  .word-control-range{border:1px solid #b9d3d6;border-left:3px solid #76a8af;border-radius:4px;padding:0 10px 0;margin:10pt 0}
@@ -91,6 +91,23 @@ function attachWordEditor(surface,config,doc){
   if(block?.type==='pagebreak')return '<div class="word-bound-pagebreak">改ページ</div>';
   return D.outputModel(config.definition,{...config.design,blocks:[block]},config.values).map(b=>D.bodyBlock(b,settings)).join('');
  };
+ const fieldKind=attrs=>attrs.part==='label'?'項目名':'入力値';
+ const fieldMarker=lib.FieldRef.extend({
+  addNodeView(){
+   return ({node})=>{
+    const dom=doc.createElement('span');
+    const {attrs}=node;
+    const description=fieldKind(attrs)+'：'+D.wordFieldName(config.definition,attrs.field);
+    dom.className='field-token';
+    dom.contentEditable='false';
+    dom.textContent='◆';
+    dom.title=description;
+    dom.setAttribute('role','img');
+    dom.setAttribute('aria-label',description);
+    return {dom};
+   };
+  }
+ }).configure({resolve:attrs=>fieldKind(attrs)+'：'+(D.richFieldAt(config.definition,attrs.field)?.label||attrs.field)});
  documentEditor=new lib.Editor({element:host,extensions:[
   lib.WordDocument,lib.WordEditing,lib.WordSection.configure({style:block=>D.styleCSS(D.blockStyle(block,settings))}),
   lib.WordObject.configure({render:renderObject,text:source=>source.type==='pagebreak'?'［改ページ］':'［'+(source.type==='table'?'データ表：':'入力項目：')+(D.fieldAt(config.definition,source.field)?.label||source.field)+'］',onSelect:(id,part)=>config.onPart?.(part)}),
@@ -99,7 +116,7 @@ function attachWordEditor(surface,config,doc){
   lib.RowRepeats.configure({definition:config.definition,onInvalid:message=>config.onInvalid?.(message)}),lib.Table.configure({resizable:true,allowTableNodeSelection:true}),lib.TableRow,lib.Cell,lib.CellHeader,
   lib.RepeatBlock.configure({label:n=>D.wordControlLabel(n,config.definition),onEdit:()=>{activate();config.onWordControl?.();}}),
   lib.ConditionBlock.configure({label:n=>D.wordControlLabel(n,config.definition),onEdit:()=>{activate();config.onWordControl?.();}}),
-  lib.PageBreakNode,lib.ControlRanges,lib.FieldRef.configure({resolve:attrs=>{const f=D.richFieldAt(config.definition,attrs.field);return (attrs.part==='label'?'項目名：':'入力値：')+(f?.label||attrs.field);}})
+  lib.PageBreakNode,lib.ControlRanges,fieldMarker
  ],content:D.wordEditorDocument(config.design.blocks),editorProps:{attributes:{class:'word-document','aria-label':'文書全体の編集'},handleDOMEvents:{
   keydown:(view,event)=>{syncSelection(view);if((event.ctrlKey||event.metaKey)&&['z','y'].includes(event.key.toLowerCase()))event.stopPropagation();if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='d'&&view.state.selection.node?.type.name==='wordObject'){event.preventDefault();return controller.blockCommand('duplicate');}return false;},
   keyup:view=>{syncSelection(view);return false;},mouseup:view=>{syncSelection(view);return false;}
