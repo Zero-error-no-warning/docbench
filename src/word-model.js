@@ -2,6 +2,16 @@
 (function(root){
 'use strict';const D=root.DocBench;
 function richFieldAt(def,path){if(typeof path!=='string')return null;const f=D.fieldAt(def,path);if(f)return f;if(path?.endsWith('.value')){const parent=D.fieldAt(def,path.slice(0,-6));if(parent?.type==='Array'&&parent.itemType!=='Object')return {key:'value',label:parent.label,type:parent.itemType};}return null;}
+function wordFieldName(definition,path){
+ if(typeof path!=='string'||!path)return '項目未指定';
+ const names=[];
+ let prefix='';
+ for(const key of path.split('.')){
+  prefix=prefix?prefix+'.'+key:key;
+  names.push(richFieldAt(definition,prefix)?.label||key);
+ }
+ return names.join(' › ');
+}
 function richNodes(content){const nodes=[];function walk(n){if(!n||typeof n!=='object')return;nodes.push(n);for(const c of Array.isArray(n.content)?n.content:[])walk(c);}walk(content);return nodes;}
 // Editor-only containers keep legacy block IDs and output rules. They never
 // enter the saved rich-text schema or contain expanded input values.
@@ -70,5 +80,5 @@ function expandRich(content,def,values,input=D.inputState(def,values)){
  }return expand(content)[0]||{type:'doc',content:[]};
 }
 function wordControlLabel(n,def){const a=n.attrs||{},type=typeof n.type==='string'?n.type:n.type?.name;if(type==='repeatBlock')return '繰り返し：'+(richFieldAt(def,a.field)?.label||a.field||'項目未指定')+' のデータ1件分';if(type==='conditionBlock'){const c=D.simpleCondition(def,a.when)||a.when;return '条件：'+(c?.field?(D.fieldAt(def,c.field)?.label||c.field)+' = '+String(Array.isArray(c.equals)?D.display(D.fieldAt(def,c.field),c.equals):c.equals):D.ruleGraph(def).nodes.find(x=>x.id===c?.nodeId)?.label||'条件を設定');}return '';}
-Object.assign(D,{richFieldAt,richNodes,richReferences,validateRichDefinition,expandRich,wordControlLabel,wordEditorDocument,wordEditorBlocks,wordRowRepeatErrors});
+Object.assign(D,{richFieldAt,wordFieldName,richNodes,richReferences,validateRichDefinition,expandRich,wordControlLabel,wordEditorDocument,wordEditorBlocks,wordRowRepeatErrors});
 })(globalThis);
