@@ -64,6 +64,7 @@ LLMへの指示例：
 | description | 入力者向け説明 |
 | fields | Object内部・Table列・Object要素Arrayの子項目 |
 | itemType | Array要素の型。単純型またはObject、Array/Table/TreeEnumの直接指定は未対応（Objectを介して可） |
+| itemVariants | Arrayで `true` を指定すると、行ごとに型を選ぶ。要素型はObjectとし、候補は `fields` に登録Object型への参照として並べる |
 | default | 単純値の既定値 |
 | minItems / maxItems | 配列・表の行数制約 |
 | initialRows | 新規データの初期行数。初版上限1000 |
@@ -74,6 +75,8 @@ LLMへの指示例：
 | sortBy / sortDirection | 並び順の単一列とasc/desc。手動で整列し、検証時にチェック |
 
 Objectは子項目で構成する。Arrayは全要素を行ラッパーで持ち、単純値を`value`に格納する。TableとObject要素Arrayは列値を行直下に格納する。複合キー・任意式の要素間整合性は今後の拡張。
+
+`itemVariants: true` の配列の行には、`_id`、任意の `_meta`、選んだ候補の `key` に対応するオブジェクトを格納する。候補のキーが型を識別する。候補ごとの `fields` に従って検証し、候補のキーは1行に1つだけ指定する。候補のキーは配列内で一意にし、保存後は入力とWordからの参照に使う。`businessKey`、`uniqueBy`、`sortBy` は指定しない。初期行には先頭の候補を使う。
 
 ### 型ライブラリと登録型
 
@@ -648,6 +651,7 @@ Wordの`rich`ブロックは、通常の文章・見出し・リスト・表の�
 ```
 
 - `repeatBlock.attrs.field`はArrayまたはTableのスキーマパス。子項目の`fieldRef.attrs.field`も`expenses.category`のようにスキーマパスで指定し、出力時に最も内側の該当ループの行へ解決します。添字や別名は記述しません。配列の子項目は対応する親の繰り返し範囲内で参照します。
+- 行ごとに型を選ぶ配列では、配列の直下にある候補のスキーマパスを `repeatBlock.attrs.field` に指定する。同じ候補を持つ行だけを元の順番で展開する。子項目のパスは候補のパスから続けて指定する。表の明細行の `tableRow.attrs.field` にも同じ指定が使える。
 - 単純型Arrayの現在の要素は`fieldRef.attrs.field = "配列パス.value"`。入れ子の繰り返しはすべての親配列の範囲内へ配置します。同じ配列を自身の内側で再度繰り返す指定は禁止です。
 - `conditionBlock.attrs.when`は既存の条件形式（`{field, equals}`または`{nodeId}`）。値の型は参照項目と一致させます。書類全体の入力値による判定です。グラフ条件の参照・未接続検証・削除時の解除も通常の出力条件と共通です。
 - 制御範囲の判定は非表示項目の投影と共通です。非表示の配列・表および0件の配列・表は出力を省き、保存値は保持します。数値の0やBooleanのfalseを空値と扱いません。

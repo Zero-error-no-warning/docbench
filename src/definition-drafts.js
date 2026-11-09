@@ -26,12 +26,12 @@ function mergeDefinitionDraft(base,draft,current){
 function rebasePreviewValues(before,after,values,actor){
  function fields(oldFields,newFields,oldValues){const out={};for(const f of newFields){const old=oldFields.find(x=>x.id===f.id),value=old&&oldValues?.[old.key];out[f.key]=field(old,f,value);}return out;}
  function field(old,f,value){
-  if(!old||value===undefined||old.type!==f.type||old.itemType!==f.itemType)return D.defaultValue(f,actor);
+  if(!old||value===undefined||old.type!==f.type||old.itemType!==f.itemType||old.itemVariants!==f.itemVariants)return D.defaultValue(f,actor);
   if(f.type==='Object')return fields(old.fields||[],f.fields||[],value);
   if(['Array','Table'].includes(f.type)){
    if(!Array.isArray(value))return D.defaultValue(f,actor);
    if(!value.length&&old.initialRows!==f.initialRows)return D.defaultValue(f,actor);
-   return value.map(row=>({...Object.fromEntries(Object.entries(row).filter(([key])=>key.startsWith('_'))),...fields(D.collectionFields(old),D.collectionFields(f),row)}));
+   return value.map(row=>f.itemVariants&&(!D.arrayVariant(f,row)||!D.arrayVariant(old,row))?copy(row):({...Object.fromEntries(Object.entries(row).filter(([key])=>key.startsWith('_'))),...fields(D.rowFields(old,row),D.rowFields(f,row),row)}));
   }
   return copy(value);
  }

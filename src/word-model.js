@@ -52,11 +52,28 @@ function wordRowRepeatErrors(table){
  }
  return [...new Set(errors)];
 }
-function validateRichDefinition(content,def){const errors=[];
+function wordRepeatSource(def,path){
+ const field=richFieldAt(def,path);
+ if(['Array','Table'].includes(field?.type)&&!field.itemVariants)return {path};
+ if(typeof path!=='string'||!field)return null;
+ const dot=path.lastIndexOf('.'),parent=path.slice(0,dot),collection=dot<0?null:D.fieldAt(def,parent);
+ return collection?.itemVariants&&field.type==='Object'?{path:parent,variant:field.key}:null;
+}
+function wordRepeatParents(def,path,fields=D.allFields(def)){
+ return fields.filter(x=>['Array','Table'].includes(x.field.type)&&path.startsWith(x.path+'.')).map(x=>
+  x.field.itemVariants?x.path+'.'+path.slice(x.path.length+1).split('.')[0]:x.path);
+}
+function validateRichDefinition(content,def){const errors=[],fields=D.allFields(def);
  function walk(n,scopes=[]){if(!n||typeof n!=='object')return;const a=n.attrs||{},field=typeof a.field==='string'?a.field:'';
   if(n.type==='table')errors.push(...wordRowRepeatErrors(n));
-  if(n.type==='repeatBlock'||n.type==='tableRow'&&a.repeatGroup){const f=richFieldAt(def,a.field);if(!f||!['Array','Table'].includes(f.type))errors.push('繰り返しには配列・表の項目を指定してください');const parents=D.allFields(def).filter(x=>field.startsWith(x.path+'.')&&['Array','Table'].includes(x.field.type));if(parents.some(x=>!scopes.includes(x.path)))errors.push('入れ子の繰り返しは親の繰り返し範囲内に配置してください');if(scopes.includes(a.field))errors.push('同じ項目の繰り返しを自身の内側に配置できません');scopes=[...scopes,a.field];}
-  if(n.type==='fieldRef'&&(a.part||'value')==='value'){const parents=D.allFields(def).filter(x=>field.startsWith(x.path+'.')&&['Array','Table'].includes(x.field.type));if(parents.some(x=>!scopes.includes(x.path)))errors.push('配列・表の子項目は対応する繰り返し範囲内へ挿入してください');}
+  if(n.type==='repeatBlock'||n.type==='tableRow'&&a.repeatGroup){
+   const source=wordRepeatSource(def,field);
+   if(!source)errors.push('繰り返しには配列・表、または明細の型を指定してください');
+   if(source&&wordRepeatParents(def,source.path,fields).some(path=>!scopes.includes(path)))errors.push('入れ子の繰り返しは親の繰り返し範囲内に配置してください');
+   if(source&&scopes.some(path=>wordRepeatSource(def,path)?.path===source.path))errors.push('同じ項目の繰り返しを自身の内側に配置できません');
+   scopes=[...scopes,field];
+  }
+  if(n.type==='fieldRef'&&(a.part||'value')==='value'&&wordRepeatParents(def,field,fields).some(path=>!scopes.includes(path)))errors.push('配列・表の子項目は対応する繰り返し範囲内へ挿入してください');
   if(n.type==='conditionBlock'){const c=a.when;if(!c||typeof c!=='object'||Array.isArray(c)||!c.nodeId&&(!c.field||!Object.hasOwn(c,'equals')))errors.push('条件付き範囲には条件を設定してください');if(c?.field){const f=D.conditionFields(def).find(x=>x.path===c.field)?.field;if(!f)errors.push('条件の参照項目が不正です');else if(f.type==='TreeEnum'){if(D.treeValueError(f,c.equals,true))errors.push('条件の階層選択値が不正です');}else if(['Integer','Float'].includes(f.type)?!Number.isFinite(c.equals)||f.type==='Integer'&&!Number.isInteger(c.equals):f.type==='Boolean'?typeof c.equals!=='boolean':typeof c.equals!=='string')errors.push('条件の値の型が一致しません');}}
   for(const c of Array.isArray(n.content)?n.content:[])walk(c,scopes);
  }walk(content);return errors;
@@ -64,14 +81,25 @@ function validateRichDefinition(content,def){const errors=[];
 function expandRich(content,def,values,input=D.inputState(def,values)){
  const active=input.values();let count=0;
  const pathAt=(path,scopes)=>{for(let i=scopes.length-1;i>=0;i--){const s=scopes[i];if(path===s.field||path?.startsWith(s.field+'.'))return s.path+path.slice(s.field.length);}return path;};
+ function repeatScopes(field,scopes){
+  const source=wordRepeatSource(def,field);
+  if(!source||!input.visible(field))return [];
+  const collectionPath=pathAt(source.path,scopes),rows=D.get(active,collectionPath);
+  if(!Array.isArray(rows))return [];
+  return rows.flatMap((row,index)=>{
+   if(source.variant&&!Object.hasOwn(row||{},source.variant))return [];
+   const path=collectionPath+'.'+index+(source.variant?'.'+source.variant:'');
+   return [[...scopes,{field,path}]];
+  });
+ }
  function expand(n,scopes=[],depth=0){if(++count>50000||depth>32)throw Error('繰り返しの展開が上限（50,000要素）を超えました');const a=n.attrs||{};
   if(n.type==='conditionBlock')return input.matches(a.when)?(n.content||[]).flatMap(c=>expand(c,scopes,depth+1)):[];
-  if(n.type==='repeatBlock'){if(!input.visible(a.field))return [];const rows=D.get(active,pathAt(a.field,scopes));if(!Array.isArray(rows))return [];return rows.flatMap((row,i)=>{const path=pathAt(a.field,scopes)+'.'+i;return (n.content||[]).flatMap(c=>expand(c,[...scopes,{field:a.field,path}],depth+1));});}
+  if(n.type==='repeatBlock')return repeatScopes(a.field,scopes).flatMap(row=> (n.content||[]).flatMap(c=>expand(c,row,depth+1)));
   if(n.type==='table'){
    const errors=wordRowRepeatErrors(n);if(errors.length)throw Error(errors[0]);const rows=n.content||[],content=[];
    for(let i=0;i<rows.length;){const row=rows[i],group=row.attrs?.repeatGroup;if(!group){content.push(...expand(row,scopes,depth+1));i++;continue;}
-    const field=row.attrs.field,template=[];while(i<rows.length&&rows[i].attrs?.repeatGroup===group)template.push(rows[i++]);const data=input.visible(field)?D.get(active,pathAt(field,scopes)):[];
-    if(Array.isArray(data))for(let index=0;index<data.length;index++)for(const source of template){const attrs={...source.attrs};delete attrs.repeatGroup;delete attrs.field;content.push(...expand({...source,attrs},[...scopes,{field,path:pathAt(field,scopes)+'.'+index}],depth+1));}
+    const field=row.attrs.field,template=[];while(i<rows.length&&rows[i].attrs?.repeatGroup===group)template.push(rows[i++]);
+    for(const rowScopes of repeatScopes(field,scopes))for(const source of template){const attrs={...source.attrs};delete attrs.repeatGroup;delete attrs.field;content.push(...expand({...source,attrs},rowScopes,depth+1));}
    }
    return content.length?[{...n,attrs:{...a},content}]:[];
   }
@@ -79,6 +107,6 @@ function expandRich(content,def,values,input=D.inputState(def,values)){
   if(n.content)copy.content=n.content.flatMap(c=>expand(c,scopes,depth+1));return [copy];
  }return expand(content)[0]||{type:'doc',content:[]};
 }
-function wordControlLabel(n,def){const a=n.attrs||{},type=typeof n.type==='string'?n.type:n.type?.name;if(type==='repeatBlock')return '繰り返し：'+(richFieldAt(def,a.field)?.label||a.field||'項目未指定')+' のデータ1件分';if(type==='conditionBlock'){const c=D.simpleCondition(def,a.when)||a.when;return '条件：'+(c?.field?(D.fieldAt(def,c.field)?.label||c.field)+' = '+String(Array.isArray(c.equals)?D.display(D.fieldAt(def,c.field),c.equals):c.equals):D.ruleGraph(def).nodes.find(x=>x.id===c?.nodeId)?.label||'条件を設定');}return '';}
-Object.assign(D,{richFieldAt,wordFieldName,richNodes,richReferences,validateRichDefinition,expandRich,wordControlLabel,wordEditorDocument,wordEditorBlocks,wordRowRepeatErrors});
+function wordControlLabel(n,def){const a=n.attrs||{},type=typeof n.type==='string'?n.type:n.type?.name;if(type==='repeatBlock')return '繰り返し：'+(a.field?wordFieldName(def,a.field):'項目未指定')+' のデータ1件分';if(type==='conditionBlock'){const c=D.simpleCondition(def,a.when)||a.when;return '条件：'+(c?.field?(D.fieldAt(def,c.field)?.label||c.field)+' = '+String(Array.isArray(c.equals)?D.display(D.fieldAt(def,c.field),c.equals):c.equals):D.ruleGraph(def).nodes.find(x=>x.id===c?.nodeId)?.label||'条件を設定');}return '';}
+Object.assign(D,{richFieldAt,wordFieldName,richNodes,richReferences,wordRepeatSource,wordRepeatParents,validateRichDefinition,expandRich,wordControlLabel,wordEditorDocument,wordEditorBlocks,wordRowRepeatErrors});
 })(globalThis);

@@ -8,13 +8,13 @@ function createInteractionContinuity(host){
   for(const el of host.querySelectorAll('[data-input],[data-row],[data-table-path],[data-collection-path]')){
    const row=el.parentElement?.closest('[data-row-id]'),keys=['input','path','tablePath','collectionPath'];
    if(!row)continue;const values=keys.filter(k=>el.dataset[k]!==undefined).map(k=>[k,el.dataset[k].startsWith(row.dataset.rowPath+'.')?el.dataset[k].slice(row.dataset.rowPath.length):el.dataset[k]]);
-   el.dataset.continuityKey=JSON.stringify([row.dataset.rowId,el.tagName,values,el.dataset.row,el.dataset.choice,el.dataset.treeLevel]);
+   el.dataset.continuityKey=JSON.stringify([row.dataset.rowId,el.tagName,values,el.dataset.row,el.dataset.variant,el.dataset.choice,el.dataset.treeLevel]);
   }
  }
  function selector(el){
   if(el===host)return ':scope';if(!el||!host.contains(el))return null;
   if(el.id)return '#'+CSS.escape(el.id);if(el.dataset.continuityKey)return '[data-continuity-key="'+CSS.escape(el.dataset.continuityKey)+'"]';
-  const keys=['input','prop','property','block','typeProp','typeLabel','typeNumber','treeLevel','choice','row','path','index','ruleSelect','designKey','designScope','tablePath','collectionPath','typeScroll','definitionScroll'];
+  const keys=['input','prop','property','block','typeProp','typeLabel','typeNumber','treeLevel','choice','row','variant','path','index','ruleSelect','designKey','designScope','tablePath','collectionPath','typeScroll','definitionScroll'];
   const attrs=keys.filter(k=>el.dataset[k]!==undefined).map(k=>'[data-'+k.replace(/[A-Z]/g,c=>'-'+c.toLowerCase())+'="'+CSS.escape(el.dataset[k])+'"]');
   const own=el.tagName.toLowerCase()+attrs.join('');if(attrs.length&&host.querySelectorAll(own).length===1)return own;
   const parent=el.parentElement;if(!parent)return null;const peers=[...parent.children].filter(n=>n.tagName===el.tagName),part=own+':nth-of-type('+(peers.indexOf(el)+1)+')';return parent===host?part:selector(parent)+' > '+part;
