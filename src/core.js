@@ -231,10 +231,15 @@ function fieldAt(def,path){let fields=def.fields;let found;for(const k of String
 function allFields(def){const out=[],seen=new WeakSet();function visit(fs,p){for(const f of Array.isArray(fs)?fs:[]){if(!f||typeof f!=='object'||seen.has(f))continue;seen.add(f);const path=p? p+'.'+f.key:f.key;out.push({field:f,path});visit(f.fields,path);}}visit(def.fields,'');return out;}
 const conditionTypes=['String','Text','Integer','Float','Boolean','Date','DateTime','Enum','TreeEnum'];
 function schemaPath(path){return String(path).replace(/\[\d+\]/g,'').split('.').filter(p=>!/^\d+$/.test(p)).join('.');}
-function conditionFields(def){const all=allFields(def);return all.filter(x=>conditionTypes.includes(x.field.type)&&!all.some(p=>x.path.startsWith(p.path+'.')&&['Array','Table'].includes(p.field.type)));}
+function conditionFields(def){if(def.typeRuleScope)return (def.fields||[]).filter(f=>conditionTypes.includes(f.type)).map(field=>({path:field.key,field}));const all=allFields(def);return all.filter(x=>conditionTypes.includes(x.field.type)&&!all.some(p=>x.path.startsWith(p.path+'.')&&['Array','Table'].includes(p.field.type)));}
+function localRuleDefinition(def,path){
+ const parent=path.includes('.')?path.slice(0,path.lastIndexOf('.')):'';
+ if(!parent)return def.typeRuleScope?def:null;
+ const field=fieldAt(def,schemaPath(parent));
+ return field?.type==='Object'?root.DocBench.typeRuleDefinition?.(field):null;
+}
 function localConditionSource(def,path,condition){
- const parent=path.includes('.')?path.slice(0,path.lastIndexOf('.')):'',owner=parent&&fieldAt(def,schemaPath(parent));
- return owner?.type==='Object'?owner.fields?.find(f=>f.id===condition?.fieldId):undefined;
+ return condition?.fieldId?localRuleDefinition(def,path)?.fields?.find(f=>f.id===condition.fieldId):undefined;
 }
 function conditionValueValid(f,c){
  if(!f||!conditionTypes.includes(f.type))return false;
@@ -247,7 +252,7 @@ function conditionValueValid(f,c){
 function inputState(def,values){
  const fields=new Map(allFields(def).map(x=>[x.path,x.field])),cache=new Map(),visiting=new Set(),runtime=root.DocBench.ruleRuntime?.(def,values,path=>visible(path));
  const rowContainers=[...fields].filter(([,f])=>['Array','Table'].includes(f.type)).map(([path])=>path);
- const rowScoped=new Map();
+ const rowScoped=new Map(),localRuntimes=new Map();
  for(const [path,f] of fields){
   if(!f.typeVisibleWhen)continue;
   const depth=rowContainers.filter(container=>path.startsWith(container+'.')).length;
@@ -261,18 +266,31 @@ function inputState(def,values){
   if(!f)return path.endsWith('.value')&&fields.get(schemaPath(parent))?.type==='Array'?visible(parent):false;
   if(visiting.has(path))return false;
   visiting.add(path);
-  const local=f.typeVisibleWhen,source=local&&localConditionSource(def,path,local);
+  const local=f.typeVisibleWhen;
   const rowDepth=rowScoped.get(key);
   const structural=rowDepth&&(path.match(/\.\d+(?=\.|$)/g)?.length||0)<rowDepth;
-  const result=(!parent||visible(parent))&&(!f.visibleWhen||matches(f.visibleWhen))&&(!local||structural||!!source&&matchesValue(source, parent+'.'+source.key,local));
+  const result=(!parent||visible(parent))&&(!f.visibleWhen||matches(f.visibleWhen))&&(!local||structural||matchesLocal(path,parent,local));
   visiting.delete(path);cache.set(path,result);return result;
  }
+ function matchesLocal(path,parent,condition){
+  const qualify=key=>parent?parent+'.'+key:key;
+  if(condition.nodeId){
+   if(!localRuntimes.has(parent)){
+    const local=localRuleDefinition(def,path);
+    localRuntimes.set(parent,local&&root.DocBench.ruleRuntime(local,parent?get(values,parent):values,key=>visible(qualify(key))));
+   }
+   return ruleResultTrue(localRuntimes.get(parent)?.evaluate(condition.nodeId));
+  }
+  const source=localConditionSource(def,path,condition);
+  return !!source&&matchesValue(source,qualify(source.key),condition);
+ }
+ function ruleResultTrue(result){return result?.status==='known'&&result.valueType==='boolean'&&result.value===true;}
  function matchesValue(f,path,condition){
   if(!visible(path))return false;
   const value=get(values,path);
   return f?.type==='TreeEnum'?root.DocBench.treePredicate(f,value,condition.equals,condition.operator||'eq')===true:value!==undefined&&equal(value,condition.equals);
  }
- function matches(condition){if(condition?.nodeId){const result=runtime?.evaluate(condition.nodeId);return result?.status==='known'&&result.valueType==='boolean'&&result.value===true;}return !!condition&&matchesValue(fields.get(condition.field),condition.field,condition);}
+ function matches(condition){if(condition?.nodeId)return ruleResultTrue(runtime?.evaluate(condition.nodeId));return !!condition&&matchesValue(fields.get(condition.field),condition.field,condition);}
  function required(f){return !!f.required||matches(f.requiredWhen);}
  function walk(fs,obj,prefix,visit){
   for(const f of fs||[]){const path=prefix?prefix+'.'+f.key:f.key,v=obj?.[f.key];visit(f,path);
@@ -290,6 +308,27 @@ function inputState(def,values){
  }
  function schema(fs,prefix){return (fs||[]).filter(f=>visible(prefix?prefix+'.'+f.key:f.key)).map(f=>({...clone(f),...(f.fields?{fields:schema(f.fields,prefix?prefix+'.'+f.key:f.key)}:{})}));}
  let projected;return {visible,matches,required,signature,values:()=>projected??(projected=project(def.fields,values,'')),definition:()=>({...def,fields:schema(def.fields,'')})};
+}
+function conditionDependencyErrors(def){
+ const errors=[],nodes=new Map(allFields(def).map(x=>[x.path,x.field])),active=new Set(),done=new Set();
+ const references=root.DocBench.conditionReferences;
+ function dependency(path){
+  if(active.has(path)){errors.push({path:path+'.visibleWhen',message:'表示条件の循環参照を検出しました'});return;}
+  if(done.has(path))return;
+  active.add(path);
+  const field=nodes.get(path),parent=path.includes('.')?path.slice(0,path.lastIndexOf('.')):'';
+  if(parent)dependency(parent);
+  for(const ref of references?.(def,field?.visibleWhen)||[field?.visibleWhen?.field])if(nodes.has(ref))dependency(ref);
+  const condition=field?.typeVisibleWhen;
+  if(condition){
+   const local=localRuleDefinition(def,path),source=localConditionSource(def,path,condition);
+   const refs=condition.nodeId&&local?references?.(local,condition)||[]:source?[source.key]:[];
+   for(const ref of refs){const key=parent?parent+'.'+ref:ref;if(nodes.has(key))dependency(key);}
+  }
+  active.delete(path);done.add(path);
+ }
+ nodes.forEach((_,path)=>dependency(path));
+ return errors;
 }
 function validateDefinition(def,render,{validateTypes=true}={}) {
  const errors=[],warnings=[],ids=new Set(), seen=new WeakSet();
@@ -311,8 +350,13 @@ function validateDefinition(def,render,{validateTypes=true}={}) {
   }
   if(Object.hasOwn(f,'typeVisibleWhen')){
    const c=f.typeVisibleWhen,ref=localConditionSource(def,p,c);
-   if(!c||typeof c!=='object'||Array.isArray(c)||ref===f||!ref)err(p+'.typeVisibleWhen','同じ複合型の別の子項目を参照してください');
+   if(c?.nodeId){if(!localRuleDefinition(def,p)?.ruleGraph)err(p+'.typeVisibleWhen','参照する型の条件グラフがありません');}
+   else if(!c||typeof c!=='object'||Array.isArray(c)||ref===f||!ref)err(p+'.typeVisibleWhen','同じ複合型の別の子項目を参照してください');
    else if(!conditionValueValid(ref,c))err(p+'.typeVisibleWhen','条件の値が参照項目の型・選択肢と一致しません');
+  }
+  if(Object.hasOwn(f,'typeRuleGraph')){
+   if(f.type!=='Object'||!f.typeRuleGraph)err(p+'.typeRuleGraph','型の条件グラフは複合型に設定してください');
+   else for(const issue of root.DocBench.validateRuleGraph?.(root.DocBench.typeRuleDefinition(f))||[])err(p+'.'+issue.path,issue.message);
   }
   if(f.type==='Union'&&(!Array.isArray(f.fields)||!f.fields.length||f.fields.some(c=>c?.type!=='Object')))err(p,'選択型には、候補となる複合型を1つ以上指定してください');
   if(f.itemVariants!==undefined){
@@ -325,9 +369,7 @@ function validateDefinition(def,render,{validateTypes=true}={}) {
   if(['Array','Table'].includes(f.type)){for(const name of ['businessKey','uniqueBy','sortBy'])if(f[name]&&f[name]!=='value'&&!(f.fields||[]).some(c=>c.key===f[name]))err(p,name+'に未定義の列が指定されています');if((f.initialRows||0)<(f.minItems||0)||(f.maxItems!==undefined&&(f.initialRows||0)>f.maxItems))err(p,'初期行数が最小・最大要素数の範囲外です');}
  }}walk(def.fields,'');
  if(validateTypes&&root.DocBench.validateTypeLibrary){const check=root.DocBench.validateTypeLibrary(def);errors.push(...check.errors);warnings.push(...check.warnings);}
- const nodes=new Map(allFields(def).map(x=>[x.path,x.field])),active=new Set(),done=new Set();
- function dependency(path){if(active.has(path)){err(path+'.visibleWhen','表示条件の循環参照を検出しました');return;}if(done.has(path))return;active.add(path);const f=nodes.get(path);if(f){if(path.includes('.'))dependency(path.slice(0,path.lastIndexOf('.')));for(const ref of root.DocBench.conditionReferences?.(def,f.visibleWhen)||[f.visibleWhen?.field])if(nodes.has(ref))dependency(ref);const local=localConditionSource(def,path,f.typeVisibleWhen);if(local)dependency(path.slice(0,path.lastIndexOf('.'))+'.'+local.key);}active.delete(path);done.add(path);}
- nodes.forEach((_,path)=>dependency(path));
+ errors.push(...conditionDependencyErrors(def));
  if(root.DocBench.validateRuleGraph)errors.push(...root.DocBench.validateRuleGraph(def,render));
  const used=new Set();for(const target of root.DocBench.ruleTargets?.({definition:def,render},true)||[])for(const ref of root.DocBench.conditionReferences?.(def,target.owner[target.property])||[])used.add(ref);
  function checkRender(r,prefix){
@@ -415,6 +457,6 @@ function validateData(def,values){const errors=[],globalIds=new Set(),input=inpu
 }
 function envelope(ws,kind){if(kind==='TypeLibrary')return root.DocBench.exportTypeLibrary(ws.definition);if(kind==='Workspace')return clone(ws);const key=kind==='Definition'?'definition':kind==='RenderDefinition'?'render':'data';return {...clone(ws[key]),history:{currentBranch:ws.currentBranch,branches:clone(ws.branches),nodes:ws.history.map(n=>({...clone(n),state:clone(n.state[key])}))}};}
 function assertImport(v){if(!v||typeof v!=='object'||v.formatVersion!==1||!['Workspace','Definition','RenderDefinition','DocumentData','TypeLibrary'].includes(v.kind))throw Error('DocBench形式v1のJSONを選んでください');const check=JSON.stringify(v);if(/"(?:__proto__|constructor|prototype)"\s*:/.test(check))throw Error('予約プロパティを含むJSONは読み込めません');if(check.length>80*1024*1024)throw Error('読み込み上限は80MBです');if(v.kind==='Workspace'){if(!v.definition||!v.render||!v.data||!Array.isArray(v.history)||!v.branches||!Object.hasOwn(v.branches,v.currentBranch))throw Error('Workspaceの必須構造がありません');const ids=new Set(v.history.map(n=>n.id));if(ids.size!==v.history.length||v.history.some(n=>!n.state||!Array.isArray(n.parents)||n.parents.some(p=>!ids.has(p)))||Object.values(v.branches).some(id=>!ids.has(id)))throw Error('履歴IDまたは親状態の参照が不正です');const active=new Set(),done=new Set(),map=new Map(v.history.map(n=>[n.id,n]));function walk(id){if(active.has(id))throw Error('履歴の循環参照を検出');if(done.has(id))return;active.add(id);for(const p of map.get(id).parents)walk(p);active.delete(id);done.add(id);}ids.forEach(walk);}normalizeOutputModels(v);return root.DocBench.normalizeTypeModels?root.DocBench.normalizeTypeModels(v):v;}
-root.DocBench={arrayItemField,arrayVariant,collectionVariantField,rowFields,collectionFields,editorChildren,fixedIntegerDigits,inputLabel,parseNumberInput,numberInputError,yearInputExample,types,clone,equal,uid,now,esc,safeKey,field,defaultValue,newRow,renderDocument,outputDocuments,outputDesigns,createOutputDocument,duplicateOutputDocument,normalizeRender,normalizeOutputModels,createWorkspace,sample,state,snapshot,checkout,ancestor,merge,diff,get,fieldAt,allFields,conditionTypes,schemaPath,conditionFields,inputState,validateDefinition,validateData,envelope,assertImport};
+root.DocBench={arrayItemField,arrayVariant,collectionVariantField,rowFields,collectionFields,editorChildren,fixedIntegerDigits,inputLabel,parseNumberInput,numberInputError,yearInputExample,types,clone,equal,uid,now,esc,safeKey,field,defaultValue,newRow,renderDocument,outputDocuments,outputDesigns,createOutputDocument,duplicateOutputDocument,normalizeRender,normalizeOutputModels,createWorkspace,sample,state,snapshot,checkout,ancestor,merge,diff,get,fieldAt,allFields,conditionTypes,schemaPath,conditionFields,conditionDependencyErrors,inputState,validateDefinition,validateData,envelope,assertImport};
 if(typeof module!=='undefined')module.exports=root.DocBench;
 })(typeof globalThis!=='undefined'?globalThis:this);

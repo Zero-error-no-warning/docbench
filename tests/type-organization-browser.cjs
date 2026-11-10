@@ -1,5 +1,5 @@
 const assert=require('node:assert/strict');
-const {reveal,publishDefinition}=require('./ui-helpers.cjs');
+const {reveal,publishDefinition,addRule}=require('./ui-helpers.cjs');
 module.exports=async({page,url})=>{
  await page.goto(url+'/#editor');await page.waitForFunction(()=>window.DocBenchApp);
  const original=await page.evaluate(()=>DocBenchApp.getWorkspace());
@@ -101,6 +101,26 @@ module.exports=async({page,url})=>{
   const datePreview=page.locator('#type-preview-form [data-input="value.date"]');
   await datePreview.fill('2026-11-10');await datePreview.dispatchEvent('change');
   await stationPreview.waitFor();
+  await reveal(page,'#visible-nodes');await page.locator('#visible-nodes').click();
+  await page.locator('#rule-canvas[data-rule-ready=true]').waitFor();
+  assert.equal(await page.locator('.workflow-stage-bar strong').innerText(),'型の表示条件');
+  assert.equal(await page.locator('#rule-inspector h3').innerText(),'交通手段 · 表示');
+  const graph=()=>page.evaluate(id=>DocBenchApp.getWorkspace().definition.typeDefinitions.find(t=>t.id===id).schema.typeRuleGraph,id);
+  const compare=(await graph()).nodes.find(node=>node.type==='compare').id;
+  await page.locator('#rule-clear-target').click();
+  await addRule(page,'not');
+  const not=(await graph()).nodes.find(node=>node.type==='not').id;
+  await page.locator('#rule-connect-source').selectOption(compare);
+  await page.locator('#rule-connect').click();
+  await page.locator('#rule-fit').click();
+  await page.locator('[data-rule-node="target:transport:typeVisibleWhen"] .edit').click();
+  await page.locator('#rule-connect-source').selectOption(not);
+  await page.locator('#rule-connect').click();
+  assert.equal(await page.locator('#rule-issues .notice.error').count(),0);
+  assert(!await page.evaluate(id=>DocBenchApp.getPublishedWorkspace().definition.typeDefinitions.find(t=>t.id===id).schema.typeRuleGraph,id));
+  await page.getByRole('button',{name:'型の設定へ戻る'}).click();
+  await reveal(page,'#visible-nodes');
+  assert.equal(await page.locator('#visible-nodes').innerText(),'複合条件をノードで編集');
   await publishDefinition(page);
   await page.locator('[data-view=definition]').click();
   await page.locator('#add-field').click();
@@ -137,7 +157,7 @@ module.exports=async({page,url})=>{
   const travelDate=page.locator('[data-input="'+travelKey+'.date"]');
   const travelStation=page.locator('[data-input="'+travelKey+'.transport.station"]');
   assert.equal(await travelStation.count(),0);
-  await travelDate.fill('2026-11-10');await travelDate.dispatchEvent('change');
+  await travelDate.fill('2026-11-11');await travelDate.dispatchEvent('change');
   await travelStation.waitFor();
   await page.getByRole('button',{name:'入力形式の候補を検索'}).click();
   assert.equal(await pickerType.getAttribute('aria-pressed'),'true');

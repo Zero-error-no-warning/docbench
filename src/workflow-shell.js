@@ -4,7 +4,7 @@
 const stages={types:['型定義','再利用する入力の形と規則'],definition:['要件定義','この書類で集める情報'],rules:['条件定義','いつ表示・必須・出力するか'],form:['入力・書類作成','実際の値を入力して書類を作成']};
 function mountWorkflowShell(host,screen,cfg={}){
  const stage=stages[screen];document.body.classList.toggle('workflow-screen',!!stage);document.body.dataset.workflow=stage?screen:'';if(!stage)return;
- const bar=document.createElement('div');bar.className='workflow-stage-bar';bar.innerHTML='<strong>'+stage[0]+'</strong><span>'+stage[1]+'</span>';if(cfg.back){const back=document.createElement('button');back.type='button';back.className='workflow-return';back.textContent='元の対象へ戻る';back.onclick=cfg.back;bar.append(back);}host.prepend(bar);
+ const bar=document.createElement('div');bar.className='workflow-stage-bar';bar.innerHTML='<strong>'+D.esc(cfg.context?'型の表示条件':stage[0])+'</strong><span>'+D.esc(cfg.context||stage[1])+'</span>';if(cfg.back){const back=document.createElement('button');back.type='button';back.className='workflow-return';back.textContent=cfg.context?'型の設定へ戻る':'元の対象へ戻る';back.onclick=cfg.back;bar.append(back);}host.prepend(bar);
  for(const footer of host.querySelectorAll('.flow-source>.workbench-flow-footer')){footer.querySelector('p')?.remove();for(const button of footer.querySelectorAll('button'))button.classList.remove('primary');}
  const settings=host.querySelector('.flow-settings');if(settings){settings.querySelector('.edit-footer')?.remove();const context=settings.querySelector('.selection-context');if(context)context.classList.add('workflow-target');}
  D.mountDefinitionPreview(host,screen,bar);
