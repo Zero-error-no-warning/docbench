@@ -19,7 +19,7 @@ function mountTaskFlow(host,screen,definition,cfg){
   pin.className='editor-layout-toggle';host.append(pin);
  }
  if(!rule)source.addEventListener('click',event=>{
-  if(event.target.closest('[data-tree-toggle]'))return;
+  if(event.target.closest('.tree-toggle'))return;
   const target=event.target.closest('[data-select],[data-type-select],[data-type-field],#add-field,#type-add');
   if(!target)return;
   panes.set(key,'edit');

@@ -8,6 +8,20 @@ function workbenchItemLine(name,type,key){
  return '<span class="workbench-item-line"><span class="tree-text" title="'+label+'"><strong>'+label+'</strong>'+
   (key?'<small>'+D.esc(key)+'</small>':'')+'</span><span class="tree-type" title="'+kind+'">'+kind+'</span></span>';
 }
+function workbenchTreeRow({id,name,type,key,title,selected,childrenId,open,structure=false}){
+ const field=D.esc(id),label=D.esc(name);
+ const toggle=childrenId?'<button type="button" class="tree-toggle" '+(structure?'data-type-branch':'data-tree-toggle')+'="'+field+'" aria-expanded="'+open+'" aria-controls="'+D.esc(childrenId)+'" aria-label="'+label+'の子項目を'+(open?'折りたたむ':'展開')+'">'+(open?'▾':'▸')+'</button>':'<span class="tree-toggle-space" aria-hidden="true"></span>';
+ return '<div class="tree-item workbench-item-row'+(structure?' type-field-item':'')+(selected?' selected':'')+'" '+(structure?'data-type-field':'data-select')+'="'+field+'" '+(structure?'':'draggable="true" ')+'role="button" tabindex="0" aria-pressed="'+selected+'" title="'+D.esc(title||name)+'">'+toggle+workbenchItemLine(name,type,key)+'</div>';
+}
+function bindWorkbenchTreeSelection(host,row,attribute,select){
+ const selector='['+attribute+'="'+CSS.escape(row.getAttribute(attribute))+'"]';
+ row.onclick=select;
+ row.onkeydown=event=>{
+  if(event.target!==row||!['Enter',' '].includes(event.key))return;
+  event.preventDefault();row.click();
+  queueMicrotask(()=>{const next=host.querySelector(selector);if(next?.checkVisibility())next.focus({preventScroll:true});});
+ };
+}
 function searchControls(id,label,placeholder){
  const box=document.createElement('div');box.className='workbench-search';
  box.innerHTML='<label class="sr-only" for="'+id+'">'+label+'</label><div class="workbench-search-control">'+uiIcon('search')+
@@ -176,7 +190,6 @@ function mountWorkbenchUI(host,screen,definition){
  bindSearchControls(box,apply);
  if(!library)list.addEventListener('click',event=>{if(!input.value.trim()||event.target.closest('[data-tree-toggle]'))return;const item=event.target.closest('[data-select]');if(!item)return;for(let branch=item.parentElement.parentElement?.closest('.tree-branch');branch;branch=branch.parentElement?.closest('.tree-branch')){const toggle=branch.querySelector(':scope > .tree-item > [data-tree-toggle]');const children=branch.querySelector(':scope > [id]');if(toggle&&expanded.get(children)){toggle.setAttribute('aria-expanded','false');toggle.click();}}},{capture:true});
  for(const branch of branches){const toggle=branch.querySelector(':scope > .tree-item > [data-tree-toggle]'),children=branch.querySelector(':scope > [id]');toggle?.addEventListener('click',()=>expanded.set(children,children.hidden));}
- for(const el of list.querySelectorAll('[data-select]')){el.tabIndex=0;el.setAttribute('role','button');el.setAttribute('aria-pressed',String(el.classList.contains('selected')));el.onkeydown=event=>{if(event.target!==el||!['Enter',' '].includes(event.key))return;event.preventDefault();const id=el.dataset.select;el.click();queueMicrotask(()=>host.querySelector('[data-select="'+CSS.escape(id)+'"]')?.focus({preventScroll:true}));};}
  for(const el of list.querySelectorAll('[data-type-select]'))el.setAttribute('aria-pressed',String(el.classList.contains('selected')));
 }
 function collectionRulesHTML(field,{input,select,check,definition,ownerId,bound,openId}){
@@ -360,7 +373,7 @@ function mountDefinitionEditorUI(host,screen,definition,openTypes){
   primary.append(children);
   children.querySelector('p.muted')?.remove();
   const branch=selected?.closest(library?'.type-structure-branch':'.tree-branch');
-  const rows=branch?.querySelectorAll(library?':scope > .type-structure-children > .type-structure-branch > .type-structure-row > [data-type-field]':':scope > div > .tree-branch > .tree-item');
+  const rows=branch?.querySelectorAll(':scope > .workbench-tree-children > div > .workbench-item-row');
   const list=document.createElement('div');list.className='task-child-list';
   for(const row of rows||[]){
    const button=document.createElement('button');button.type='button';button.textContent=row.querySelector('strong').textContent;
@@ -422,5 +435,5 @@ function showDefinitionIssues(host,issues){
  }
  summary.replaceChildren(heading,list);summary.hidden=false;summary.focus();return true;
 }
-Object.assign(D,{workbenchItemLine,collectionRulesHTML,integerFormatHTML,bindIntegerFormat,uiIcon,mountWorkbenchUI,mountDefinitionEditorUI,mountDefinitionPreview,showDefinitionIssues});
+Object.assign(D,{workbenchItemLine,workbenchTreeRow,bindWorkbenchTreeSelection,collectionRulesHTML,integerFormatHTML,bindIntegerFormat,uiIcon,mountWorkbenchUI,mountDefinitionEditorUI,mountDefinitionPreview,showDefinitionIssues});
 })(globalThis);

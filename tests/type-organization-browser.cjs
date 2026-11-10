@@ -82,7 +82,14 @@ module.exports=async({page,url})=>{
   assert.equal((await rowGeometry(page.locator('[data-type-field="'+transport+'"]'))).left-rootGeometry.left,13);
   await page.locator('.task-child-list').getByRole('button',{name:'交通手段',exact:true}).click();
   assert.equal(await page.locator('#type-prop-label').inputValue(),'交通手段');
-  assert.deepEqual(await selectionStyle(page.locator('[data-type-field="'+transport+'"]')),selectedStyle);
+  const transportRow=page.locator('[data-type-field="'+transport+'"]');
+  assert.deepEqual(await selectionStyle(transportRow),selectedStyle);
+  assert.equal(await transportRow.locator('button[aria-pressed=true]').count(),0);
+  await transportRow.press('Enter');
+  assert.equal(await transportRow.getAttribute('aria-pressed'),'true');
+  assert(await transportRow.evaluate(el=>el===document.activeElement&&el.matches(':focus-visible')));
+  const outlineStyle=row=>row.evaluate(el=>getComputedStyle(el).outline);
+  const treeOutline=await outlineStyle(transportRow);
   await assertSameRow('#type-prop-label','#type-prop-type');
   await publishDefinition(page);
   await page.locator('[data-view=definition]').click();
@@ -92,6 +99,10 @@ module.exports=async({page,url})=>{
   assert.deepEqual(await rowGeometry(page.locator('.tree-item.selected')),rootGeometry);
   assert.deepEqual(await rowGeometry(page.locator('.tree-item:not(.selected)').first()),rootGeometry);
   assert.deepEqual(await selectionStyle(page.locator('.tree-item.selected')),selectedStyle);
+  const requirementRow=page.locator('.tree-item.selected');
+  await requirementRow.press('Enter');
+  assert(await requirementRow.evaluate(el=>el===document.activeElement&&el.matches(':focus-visible')));
+  assert.equal(await outlineStyle(requirementRow),treeOutline);
   await page.getByRole('button',{name:'入力形式の候補を検索'}).click();
   const dialog=page.getByRole('dialog',{name:'型を検索'});
   const pickerType=dialog.locator('[data-type-select="'+id+'"]');

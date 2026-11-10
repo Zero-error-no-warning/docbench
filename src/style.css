@@ -50,7 +50,7 @@ button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
 button.primary:hover{background:#0b565c;border-color:#0b565c}
 button.danger:hover{background:#fff0ee;color:#983333}
 button.outlined{border-color:var(--line);background:#fff}
-button[aria-pressed=true],.format-choices button.active{background:var(--soft);color:#085e64;border-color:transparent;box-shadow:inset 0 -2px var(--accent)}
+button[aria-pressed=true]:where(:not(.workbench-item-row)),.format-choices button.active{background:var(--soft);color:#085e64;border-color:transparent;box-shadow:inset 0 -2px var(--accent)}
 .app-shell .format-choices{border-bottom:1px solid var(--line);gap:2px}
 .app-shell .format-choices button{border-radius:5px 5px 0 0;background:transparent;color:var(--muted)}
 .app-shell .format-choices button.active{background:var(--soft);color:#085e64;font-weight:600;box-shadow:inset 0 -2px var(--accent)}
@@ -191,7 +191,7 @@ button:active:not(:disabled){background:#dce5f5}
 button.primary{background:var(--accent);border-color:var(--accent)}
 button.primary:hover{background:#1d4491;border-color:#1d4491}
 button.outlined{border-color:#a7b4c8;background:#fff}
-button:focus-visible,summary:focus-visible,a:focus-visible,.tree-item:focus-visible{outline:3px solid var(--ui-focus);outline-offset:2px}
+button:focus-visible,summary:focus-visible,a:focus-visible{outline:3px solid var(--ui-focus);outline-offset:2px}
 input:focus,textarea:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px #2456b420}
 input,textarea,select,.rich{border-color:var(--ui-control-border);border-radius:6px}
 input[type=checkbox]{accent-color:var(--accent)}

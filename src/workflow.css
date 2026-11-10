@@ -182,12 +182,10 @@ body.workflow-screen .definition-workbench .editor-primary :is(input:not([type=c
  min-height:var(--item-height);border:0;border-radius:var(--item-radius);background:transparent;color:var(--ink);
 }
 .definition-workbench .workbench-item-row>:is(.tree-toggle,.tree-toggle-space){grid-column:1;grid-row:1;width:var(--item-disclosure)}
-.definition-workbench .workbench-item-row>:is(.workbench-item-line,.type-field-item,small){grid-column:2}
+.definition-workbench .workbench-item-row>:is(.workbench-item-line,small){grid-column:2}
 .app-shell .definition-workbench .workbench-item-row:hover{background:var(--bg)}
-.app-shell .definition-workbench .workbench-item-row:is(.selected,:has(>.type-field-item.selected)){background:#e1eaff;color:#184596;box-shadow:inset 3px 0 var(--accent)}
-.app-shell .definition-workbench .workbench-item-row:has(>.type-field-item:focus-visible){outline:3px solid var(--ui-focus);outline-offset:2px}
-.app-shell .definition-workbench .workbench-item-row>.type-field-item{padding:0;border:0;background:transparent;color:inherit;min-height:var(--item-disclosure)}
-.definition-workbench .workbench-item-row>.type-field-item:focus-visible{outline:none}
+.app-shell .definition-workbench .workbench-item-row.selected{background:#e1eaff;color:#184596;box-shadow:inset 3px 0 var(--accent)}
+.app-shell .definition-workbench .workbench-item-row:focus-visible{outline:3px solid var(--ui-focus);outline-offset:2px}
 .definition-workbench .workbench-item-row>small{margin-top:1px}
 .app-shell .definition-workbench .type-list{flex:0 1 42%;min-height:80px;max-height:none;overflow:auto}
 .definition-workbench .type-list-tools{flex:1 1 auto;min-height:0;overflow:auto}
