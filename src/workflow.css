@@ -181,8 +181,13 @@ body.workflow-screen .definition-workbench .editor-primary :is(input:not([type=c
 .type-list-split{flex:0 0 10px;cursor:row-resize;touch-action:none;display:grid;place-items:center}
 .type-list-split::before{content:"";width:26px;height:3px;border-radius:2px;background:var(--muted)}
 .type-list-split:is(:focus-visible,:hover){background:var(--soft)}
-.editor-type-structure>summary{padding:7px 12px;font-size:13px;cursor:pointer}
-.editor-type-structure[hidden]{display:none}
+.editor-type-structure>h4{margin:0;padding:7px 12px;font-size:13px}
+.editor-type-structure[hidden],.type-structure-children[hidden],.type-folder[hidden]{display:none}
+.type-structure-row{display:flex;align-items:center;padding-inline:8px 4px;gap:2px}
+.app-shell .definition-workbench .type-structure-row .type-field-item{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:4px 6px;min-height:32px}
+.type-structure-children,.type-folder-children{margin-inline-start:12px;border-inline-start:1px solid var(--line)}
+.type-folder>summary{padding:5px 9px;color:var(--accent);font-weight:600;cursor:pointer;overflow-wrap:anywhere}
+.type-folder>summary:hover{background:var(--soft)}
 .type-search-filters{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
 .type-search-filters label{flex:1 1 95px;min-width:0;margin:0;font-size:12px}
 .type-search-filters select{width:100%;min-height:29px;margin:0}
@@ -200,5 +205,8 @@ body.workflow-screen .definition-workbench .editor-primary :is(input:not([type=c
 .type-picker-control{display:flex;align-items:end;gap:6px;min-width:0}
 .type-picker-control>label{flex:1 1 auto;min-width:0}
 .type-picker-control>.type-search-open{flex:none;white-space:nowrap;margin-bottom:8px}
+.editor-name-type{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:end;gap:8px}
+.editor-name-type .type-picker-control>label{min-width:0}
+.editor-name-type .type-search-open{display:grid;place-items:center;padding-inline:5px}
 .editor-variant-add>.type-picker-control{flex:1 1 190px}
 .editor-variant-add .type-picker-control>.type-search-open{margin-bottom:4px}

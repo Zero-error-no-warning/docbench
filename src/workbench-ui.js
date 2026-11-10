@@ -1,14 +1,18 @@
 /* Shared workbench hierarchy. UI preferences never alter document data. */
 (function(root){
-'use strict';const D=root.DocBench,queries=new Map();
+'use strict';const D=root.DocBench,queries=new Map(),closedTypeFolders=new Map();
 const paths={search:'m21 21-4.3-4.3 M19 11a8 8 0 1 1-16 0 8 8 0 0 1 16 0',menu:'M4 6h16M4 12h16M4 18h16',undo:'M9 5 4 10l5 5M4 10h9a7 7 0 0 1 7 7',redo:'m15 5 5 5-5 5M20 10h-9a7 7 0 0 0-7 7',settings:'M4 7h16M4 17h16M8 4v6M16 14v6',close:'m6 6 12 12M18 6 6 18'};
 function uiIcon(name){return '<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+paths[name]+'"/></svg>';}
+function typeFolderPaths(index){
+ const folders=new Map();
+ for(const {folder=[]} of index)for(let i=1;i<=folder.length;i++){
+  const path=folder.slice(0,i);folders.set(JSON.stringify(path),path);
+ }
+ return folders;
+}
 function typeFilterControls(index,onChange,state={}){
  const controls=document.createElement('div');controls.className='type-search-filters';
- const folders=new Map();
- for(const {folder} of index)for(let i=1;i<=folder.length;i++){
-  const path=folder.slice(0,i);folders.set(JSON.stringify(path),path.join(' › '));
- }
+ const folders=typeFolderPaths(index);
  const tags=[...new Set(index.flatMap(entry=>entry.tags))].sort((a,b)=>a.localeCompare(b,'ja'));
  function select(label,entries,value,onSelect){
   const field=document.createElement('label'),control=document.createElement('select');
@@ -20,14 +24,44 @@ function typeFilterControls(index,onChange,state={}){
  }
  if(!folders.has(JSON.stringify(state.folder)))state.folder=[];
  if(!tags.includes(state.tag))state.tag='';
- if(folders.size)select('フォルダ',[...folders].sort((a,b)=>a[1].localeCompare(b[1],'ja')),JSON.stringify(state.folder),value=>{state.folder=value?JSON.parse(value):[];});
+ if(folders.size)select('フォルダ',[...folders].map(([key,path])=>[key,path.join(' › ')]).sort((a,b)=>a[1].localeCompare(b[1],'ja')),JSON.stringify(state.folder),value=>{state.folder=value?JSON.parse(value):[];});
  if(tags.length)select('タグ',tags.map(tag=>[tag,tag]),state.tag,value=>{state.tag=value;});
  return controls;
 }
-function typeSearchDescription(entry){
- const location=entry.folder.join(' › '),tags=entry.tags.map(tag=>'#'+tag).join(' ');
+function typeSearchDescription(entry,showLocation=true){
+ const location=showLocation?entry.folder.join(' › '):'',tags=entry.tags.map(tag=>'#'+tag).join(' ');
  const reason=entry.matches.filter(match=>!['名前','キー'].includes(match.label)).map(match=>match.label+'「'+match.value.slice(0,45)+'」').join('、');
  return [location,tags,reason&&reason+'に一致'].filter(Boolean).join(' · ');
+}
+function mountTypeFolders(list,index,closed){
+ const folders=new Map(),entries=new Map(index.map(entry=>[entry.type.id,entry.folder]));
+ const buttons=[...list.querySelectorAll('[data-type-select]')];
+ for(const button of buttons){
+  const path=entries.get(button.dataset.typeSelect)||[];let parent=list;
+  for(let i=0;i<path.length;i++){
+   const key=JSON.stringify(path.slice(0,i+1));let folder=folders.get(key);
+   if(!folder){
+    const node=document.createElement('details'),summary=document.createElement('summary'),children=document.createElement('div');
+    node.className='type-folder';node.dataset.typeFolder=key;
+    summary.textContent=path[i];children.className='type-folder-children';
+    node.append(summary,children);parent.append(node);
+    folder={node,children,buttons:[]};folders.set(key,folder);
+    summary.onclick=event=>{
+     event.preventDefault();node.open=!node.open;
+     if(!list.dataset.filtered){if(node.open)closed.delete(key);else closed.add(key);}
+    };
+   }
+   folder.buttons.push(button);parent=folder.children;
+  }
+  parent.append(button);
+ }
+ return (found,filtering)=>{
+  list.dataset.filtered=filtering?'true':'';
+  for(const [key,{node,buttons}] of folders){
+   node.hidden=filtering&&!buttons.some(button=>found.has(button.dataset.typeSelect));
+   node.open=filtering||!closed.has(key);
+  }
+ };
 }
 function mountTypePickers(panel,definition){
  const types=D.availableTypes(definition),byId=new Map(types.map(type=>[type.id,type]));
@@ -45,6 +79,7 @@ function mountTypePickers(panel,definition){
   button.setAttribute('aria-haspopup','dialog');
   button.setAttribute('aria-label',select.closest('label')?.firstChild?.textContent.trim()+'の候補を検索');
   const label=select.closest('label'),control=document.createElement('div');
+  if(label.parentElement.classList.contains('editor-name-type')){button.innerHTML=uiIcon('search');button.title='型を検索';}
   control.className='type-picker-control';label.before(control);control.append(label,button);
   button.onclick=()=>{
    const dialog=document.createElement('dialog');dialog.className='type-picker';
@@ -85,11 +120,14 @@ function mountWorkbenchUI(host,screen,definition){
  const key=definition.id+':'+screen,box=document.createElement('div');box.className='workbench-search';box.innerHTML='<label class="sr-only" for="workbench-list-search">'+(library?'型を検索':'入力項目を検索')+'</label><div class="workbench-search-control">'+uiIcon('search')+'<input id="workbench-list-search" type="search" placeholder="'+'名前・キーで検索'+'" autocomplete="off"><button type="button" aria-label="検索を解除">'+uiIcon('close')+'</button></div><span class="workbench-search-status" role="status" aria-live="polite"></span>';list.before(box);
  const input=box.querySelector('input'),clear=box.querySelector('button'),status=box.querySelector('[role=status]'),empty=document.createElement('p');empty.className='workbench-search-empty';empty.textContent='一致する項目がありません。検索語を変えてください。';empty.hidden=true;list.after(empty);input.value=queries.get(key)||'';
  const libraryIndex=library?D.typeSearchIndex(D.availableTypes(definition)):[];
+ const closed=closedTypeFolders.get(key)||new Set(),updateFolders=library?mountTypeFolders(list,libraryIndex,closed):null;
+ if(library)closedTypeFolders.set(key,closed);
  const filterKey=key+':organization',filter=queries.get(filterKey)||{};
  if(library){box.querySelector('[role=status]').before(typeFilterControls(libraryIndex,apply,filter));queries.set(filterKey,filter);input.placeholder='名前・フォルダ・タグ・子項目など';}
  let searching=!!input.value.trim();const branches=[...list.querySelectorAll('.tree-branch')],expanded=new Map(branches.map(branch=>{const children=branch.querySelector(':scope > [id]');return [children,children?.hidden];}));
  function apply(){const wasSearching=searching,query=input.value.trim().toLocaleLowerCase();if(query&&!searching)for(const child of expanded.keys())if(child)expanded.set(child,child.hidden);searching=!!query;const entries=[...list.querySelectorAll(library?'[data-type-select]':'[data-select]')],matches=new Set(entries.filter(el=>!query||el.textContent.toLocaleLowerCase().includes(query)));queries.set(key,input.value);clear.hidden=!query;
   if(library){
+   const filtering=!!(query||filter.folder?.length||filter.tag);
    const found=new Map(D.searchTypes(libraryIndex,input.value,filter.folder,filter.tag).map(entry=>[entry.type.id,entry]));
    matches.clear();
    for(const el of entries){
@@ -99,9 +137,10 @@ function mountWorkbenchUI(host,screen,definition){
      matches.add(el);
      let detail=el.querySelector('[data-type-match]');
      if(!detail){detail=document.createElement('small');detail.dataset.typeMatch='';el.append(detail);}
-     detail.textContent=typeSearchDescription(entry);detail.hidden=!detail.textContent;
+     detail.textContent=typeSearchDescription(entry,filtering);detail.hidden=!detail.textContent;
     }
    }
+   updateFolders(found,filtering);
   }
   else {const visit=(branch,ancestorMatch=false)=>{const item=branch.querySelector(':scope > [data-select]'),children=branch.querySelector(':scope > [id]'),own=matches.has(item),childBranches=children?[...children.children].filter(el=>el.classList.contains('tree-branch')):[],childMatch=childBranches.map(child=>visit(child,ancestorMatch||own)).some(Boolean),visible=!query||ancestorMatch||own||childMatch;branch.hidden=!visible;if(children){children.hidden=query?!visible:expanded.get(children);const toggle=item.querySelector('[data-tree-toggle]');if(toggle){toggle.setAttribute('aria-expanded',String(!children.hidden));toggle.textContent=children.hidden?'▸':'▾';toggle.setAttribute('aria-label',item.querySelector('strong').textContent+'の子項目を'+(children.hidden?'展開':'折りたたむ'));}}return own||childMatch;};for(const branch of [...list.children].filter(el=>el.classList.contains('tree-branch')))visit(branch);}
   const count=matches.size;status.textContent=query||filter.folder?.length||filter.tag?count+' 件が一致':entries.length+(library?' 種類の型':' 項目');empty.hidden=count>0||!query&&!filter.folder?.length&&!filter.tag;if(wasSearching&&!query){const selected=list.querySelector('.selected');if(selected){const rect=selected.getBoundingClientRect(),bounds=list.getBoundingClientRect();if(rect.top<bounds.top)list.scrollTop+=rect.top-bounds.top;else if(rect.bottom>bounds.bottom)list.scrollTop+=rect.bottom-bounds.bottom;}}
@@ -201,15 +240,22 @@ function mountDefinitionEditorUI(host,screen,definition,openTypes){
   const actions=document.createElement('details');actions.dataset.disclosure='type-list-actions';
   actions.className='editor-list-actions';actions.innerHTML='<summary>型を管理</summary>';
   actions.append(source.querySelector('.type-file-actions'),source.querySelector('.type-order-actions'));
-  const structure=source.querySelector('[data-type-scroll=fields]'),outline=document.createElement('details');
-  outline.className='editor-type-structure';outline.dataset.disclosure='type-structure';outline.open=true;
-  outline.innerHTML='<summary>型構造</summary>';
+  const structure=source.querySelector('[data-type-scroll=fields]'),outline=document.createElement('section');
+  outline.className='editor-type-structure';outline.setAttribute('aria-labelledby','type-structure-title');
+  outline.innerHTML='<h4 id="type-structure-title">型構造</h4>';
   structure.previousElementSibling.remove();outline.append(structure);
-  if(structure.childElementCount<=1)outline.hidden=true;
+  if(!structure.querySelector('[data-type-branch]'))outline.hidden=true;
   const tools=document.createElement('div');tools.className='type-list-tools';tools.append(actions,outline);
   const list=source.querySelector('.type-list'),empty=source.querySelector('.workbench-search-empty');
   (empty||list).after(tools);mountTypeListSplit(source,list,tools);
-  const entries=new Map(D.availableTypes(definition).map(type=>[type.id,type]));
+  const types=D.availableTypes(definition),entries=new Map(types.map(type=>[type.id,type]));
+  const folderInput=body.querySelector('#type-folder');
+  if(folderInput){
+   const choices=document.createElement('datalist');choices.id='type-folder-paths';
+   const paths=[...typeFolderPaths(types).values()].map(path=>path.join(' / ')).sort((a,b)=>a.localeCompare(b,'ja'));
+   for(const path of paths)choices.append(new Option(path,path));
+   folderInput.setAttribute('list',choices.id);folderInput.after(choices);
+  }
   for(const item of source.querySelectorAll('.type-list-item')){
    const entry=entries.get(item.dataset.typeSelect);
    const key=item.querySelector('small');key.hidden=true;
@@ -243,7 +289,9 @@ function mountDefinitionEditorUI(host,screen,definition,openTypes){
  const name=basic.querySelector('[data-prop=label],[data-type-prop=label]')?.closest('label');
  if(name)name.firstChild.textContent=library?'子項目名':'項目名';
  const typeName=library?body.querySelector('#type-name')?.closest('label'):null;
- if(typeName&&names.length<=1){typeName.firstChild.textContent='型名';basic.prepend(typeName);}
+ if(typeName&&names.length<=1)typeName.firstChild.textContent='型名';
+ const nameAndType=document.createElement('div');nameAndType.className='editor-name-type';
+ basic.prepend(nameAndType);nameAndType.append(name||typeName,format.closest('label'));
  const required=form.querySelector(':scope > label.check');
  if(required){required.lastChild.textContent='入力必須';primary.append(required);}
  const keyInput=basic.querySelector('[data-prop=key],[data-type-prop=key]');
@@ -259,7 +307,7 @@ function mountDefinitionEditorUI(host,screen,definition,openTypes){
  const itemType=collection?.querySelector('select[data-prop=itemType],select[data-type-prop=itemType]');
  if(itemType){
   const rows=editorSection('繰り返す内容','editor-format-settings');
-  format.closest('label').after(rows);
+  basic.after(rows);
   const itemLabel=itemType.closest('label'),variants=collection.querySelector('[data-array-variants]');
   const hint=document.createElement('p');hint.className='editor-help';
   hint.id='collection-row-type-help';hint.textContent='行によって入力欄が異なる場合は、選択型を指定します。';
@@ -278,7 +326,7 @@ function mountDefinitionEditorUI(host,screen,definition,openTypes){
   if(sourceButton){sourceButton.textContent='選んだ型を開く';rows.append(sourceButton);}
  }
  const union=form.querySelector(':scope > [data-array-variants]');
- if(union)format.closest('label').after(union);
+ if(union)basic.after(union);
  const options=form.querySelector('[data-prop=options],[data-type-prop=options]')?.closest('label');
  if(options)primary.append(options);
  const tree=form.querySelector('[data-tree-settings]');

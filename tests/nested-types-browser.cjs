@@ -19,6 +19,7 @@ module.exports=async function({page,url,root,out}){
   }
   let composed=await page.evaluate(id=>DocBenchApp.getWorkspace().definition.typeDefinitions.find(t=>t.id===id),period.id);
   assert.equal(composed.schema.fields[0].typeRef.id,'builtin_year');assert.equal(composed.schema.fields[1].typeRef.id,'builtin_year');
+  await page.locator('[data-type-branch="'+composed.schema.fields[0].id+'"]').click();
   await page.locator('[data-type-field="'+composed.schema.fields[0].fields[1].id+'"]').click();assert(await page.locator('#type-prop-type').isDisabled());assert(await page.locator('#type-prop-key').isDisabled());await page.locator('#type-reference-open').click();
   await page.locator('[data-type-field="builtin_year_year"]').click();assert.equal(await page.locator('#type-prop-type option[value="@'+period.id+'"]').count(),0);
   await publishDefinition(page);await page.locator('[data-view="definition"]').click();await page.locator('#add-field').click();const item=await page.evaluate(()=>DocBenchApp.getWorkspace().definition.fields.at(-1));await page.locator('[data-prop="type"]').selectOption('@'+period.id);
