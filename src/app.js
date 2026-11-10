@@ -211,7 +211,10 @@ function bindForm(){
   return;
  }
  if(type==='MultiEnum'){v=[...document.querySelectorAll('[data-input]')].filter(x=>x.dataset.input===path&&x.checked).map(x=>x.dataset.choice);}
- else if(type==='Boolean')v=el.checked;else if(['Integer','Float'].includes(type))v=el.dataset.numberLabel?D.parseNumberInput(dataField(path),el.value):el.value===''?'':Number(el.value);else if(type==='RichText')v=D.sanitize(el.innerHTML);else v=el.value;
+ else if(type==='Boolean')v=el.checked;else if(['Integer','Float'].includes(type)){
+  if(el.dataset.numberLabel){const field=dataField(path);if(!field)return;v=D.parseNumberInput(field,el.value);}
+  else v=el.value===''?'':Number(el.value);
+ }else if(type==='RichText')v=D.sanitize(el.innerHTML);else v=el.value;
  if(!D.equal(dataAt(path),v)){const before=formSignature();mutate(()=>setData(path,v),false);errors=[];if(before!==formSignature())refreshInputForms();updateRequiredProgress();}
  if(['Integer','Float'].includes(type)&&dataField(path)?.presentation){const f=dataField(path),message=D.numberInputError(f,v);el.setCustomValidity(message);el.setAttribute('aria-invalid',String(!!message));const hint=$$('[data-number-error]').find(x=>x.dataset.numberError===path);if(hint)hint.textContent=message;if(el.dataset.numberLabel)el.value=D.inputLabel(f,v);}
  };if(el.isContentEditable){el.onblur=save;el.onchange=save;}else {el.onchange=save;if(el.dataset.numberLabel)el.onblur=save;}if(['Integer','Float'].includes(el.dataset.type)&&dataField(el.dataset.input)?.presentation){const message=D.numberInputError(dataField(el.dataset.input),dataAt(el.dataset.input));el.setCustomValidity(message);el.setAttribute('aria-invalid',String(!!message));}});
