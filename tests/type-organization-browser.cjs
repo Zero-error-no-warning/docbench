@@ -23,6 +23,16 @@ module.exports=async({page,url})=>{
    const a=await line.locator('strong').boundingBox(),b=await type.boundingBox();
    assert(a&&b&&Math.abs(a.y+a.height/2-b.y-b.height/2)<2&&a.x+a.width<=b.x,`list name and type share a line: ${JSON.stringify({a,b})}`);
   }
+  const selectionStyle=row=>row.evaluate(el=>{
+   const {borderRadius,backgroundColor,boxShadow}=getComputedStyle(el.closest('.workbench-item-row'));
+   return {borderRadius,backgroundColor,boxShadow};
+  });
+  const rowGeometry=row=>row.evaluate(el=>{
+   const surface=el.closest('.workbench-item-row'),list=surface.closest('.type-list,.field-tree,.type-picker-results');
+   const {left}=surface.getBoundingClientRect(),{marginLeft,paddingLeft,paddingRight,borderRadius}=getComputedStyle(surface);
+   const titleLeft=surface.querySelector('.tree-text').getBoundingClientRect().left;
+   return {marginLeft,paddingLeft,paddingRight,borderRadius,left:left-list.getBoundingClientRect().left,labelInset:titleLeft-left};
+  });
   await assertSameRow('#type-name','#type-prop-type');
   for(const [key,value] of [['folder','会計 / 支出'],['tags','明細、申請']]){
    const input='#type-'+key;await reveal(page,input);
@@ -44,6 +54,12 @@ module.exports=async({page,url})=>{
   assert(await type.isVisible());
   assert(await page.locator('[data-type-select="'+supplies+'"]').isVisible());
   await assertItemLine(type,'複合型');
+  const rootGeometry=await rowGeometry(page.locator('[data-type-select=builtin_year]'));
+  assert.equal(rootGeometry.left,8);
+  assert.deepEqual(await rowGeometry(page.locator('[data-type-field="'+root+'"]')),rootGeometry);
+  const selectedStyle=await selectionStyle(type);
+  assert.equal(selectedStyle.borderRadius,'6px');
+  assert.match(selectedStyle.boxShadow,/inset/);
   assert(!await type.locator('[data-type-match]').isVisible());
   assert.equal(await page.locator('.workbench-search').getByRole('combobox',{name:'フォルダ'}).count(),0);
   await page.locator('.workbench-search').getByLabel('タグ').selectOption('明細');
@@ -64,18 +80,23 @@ module.exports=async({page,url})=>{
   await assertItemLine(page.locator('[data-type-field="'+transport+'"]'),'複合型');
   await page.locator('.task-child-list').getByRole('button',{name:'交通手段',exact:true}).click();
   assert.equal(await page.locator('#type-prop-label').inputValue(),'交通手段');
+  assert.deepEqual(await selectionStyle(page.locator('[data-type-field="'+transport+'"]')),selectedStyle);
   await assertSameRow('#type-prop-label','#type-prop-type');
   await publishDefinition(page);
   await page.locator('[data-view=definition]').click();
   await page.locator('#add-field').click();
   await assertSameRow('[data-prop=label]','[data-prop=type]');
   await assertItemLine(page.locator('.tree-item.selected'),'短い文字');
+  assert.deepEqual(await rowGeometry(page.locator('.tree-item.selected')),rootGeometry);
+  assert.deepEqual(await rowGeometry(page.locator('.tree-item:not(.selected)').first()),rootGeometry);
+  assert.deepEqual(await selectionStyle(page.locator('.tree-item.selected')),selectedStyle);
   await page.getByRole('button',{name:'入力形式の候補を検索'}).click();
   const dialog=page.getByRole('dialog',{name:'型を検索'});
   const pickerType=dialog.locator('[data-type-select="'+id+'"]');
   const pickerFolder=dialog.locator('.type-folder').filter({has:page.locator('summary:text-is("会計")')}).first();
   const pickerSearch=dialog.getByRole('searchbox');
   await assertItemLine(pickerType,'複合型');
+  assert.deepEqual(await rowGeometry(dialog.locator('[data-type-select=builtin_year]')),rootGeometry);
   assert.equal(await pickerType.locator('xpath=ancestor::details[contains(@class,"type-folder")]').count(),2);
   assert.equal(await pickerFolder.evaluate(el=>getComputedStyle(el).borderTopWidth),'0px');
   assert.equal(await dialog.getByRole('combobox',{name:'フォルダ'}).count(),0);
@@ -89,6 +110,10 @@ module.exports=async({page,url})=>{
   assert.equal(await dialog.locator('.type-list-item:visible').count(),1);
   await pickerType.click();
   assert.equal(await page.locator('[data-prop=type]').inputValue(),'@'+id);
+  await page.getByRole('button',{name:'入力形式の候補を検索'}).click();
+  assert.equal(await pickerType.getAttribute('aria-pressed'),'true');
+  assert.deepEqual(await selectionStyle(pickerType),selectedStyle);
+  await dialog.getByRole('button',{name:'閉じる',exact:true}).click();
 
   await page.locator('#add-field').click();
   const key=await page.locator('[data-prop=key]').inputValue();

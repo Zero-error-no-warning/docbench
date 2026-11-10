@@ -68,7 +68,7 @@ function mountTypeTree(list,index,closed=new Set()){
    if(!folder){
     const node=document.createElement('details'),summary=document.createElement('summary'),children=document.createElement('div');
     node.className='type-folder';node.dataset.typeFolder=key;
-    summary.textContent=path[i];children.className='type-folder-children';
+    summary.textContent=path[i];children.className='workbench-tree-children';
     node.append(summary,children);parent.append(node);
     folder={node,children,ids:[]};folders.set(key,folder);
     summary.onclick=event=>{
@@ -125,7 +125,9 @@ function mountTypePickers(panel,definition){
    const input=box.querySelector('input'),status=box.querySelector('[role=status]');
    for(const {type} of index){
     const item=document.createElement('button');
-    item.type='button';item.className='type-list-item';item.dataset.typeSelect=type.id;
+    item.type='button';item.className='type-list-item workbench-item-row';item.dataset.typeSelect=type.id;
+    const selected=options.get(type.id)===select.value;
+    item.classList.toggle('selected',selected);item.setAttribute('aria-pressed',String(selected));
     item.innerHTML=workbenchItemLine(type.name,D.basicTypeLabel(type.schema?.type));
     item.onclick=()=>{
      dialog.close();
