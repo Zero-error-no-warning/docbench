@@ -10,14 +10,32 @@ const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt
 const safeKey = k => /^[A-Za-z][A-Za-z0-9_]*$/.test(k) && !['constructor','prototype','__proto__'].includes(k);
 const field = (key,label,type='String',extra={}) => ({id:uid(),key,label,type,section:'基本情報',group:'',description:'',required:false,...extra});
 const numberTypes=['Integer','Float'];
-function inputLabel(f,value){const labels=f.presentation?.valueLabels;return typeof value==='number'&&labels&&Object.hasOwn(labels,String(value))?labels[String(value)]:value===null||value===undefined?'':String(value);}
-function parseNumberInput(f,raw){const value=String(raw).trim();if(!value)return '';for(const [number,label]of Object.entries(f.presentation?.valueLabels||{}))if(value===label)return Number(number);if(!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(value)||!Number.isFinite(Number(value)))return raw;return Number(value);}
+function inputLabel(f,value){
+ if(value===null||value===undefined)return '';
+ const p=f?.presentation;
+ if(typeof value!=='number')return String(value);
+ if(p?.valueLabels&&Object.hasOwn(p.valueLabels,String(value)))return p.valueLabels[String(value)];
+ if(f?.type==='Integer'&&p?.integerFormat==='grouped')return value.toLocaleString('ja-JP');
+ if(f?.type==='Integer'&&p?.integerFormat==='padded')return (value<0?'-':'')+Math.abs(value).toLocaleString('ja-JP',{useGrouping:false,minimumIntegerDigits:Number.isInteger(p.integerDigits)&&p.integerDigits>=1&&p.integerDigits<=20?p.integerDigits:4});
+ return String(value);
+}
+function parseNumberInput(f,raw){
+ let value=String(raw).trim();
+ if(!value)return '';
+ for(const [number,label] of Object.entries(f.presentation?.valueLabels||{}))if(value===label)return Number(number);
+ if(f.type==='Integer'&&f.presentation?.integerFormat)value=value.normalize('NFKC');
+ if(f.type==='Integer'&&f.presentation?.integerFormat==='grouped'&&/^[+-]?\d{1,3}(,\d{3})+$/.test(value))value=value.replaceAll(',','');
+ if(!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(value)||!Number.isFinite(Number(value)))return raw;
+ return Number(value);
+}
 function numberInputError(f,v){if(v===null||v===undefined||v==='')return '';if(typeof v!=='number'||!Number.isFinite(v)||f.type==='Integer'&&!Number.isInteger(v))return '数値型が一致しません';if(f.min!==undefined&&v<f.min)return '最小値を下回っています';if(f.max!==undefined&&v>f.max)return '最大値を上回っています';return '';}
 function yearInputExample(){return {presentation:{layout:'inline',separator:'',hideChildLabels:true},fields:[field('era','元号','Enum',{options:['令和','平成','昭和','大正','明治'],default:'令和',required:true}),field('year','年数','Integer',{min:1,required:true,presentation:{suffix:'年',valueLabels:{'1':'元'}}})]};}
-function validatePresentation(f,err,path){const p=f.presentation;if(p===undefined)return;if(!p||typeof p!=='object'||Array.isArray(p)){err(path,'表示設定はオブジェクトです');return;}for(const k of Object.keys(p))if(!['layout','separator','hideChildLabels','prefix','suffix','valueLabels','pathDisplay'].includes(k))err(path+'.'+k,'未対応の表示設定です');
+function validatePresentation(f,err,path){const p=f.presentation;if(p===undefined)return;if(!p||typeof p!=='object'||Array.isArray(p)){err(path,'表示設定はオブジェクトです');return;}for(const k of Object.keys(p))if(!['layout','separator','hideChildLabels','prefix','suffix','valueLabels','pathDisplay','integerFormat','integerDigits'].includes(k))err(path+'.'+k,'未対応の表示設定です');
  for(const k of ['layout','separator','hideChildLabels'])if(p[k]!==undefined&&f.type!=='Object'&&!(k==='separator'&&f.type==='TreeEnum'))err(path+'.'+k,'Objectの表示設定です');
  if(p.layout!==undefined&&!['stacked','inline'].includes(p.layout))err(path+'.layout','stackedまたはinlineを指定してください');if(p.separator!==undefined&&(typeof p.separator!=='string'||p.separator.length>40))err(path+'.separator','区切りは40文字以内の文字列です');if(p.hideChildLabels!==undefined&&typeof p.hideChildLabels!=='boolean')err(path+'.hideChildLabels','真偽値を指定してください');
  for(const k of ['prefix','suffix'])if(p[k]!==undefined){if(!['String','Text','Integer','Float','Date','DateTime','Enum'].includes(f.type))err(path+'.'+k,'単純な文字列・数値・日付・選択項目に指定してください');if(typeof p[k]!=='string'||p[k].length>100)err(path+'.'+k,'接辞は100文字以内の文字列です');}
+ if(p.integerFormat!==undefined&&(f.type!=='Integer'||!['grouped','padded'].includes(p.integerFormat)))err(path+'.integerFormat','整数の表示書式を指定してください');
+ if(p.integerDigits!==undefined&&(p.integerFormat!=='padded'||!Number.isInteger(p.integerDigits)||p.integerDigits<1||p.integerDigits>20))err(path+'.integerDigits','ゼロ埋めの桁数は1〜20の整数で指定してください');
  if(p.pathDisplay!==undefined&&(f.type!=='TreeEnum'||!['full','leaf'].includes(p.pathDisplay)))err(path+'.pathDisplay','TreeEnumのfullまたはleafを指定してください');
  if(p.valueLabels!==undefined){const labels=p.valueLabels;if(!numberTypes.includes(f.type))err(path+'.valueLabels','数値項目の表示名です');if(!labels||typeof labels!=='object'||Array.isArray(labels)||Object.keys(labels).length>100){err(path+'.valueLabels','表示名は100件以内のオブジェクトです');return;}const used=new Set();for(const [k,label]of Object.entries(labels)){const n=Number(k);if(!k||!Number.isFinite(n)||String(n)!==k||f.type==='Integer'&&!Number.isInteger(n)||numberInputError(f,n))err(path+'.valueLabels.'+k,'項目の型・範囲に一致する数値を指定してください');if(typeof label!=='string'||!label.trim()||label!==label.trim()||label.length>100||used.has(label)||label!==''&&Number.isFinite(Number(label))&&Number(label)!==n)err(path+'.valueLabels.'+k,'表示名は前後空白なし・重複なしの1〜100文字で、別の数値と重ならないようにしてください');used.add(label);}}
 }
@@ -231,7 +249,7 @@ function validateDefinition(def,render,{validateTypes=true}={}) {
    if(!ref)err(p+'.'+name,'条件の参照項目は配列外の文字列・数値・真偽値・日付・選択項目です');
    else if(ref.type==='TreeEnum'?!!root.DocBench.treeValueError?.(ref,c.equals,true)||!Array.isArray(c.equals)||!c.equals.length:ref.type==='Boolean'?typeof c.equals!=='boolean':['Integer','Float'].includes(ref.type)?typeof c.equals!=='number'||!Number.isFinite(c.equals)||ref.type==='Integer'&&!Number.isInteger(c.equals):typeof c.equals!=='string'||ref.type==='Enum'&&!ref.options?.includes(c.equals))err(p+'.'+name,'条件の値が参照項目の型・選択肢と一致しません');
   }
-  if(f.type==='Union'&&(!Array.isArray(f.fields)||!f.fields.length||f.fields.some(c=>c?.type!=='Object')))err(p,'選択式の型には、候補となる項目のまとまりを1つ以上指定してください');
+  if(f.type==='Union'&&(!Array.isArray(f.fields)||!f.fields.length||f.fields.some(c=>c?.type!=='Object')))err(p,'選択型には、候補となる複合型を1つ以上指定してください');
   if(f.itemVariants!==undefined){
    if(f.itemVariants!==true||f.type!=='Array'||f.itemType!=='Object'||!Array.isArray(f.fields)||!f.fields.length||f.fields.some(c=>c?.type!=='Object'))err(p,'行ごとに型を選ぶ配列には、重複しないオブジェクト型を指定してください');
    if(f.businessKey||f.uniqueBy||f.sortBy)err(p,'行ごとに型を選ぶ配列には共通の列を指定できません');

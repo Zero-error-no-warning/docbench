@@ -26,7 +26,7 @@ module.exports=async function({page,url,root,out}){for(const portable of [false,
   const typeName=page.locator('#type-name');
   await typeName.fill('支出明細の種類');
   await typeName.dispatchEvent('change');
-  await page.locator('#type-prop-type').selectOption({label:'選択式の型'});
+  await page.locator('#type-prop-type').selectOption({label:'選択型'});
   assert(await page.locator('.editor-primary [data-array-variants]').isVisible());
   await page.locator('[data-draft-apply]').click();
   const errors=page.locator('#definition-apply-errors');

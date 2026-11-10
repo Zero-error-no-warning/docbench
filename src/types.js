@@ -7,8 +7,32 @@ function availableTypes(def){const local=Array.isArray(def.typeDefinitions)?def.
 function moveType(def,id,index){const types=availableTypes(def),from=types.findIndex(t=>t.id===id);if(from<0||!Number.isInteger(index))return false;const to=Math.max(0,Math.min(types.length-1,index));if(from===to)return false;types.splice(to,0,types.splice(from,1)[0]);def.typeDefinitions=types.map(t=>localType(def,t.id)||D.clone(t));return true;}
 function localType(def,id){return Array.isArray(def.typeDefinitions)?def.typeDefinitions.find(t=>t?.id===id):undefined;}
 function ensureLocalType(def,id){let t=localType(def,id);if(!t){const source=availableTypes(def).find(t=>t.id===id);if(!source)throw Error('登録型が見つかりません');t=D.clone(source);(def.typeDefinitions||=[]).push(t);}return t;}
-const basicTypeLabels={String:'短い文字',Text:'長い文章',RichText:'書式付きの文章',Integer:'整数',Float:'小数',Boolean:'はい／いいえ',Date:'日付',DateTime:'日時',Enum:'選択肢から1つ',MultiEnum:'選択肢から複数',TreeEnum:'階層から選択',File:'ファイル',Image:'画像',Object:'項目のまとまり',Union:'選択式の型',Array:'繰り返し入力',Table:'表形式の入力'};
+const basicTypeLabels={String:'短い文字',Text:'長い文章',RichText:'書式付きの文章',Integer:'整数',Float:'小数',Boolean:'はい／いいえ',Date:'日付',DateTime:'日時',Enum:'選択肢から1つ',MultiEnum:'選択肢から複数',TreeEnum:'階層から選択',File:'ファイル',Image:'画像',Object:'複合型',Union:'選択型',Array:'リスト型',Table:'テーブル型'};
 function basicTypeLabel(type){return basicTypeLabels[type]||type||'';}
+function typeOrganization(value,kind){
+ const parts=String(value||'').split(kind==='folder'?/[／/]/:/[,、，\n]/).map(part=>part.trim()).filter(Boolean);
+ return kind==='folder'?parts:[...new Set(parts)];
+}
+const normalizeTypeSearch=value=>String(value||'').normalize('NFKC').toLocaleLowerCase('ja');
+function typeSearchIndex(types){
+ return types.map(type=>{
+  const folder=Array.isArray(type.folder)?type.folder:[],tags=Array.isArray(type.tags)?type.tags:[];
+  const fields=[
+   ['名前',type.name],['キー',type.key],['フォルダ',folder.join(' › ')],
+   ...tags.map(tag=>['タグ',tag]),['説明',type.description],
+   ...D.allFields({fields:[type.schema]}).slice(1).map(({field})=>['子項目',field.label])
+  ].filter(([,value])=>typeof value==='string'&&value).map(([label,value])=>({label,value,search:normalizeTypeSearch(value)}));
+  return {type,folder,tags,fields};
+ });
+}
+function searchTypes(index,query,folder=[],tag=''){
+ const terms=normalizeTypeSearch(query).trim().split(/\s+/).filter(Boolean);
+ return index.flatMap(entry=>{
+  if(folder.some((part,i)=>entry.folder[i]!==part)||tag&&!entry.tags.includes(tag))return [];
+  const matches=terms.map(term=>entry.fields.find(field=>field.search.includes(term)));
+  return matches.every(Boolean)?[{...entry,matches:[...new Set(matches)]}]:[];
+ });
+}
 function typeName(def,field){return availableTypes(def).find(t=>t.id===field.typeRef?.id)?.name||basicTypeLabel(field.type);}
 // The reference stores rules; itemType describes the actual value.
 function arrayItemType(f){if(f.itemVariants)return 'Variants';const item=D.arrayItemField(f);return item?'@'+item.typeRef.id:f.itemType||'Object';}
@@ -52,7 +76,7 @@ function addArrayVariant(def,f,id,ownerId){
 }
 function arrayVariantSettings(def,f,ownerId,disabled){
  const esc=D.esc,types=arrayVariantChoices(def,f,ownerId);
- return '<div data-array-variants class="editor-variants"><h4>選べる型</h4><p class="editor-help">'+(f.type==='Union'?'選んだ型の入力欄だけが表示されます。':'この繰り返し入力に保存済みの候補です。')+'</p>'+
+ return '<div data-array-variants class="editor-variants"><h4>選べる型</h4><p class="editor-help">'+(f.type==='Union'?'選んだ型の入力欄だけが表示されます。':'このリスト型に保存済みの候補です。')+'</p>'+
  ((f.fields||[]).length?'<ul class="editor-variant-list">'+f.fields.map(c=>'<li><strong>'+esc(c.label)+'</strong>'+
  '<button type="button" data-variant-open="'+esc(c.typeRef?.id||'')+'" aria-label="'+esc(c.label)+'の型を開く" '+(!c.typeRef?'disabled':'')+'>型を開く</button>'+
  '<button type="button" data-variant-remove="'+esc(c.id)+'" aria-label="'+esc(c.label)+'を候補から外す" '+(disabled?'disabled':'')+'>外す</button></li>').join('')+'</ul>':'<p class="editor-help error-text" id="variant-requirement">候補を1つ以上追加してください。</p>')+
@@ -95,7 +119,7 @@ function applyType(ws,fieldId,ref){const found=D.allFields(ws.definition).find(x
 function detachType(field){function visit(f){delete f.typeRef;delete f.typeFieldId;delete f.requiredOverride;if(!(f.itemVariants||f.type==='Union'))(f.fields||[]).forEach(visit);}visit(field);}
 function typeUsages(def,id){return [...D.allFields(def),...(def.typeDefinitions||[]).flatMap(t=>D.allFields({fields:t.schema?[t.schema]:[]}).map(x=>({...x,path:t.name+'.'+x.path,typeId:t.id})))].filter(x=>x.field.typeRef?.id===id);}
 function synchronizeTypes(ws,typeId){refreshTypeSchemas(ws.definition);const refs=ws.definition.fields.flatMap(f=>directTypeRefs(f)).filter(x=>!typeId||!canUseType(ws.definition,typeId,x.field.typeRef.id)).map(x=>({fieldId:x.field.id,ref:{id:x.field.typeRef.id}}));for(const item of refs)applyType(ws,item.fieldId,item.ref);}
-function validateTypeLibrary(def){const errors=[],warnings=[],add=(path,message)=>errors.push({path,message}),list=def.typeDefinitions;if(list!==undefined&&!Array.isArray(list)){add('typeDefinitions','型ライブラリは配列です');return {errors,warnings};}const ids=new Set(),keys=new Set(builtinTypeDefinitions().filter(t=>!(list||[]).some(x=>x?.id===t.id)).map(t=>t.key));for(const t of list||[]){const path='typeDefinitions.'+(t?.id||'?');if(!t||typeof t!=='object'||Array.isArray(t)){add(path,'型の定義が不正です');continue;}if(typeof t.id!=='string'||!t.id||ids.has(t.id))add(path,'型IDが未指定または重複');ids.add(t.id);if(!D.safeKey(t.key)||keys.has(t.key))add(path,'型キーが無効または重複');keys.add(t.key);if(typeof t.name!=='string'||!t.name.trim())add(path,'型の名前がありません');if(t.versions!==undefined||t.draft!==undefined)add(path,'旧形式の型を読み込み処理で移行してください');for(const e of typeSchemaErrors(t.schema,def,t.id))add(path+'.schema.'+e.path,e.message);}
+function validateTypeLibrary(def){const errors=[],warnings=[],add=(path,message)=>errors.push({path,message}),list=def.typeDefinitions;if(list!==undefined&&!Array.isArray(list)){add('typeDefinitions','型ライブラリは配列です');return {errors,warnings};}const ids=new Set(),keys=new Set(builtinTypeDefinitions().filter(t=>!(list||[]).some(x=>x?.id===t.id)).map(t=>t.key));for(const t of list||[]){const path='typeDefinitions.'+(t?.id||'?');if(!t||typeof t!=='object'||Array.isArray(t)){add(path,'型の定義が不正です');continue;}if(typeof t.id!=='string'||!t.id||ids.has(t.id))add(path,'型IDが未指定または重複');ids.add(t.id);if(!D.safeKey(t.key)||keys.has(t.key))add(path,'型キーが無効または重複');keys.add(t.key);if(typeof t.name!=='string'||!t.name.trim())add(path,'型の名前がありません');for(const key of ['folder','tags'])if(t[key]!==undefined&&(!Array.isArray(t[key])||t[key].length>(key==='folder'?12:30)||t[key].some(part=>typeof part!=='string'||!part.trim()||part!==part.trim()||part.length>80||/[／/]/.test(part)&&key==='folder')||key==='tags'&&new Set(t[key]).size!==t[key].length))add(path+'.'+key,key==='folder'?'フォルダは各80文字・12階層以内です':'タグは各80文字・30件以内で、重複なしです');if(t.versions!==undefined||t.draft!==undefined)add(path,'旧形式の型を読み込み処理で移行してください');for(const e of typeSchemaErrors(t.schema,def,t.id))add(path+'.schema.'+e.path,e.message);}
  for(const {field,path}of D.allFields(def))if(field.requiredOverride!==undefined&&(typeof field.requiredOverride!=='boolean'||!field.typeFieldId))add(path+'.requiredOverride','登録型の子項目には真偽値の必須設定を指定してください');
  errors.push(...referenceErrors(def.fields,def));
  return {errors,warnings};}
@@ -115,5 +139,5 @@ function normalizeDefinitionTypes(def){if(!def)return;normalizeArrayItemTypes(de
  def.typeDefinitions=converted;for(const t of converted)if(t?.schema)normalizeArrayItemTypes([t.schema]);
 }
 function normalizeTypeModels(value){if(value.kind==='Workspace'){normalizeDefinitionTypes(value.definition);for(const node of value.history||[])normalizeDefinitionTypes(node.state?.definition);}else if(value.kind==='Definition'){normalizeDefinitionTypes(value);for(const node of value.history?.nodes||[])normalizeDefinitionTypes(node.state);}else if(value.kind==='TypeLibrary')normalizeDefinitionTypes(value);return value;}
-Object.assign(D,{basicTypeLabel,exportTypeLibrary,importTypeLibrary,builtinTypeDefinitions,availableTypes,moveType,arrayItemType,arrayItemChoices,setArrayItemType,addArrayVariant,arrayVariantSettings,bindArrayVariantSettings,canUseType,localType,ensureLocalType,typeName,cleanTypeSchema,typeSchemaErrors,createType,instantiateType,applyType,synchronizeTypes,detachType,typeUsages,validateTypeLibrary,normalizeTypeModels});
+Object.assign(D,{basicTypeLabel,typeOrganization,typeSearchIndex,searchTypes,exportTypeLibrary,importTypeLibrary,builtinTypeDefinitions,availableTypes,moveType,arrayItemType,arrayItemChoices,setArrayItemType,addArrayVariant,arrayVariantSettings,bindArrayVariantSettings,canUseType,localType,ensureLocalType,typeName,cleanTypeSchema,typeSchemaErrors,createType,instantiateType,applyType,synchronizeTypes,detachType,typeUsages,validateTypeLibrary,normalizeTypeModels});
 })(globalThis);

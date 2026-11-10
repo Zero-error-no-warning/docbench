@@ -82,6 +82,7 @@ const server=http.createServer((req,res)=>{const pathname=decodeURIComponent(new
  await require('./tree-enum-browser.cjs')({page,out,url,root});
  await require('./native-array-types-browser.cjs')({page,out,url,root});
  await require('./array-variants-browser.cjs')({page,out,url,root});
+ await require('./type-organization-browser.cjs')({page,out,url,root});
  await require('./array-types-browser.cjs')({page,out,url,root});
  await require('./nested-types-browser.cjs')({page,out,url,root});
  await require('./types-browser.cjs')({page,out,url,root});

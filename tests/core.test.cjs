@@ -71,3 +71,17 @@ test('condition references, value types and direct/ancestor visibility cycles ar
  const parent={fields:[D.field('object','親','Object',{visibleWhen:{field:'object.enabled',equals:true},fields:[D.field('enabled','表示','Boolean')]})]};assert(D.validateDefinition(parent).errors.some(e=>e.message.includes('循環参照')));
  const array={fields:[D.field('rows','行','Table',{initialRows:0,fields:[D.field('enabled','有無','Boolean')]}),D.field('x','X','String',{visibleWhen:{field:'rows.enabled',equals:true}})]};assert(D.validateDefinition(array).errors.some(e=>e.path==='x.visibleWhen'));
 });
+
+test('integer display options round-trip formatted text as numbers and preserve signs and significant digits',()=>{
+ const amount=D.field('amount','金額','Integer',{presentation:{integerFormat:'grouped'}});
+ const code=D.field('code','番号','Integer',{presentation:{integerFormat:'padded',integerDigits:5}});
+ assert.equal(D.inputLabel(amount,-12345),'-12,345');
+ assert.equal(D.parseNumberInput(amount,'１２，３４５'),12345);
+ assert.equal(D.parseNumberInput(amount,'1,23'),'1,23');
+ assert.equal(D.inputLabel(code,-12),'-00012');
+ assert.equal(D.inputLabel(code,123456),'123456');
+ assert.equal(D.parseNumberInput(code,'00012'),12);
+ assert.deepEqual(D.validateDefinition({fields:[amount,code]}).errors,[]);
+ code.presentation.integerDigits=21;
+ assert(D.validateDefinition({fields:[code]}).errors.length);
+});

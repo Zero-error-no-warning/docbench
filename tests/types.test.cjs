@@ -40,3 +40,17 @@ test('native registered array type changes preserve row identities, values and s
 
 test('type library order includes standards, follows Undo/history and leaves uses and values intact',()=>{const {w,year,period}=periodWorkspace(),before=D.clone(w.data),fields=D.clone(w.definition.fields),order=D.availableTypes(w.definition).map(t=>t.id),snapshot=D.snapshot(w,'並べ替え前');assert(D.moveType(w.definition,period.id,0));assert.equal(D.availableTypes(w.definition)[0].id,period.id);assert.equal(D.availableTypes(w.definition).length,order.length);assert.deepEqual(w.data,before);assert.deepEqual(w.definition.fields,fields);assert.equal(D.localType(w.definition,year.id).schema.fields[1].key,'year');assert(!D.moveType(w.definition,period.id,0));assert(!D.moveType(w.definition,'missing',1));assert.deepEqual(D.validateDefinition(w.definition).errors,[]);D.snapshot(w,'並べ替え');w.branches.before=snapshot.id;D.checkout(w,'before');assert.deepEqual(D.availableTypes(w.definition).map(t=>t.id),order);});
 test('type-only save and dependency-aware import preserve the displayed order',()=>{const {w,period}=periodWorkspace();D.moveType(w.definition,period.id,0);const file=D.exportTypeLibrary(w.definition),order=file.typeDefinitions.map(t=>t.id),merged=D.importTypeLibrary({fields:[]},file);assert.deepEqual(merged.map(t=>t.id),order);assert.deepEqual(D.validateDefinition({fields:[],typeDefinitions:merged}).errors,[]);assert.deepEqual(D.importTypeLibrary({fields:[],typeDefinitions:merged},file),merged);});
+
+test('type folders and tags round-trip and multi-term search spans folder, tags and child labels',()=>{
+ const w=D.sample(),def=w.definition,type=D.createType(def,'旅費',D.field('value','旅費','Object',{fields:[D.field('transport','交通手段')]}));
+ type.folder=D.typeOrganization('会計 ／ 支出','folder');
+ type.tags=D.typeOrganization('申請、明細, 明細','tags');
+ type.description='国内出張';
+ const index=D.typeSearchIndex(D.availableTypes(def));
+ assert.deepEqual(D.searchTypes(index,'支出 交通手段',['会計'],'明細').map(entry=>entry.type.id),[type.id]);
+ assert.equal(D.searchTypes(index,'国内出張')[0].matches[0].label,'説明');
+ assert.equal(D.searchTypes(index,'交通手段',['総務']).length,0);
+ const imported=D.importTypeLibrary({fields:[]},D.exportTypeLibrary(def)).find(t=>t.id===type.id);
+ assert.deepEqual(imported.folder,['会計','支出']);
+ assert.deepEqual(imported.tags,['申請','明細']);
+});
