@@ -72,16 +72,28 @@ test('condition references, value types and direct/ancestor visibility cycles ar
  const array={fields:[D.field('rows','行','Table',{initialRows:0,fields:[D.field('enabled','有無','Boolean')]}),D.field('x','X','String',{visibleWhen:{field:'rows.enabled',equals:true}})]};assert(D.validateDefinition(array).errors.some(e=>e.path==='x.visibleWhen'));
 });
 
-test('integer display options round-trip formatted text as numbers and preserve signs and significant digits',()=>{
+test('fixed digit integers pad valid values and reject input beyond the configured width',()=>{
  const amount=D.field('amount','金額','Integer',{presentation:{integerFormat:'grouped'}});
  const code=D.field('code','番号','Integer',{presentation:{integerFormat:'padded',integerDigits:5}});
  assert.equal(D.inputLabel(amount,-12345),'-12,345');
  assert.equal(D.parseNumberInput(amount,'１２，３４５'),12345);
  assert.equal(D.parseNumberInput(amount,'1,23'),'1,23');
- assert.equal(D.inputLabel(code,-12),'-00012');
- assert.equal(D.inputLabel(code,123456),'123456');
+ assert.equal(D.inputLabel(code,12),'00012');
+ assert.equal(D.inputLabel(code,0),'00000');
+ assert.equal(D.inputLabel(code,12345),'12345');
  assert.equal(D.parseNumberInput(code,'00012'),12);
+ assert.equal(D.parseNumberInput(code,'１２'),12);
+ assert.equal(D.parseNumberInput(code,'000012'),'000012');
+ assert.equal(D.parseNumberInput(code,'123456'),'123456');
+ assert.equal(D.parseNumberInput(code,'-12'),'-12');
+ assert.equal(D.parseNumberInput(code,'1e2'),'1e2');
+ assert.equal(D.numberInputError(code,-12),'0以上の整数を数字で入力してください');
+ assert.deepEqual(D.validateData({fields:[code]},{code:123456}),[{path:'code',message:'5桁以内で入力してください'}]);
+ assert.deepEqual(D.validateData({fields:[code]},{code:12345}),[]);
  assert.deepEqual(D.validateDefinition({fields:[amount,code]}).errors,[]);
+ code.presentation.integerDigits=20;
+ assert.equal(D.inputLabel(code,12),'00000000000000000012');
+ assert.equal(D.parseNumberInput(code,'9007199254740993'),'9007199254740993');
  code.presentation.integerDigits=21;
  assert(D.validateDefinition({fields:[code]}).errors.length);
 });

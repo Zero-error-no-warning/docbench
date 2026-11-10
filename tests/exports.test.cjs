@@ -9,12 +9,12 @@ test('HTML escaping and appendix/table split rules',()=>{const w=D.sample();w.da
 test('XLSX strings beginning with = remain text, numbers remain numeric',async()=>{const w=D.sample();w.data.values.projectName='=1+1';const blob=await D.excel(w.definition,w.render,w.data.values);const zip=await JSZip.loadAsync(await blob.arrayBuffer());const xml=await zip.file('xl/worksheets/sheet1.xml').async('string');const strings=zip.file('xl/sharedStrings.xml')?await zip.file('xl/sharedStrings.xml').async('string'):xml;assert(/<t(?: xml:space="preserve")?>=1\+1<\/t>/.test(strings));assert(!xml.includes('<f>'));assert(xml.includes('<v>1200000</v>'));});
 test('integer display formats reach Word and keep numeric Excel values',async()=>{
  const w=D.sample();
- w.definition.fields=[D.field('amount','金額','Integer',{presentation:{integerFormat:'grouped'}}),D.field('code','番号','Integer',{presentation:{integerFormat:'padded',integerDigits:6}})];
- w.data.values={amount:12345,code:12};
- for(const format of ['docx','xlsx'])D.ensureDesign(w.render,format).blocks=[{id:'amount',type:'field',field:'amount',showLabel:false},{id:'code',type:'field',field:'code',showLabel:false}];
+ w.definition.fields=[D.field('amount','金額','Integer',{presentation:{integerFormat:'grouped'}}),D.field('code','番号','Integer',{presentation:{integerFormat:'padded',integerDigits:6,valueLabels:{'12':'十二'}}}),D.field('wide','長い番号','Integer',{presentation:{integerFormat:'padded',integerDigits:20}})];
+ w.data.values={amount:12345,code:12,wide:1234567890123456};
+ for(const format of ['docx','xlsx'])D.ensureDesign(w.render,format).blocks=['amount','code','wide'].map(field=>({id:field,type:'field',field,showLabel:false}));
  const word=await JSZip.loadAsync(await(await D.word(w.definition,w.render,w.data.values)).arrayBuffer());
  const xml=await word.file('word/document.xml').async('string');
- assert(xml.includes('12,345'));assert(xml.includes('000012'));
+ assert(xml.includes('12,345'));assert(xml.includes('000012'));assert(xml.includes('00001234567890123456'));
  w.render.documents[0].outputFormat='xlsx';
  const preview=D.previewHTML(w.definition,w.render,w.data.values);
  assert(preview.includes('12,345'));assert(preview.includes('000012'));
@@ -22,6 +22,7 @@ test('integer display formats reach Word and keep numeric Excel values',async()=
  for(const [address,value,numFmt] of [['A1',12345,'#,##0'],['A3',12,'000000']]){
   const cell=sheet.worksheets[0].getCell(address);assert.equal(cell.value,value);assert.equal(cell.numFmt,numFmt);
  }
+ assert.equal(sheet.worksheets[0].getCell('A5').value,'00001234567890123456');
 });
 test('gzip roundtrip is offline and lossless',async()=>{const w=D.sample(),blob=D.encodeJSON(w,true);const bytes=await blob.arrayBuffer();const result=await D.decodeJSON({arrayBuffer:async()=>bytes});assert.deepEqual(result,w);});
 test('HTML templates cannot masquerade as supported Office templates',async()=>{const w=D.sample();D.ensureDesign(w.render,'docx').useTemplate=true;await assert.rejects(D.word(w.definition,w.render,w.data.values),/ブロック配置/);});

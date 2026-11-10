@@ -178,10 +178,10 @@ function collectionRulesHTML(field,{input,select,check,definition,ownerId,bound,
 function integerFormatHTML(field){
  if(field.type!=='Integer')return '';
  const p=field.presentation||{};
- return '<div class="property-grid"><label>整数の表示<select id="integer-format">'+
-  [['','標準'],['grouped','3桁区切り（1,234）'],['padded','ゼロ埋め（0012）']].map(([value,label])=>
+ return '<div class="property-grid"><label>整数の形式<select id="integer-format">'+
+  [['','標準'],['grouped','3桁区切り（1,234）'],['padded','固定桁数（ゼロ埋め）']].map(([value,label])=>
    '<option value="'+value+'" '+((p.integerFormat||'')===value?'selected':'')+'>'+label+'</option>').join('')+
-  '</select></label>'+(p.integerFormat==='padded'?'<label>最小桁数<input id="integer-digits" type="number" min="1" max="20" value="'+D.esc(p.integerDigits||4)+'"></label>':'')+'</div>';
+  '</select></label>'+(p.integerFormat==='padded'?'<label>桁数<input id="integer-digits" type="number" min="1" max="20" value="'+D.fixedIntegerDigits(field)+'"></label>':'')+'</div>';
 }
 function bindIntegerFormat(host,field,disabled,update){
  const format=host.querySelector('#integer-format'),digits=host.querySelector('#integer-digits');
@@ -194,7 +194,7 @@ function bindIntegerFormat(host,field,disabled,update){
  if(digits){
   digits.disabled=disabled;
   digits.onchange=()=>{
-   if(!digits.checkValidity()||!digits.value){digits.value=field.presentation?.integerDigits||4;return;}
+   if(!digits.checkValidity()||!digits.value){digits.value=D.fixedIntegerDigits(field);return;}
    update(p=>{p.integerDigits=digits.valueAsNumber;});
   };
  }

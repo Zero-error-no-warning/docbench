@@ -80,16 +80,35 @@ module.exports=async({page,url})=>{
   await page.locator('[data-prop=type]').selectOption('Integer');
   await reveal(page,'#integer-format');
   await page.locator('#integer-format').selectOption('padded');
+  assert(await page.getByRole('spinbutton',{name:'桁数',exact:true}).isVisible());
   await page.locator('#integer-digits').fill('6');
   await page.locator('#integer-digits').dispatchEvent('change');
   const value=page.locator('[data-input="'+key+'"]');
   await value.fill('12');await value.dispatchEvent('change');
   assert.equal(await value.inputValue(),'000012');
   assert.equal(await page.evaluate(key=>DocBenchApp.getPreviewValues()[key],key),12);
+  await value.fill('123456');await value.dispatchEvent('change');
+  assert.equal(await value.getAttribute('aria-invalid'),'false');
+  await value.fill('1234567');await value.dispatchEvent('change');
+  assert.equal(await value.getAttribute('aria-invalid'),'true');
+  assert.equal(await page.locator('[data-number-error="'+key+'"]').innerText(),'6桁以内で入力してください');
+  assert.equal(await value.inputValue(),'1234567');
   await page.locator('#integer-format').selectOption('grouped');
   await value.fill('12345');await value.dispatchEvent('change');
   assert.equal(await value.inputValue(),'12,345');
   assert.equal(await page.evaluate(key=>DocBenchApp.getPreviewValues()[key],key),12345);
+
+  await page.locator('#integer-format').selectOption('padded');
+  await page.locator('#integer-digits').fill('6');
+  await page.locator('#integer-digits').dispatchEvent('change');
+  await publishDefinition(page);
+  await page.locator('[data-view=form]').click();
+  await value.fill('1234567');await value.dispatchEvent('change');
+  await page.locator('#export-document').click();
+  assert.match(await page.locator('#input-issues').innerText(),/6桁以内で入力してください/);
+  await value.fill('12');await value.dispatchEvent('change');
+  assert.equal(await value.inputValue(),'000012');
+  assert.equal(await page.evaluate(key=>DocBenchApp.getWorkspace().data.values[key],key),12);
  }finally{
   await page.evaluate(({original,heightPreference})=>{
    DocBenchApp.setWorkspace(original);

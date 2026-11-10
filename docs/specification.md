@@ -92,7 +92,7 @@ Definitionの任意の`typeDefinitions`配列に型を同梱する。各型は`i
 
 `typeDefinitions` の各型は整理用の任意属性として `folder`（階層名の配列）と `tags`（タグ名の配列）を持てる。参照は型のIDで維持する。
 
-整数項目の `presentation.integerFormat` は `grouped`（3桁区切り）または `padded`（ゼロ埋め）。`presentation.integerDigits` は `padded` の最小桁数で、1〜20の整数。省略時は4。入力値は数値として保存する。個別の数値表示名がある値には、その表示名を優先する。
+整数項目の `presentation.integerFormat` は `grouped`（3桁区切り）または `padded`（固定桁数）。`presentation.integerDigits` は `padded` の桁数で、1〜20の整数。省略時は4。`padded` は0以上の安全な整数を受け付け、指定桁数を超える入力は検証エラーにする。短い値は指定桁数までゼロ埋めして表示する。入力値は数値として保存する。`padded` では桁数指定を優先し、それ以外では個別の数値表示名を優先する。
 
 Arrayの「各行の型」でも登録済みの型を選べる。登録型の配列は既存の行ラッパーを使い、`itemType`には参照先の実際の基本型（String・Enum・Object等）を指定し、`fields:[{key:"value",typeRef:{id},...展開済みの登録型}]`に要素の完全な定義を保持する。fieldsのvalue項目は参照・入力規則を持つ要素スキーマであり、すべての要素をObjectとして扱う意味ではない。編集画面にはこの内部のvalueノードを表示せず、String・Enumなどの要素には子項目追加操作を出さない。参照型の編集は配列側の「選んだ型を開く」から行える。各行は`_id`・`_meta`と登録型の値を入れた`value`を持つ。Object型だけでなく、数値・選択型や別の配列型も同じ形式で使う。参照型は`value`項目のtypeRefで表すため、通常の依存関係・循環検証・入力規則・既存値の移行・型ライブラリ保存を適用する。登録型配列の出力は各要素の表示設定を使用する。旧ファイルで登録型配列のitemTypeがObjectに統一されていた場合、読込時に参照要素の実際の型へ修正する。入力値・行ID・項目ID・出力参照は変更せず、Workspace・Definitionの履歴やTypeLibraryにも同じ移行を適用する。
 

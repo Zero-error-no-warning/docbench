@@ -24,12 +24,18 @@ function display(f,v){
  if(f?.type==='Boolean')value=v?'はい':'いいえ';else if(f?.type==='RichText')value=text(v);else if(Array.isArray(v))value=f?.type==='MultiEnum'?v.join('、'):v.map(r=>Object.entries(r).filter(([k])=>!k.startsWith('_')).map(([,x])=>String(x??'')).join(' / ')).join('\n');else if(typeof v==='object')value=v.name||Object.entries(v).filter(([k])=>!k.startsWith('_')).map(([k,x])=>k+': '+String(x)).join('\n');else if(typeof v==='number')value=p.integerFormat||p.valueLabels&&Object.hasOwn(p.valueLabels,String(v))?D.inputLabel(f,v):v.toLocaleString('ja-JP');else value=String(v);
  return (p.prefix||'')+value+(p.suffix||'');
 }
-function fieldOutputValue(f,v){const p=f?.presentation;return typeof v==='number'&&!(p&&(p.prefix||p.suffix||p.valueLabels&&Object.hasOwn(p.valueLabels,String(v))))?v:display(f,v);}
+function fieldOutputValue(f,v){
+ if(typeof v!=='number')return display(f,v);
+ const p=f?.presentation;
+ if(p?.prefix||p?.suffix)return display(f,v);
+ if(D.fixedIntegerDigits(f))return v>=1e15?display(f,v):v;
+ return p?.valueLabels&&Object.hasOwn(p.valueLabels,String(v))?display(f,v):v;
+}
 function integerExcelFormat(f){
  const p=f?.presentation;
  if(f?.type!=='Integer')return '';
  if(p?.integerFormat==='grouped')return '#,##0';
- if(p?.integerFormat==='padded')return '0'.repeat(Number.isInteger(p.integerDigits)&&p.integerDigits>=1&&p.integerDigits<=20?p.integerDigits:4);
+ if(p?.integerFormat==='padded')return '0'.repeat(D.fixedIntegerDigits(f));
  return '';
 }
 

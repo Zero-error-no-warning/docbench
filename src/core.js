@@ -10,34 +10,54 @@ const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt
 const safeKey = k => /^[A-Za-z][A-Za-z0-9_]*$/.test(k) && !['constructor','prototype','__proto__'].includes(k);
 const field = (key,label,type='String',extra={}) => ({id:uid(),key,label,type,section:'基本情報',group:'',description:'',required:false,...extra});
 const numberTypes=['Integer','Float'];
+const validIntegerDigits=value=>Number.isInteger(value)&&value>=1&&value<=20;
+function fixedIntegerDigits(f){
+ const p=f?.presentation;
+ return f?.type==='Integer'&&p?.integerFormat==='padded'?(validIntegerDigits(p.integerDigits)?p.integerDigits:4):0;
+}
+function fixedIntegerError(value,digits){
+ if(typeof value!=='number'&&typeof value!=='string')return '0以上の整数を数字で入力してください';
+ const text=String(value).trim().normalize('NFKC');
+ if(!/^\d+$/.test(text))return '0以上の整数を数字で入力してください';
+ if(text.length>digits)return digits+'桁以内で入力してください';
+ if(!Number.isSafeInteger(Number(text)))return '正確に保存できる整数の範囲を超えています';
+ return '';
+}
 function inputLabel(f,value){
  if(value===null||value===undefined)return '';
- const p=f?.presentation;
  if(typeof value!=='number')return String(value);
+ const p=f?.presentation,digits=fixedIntegerDigits(f);
+ if(digits)return fixedIntegerError(value,digits)?String(value):String(value).padStart(digits,'0');
  if(p?.valueLabels&&Object.hasOwn(p.valueLabels,String(value)))return p.valueLabels[String(value)];
  if(f?.type==='Integer'&&p?.integerFormat==='grouped')return value.toLocaleString('ja-JP');
- if(f?.type==='Integer'&&p?.integerFormat==='padded')return (value<0?'-':'')+Math.abs(value).toLocaleString('ja-JP',{useGrouping:false,minimumIntegerDigits:Number.isInteger(p.integerDigits)&&p.integerDigits>=1&&p.integerDigits<=20?p.integerDigits:4});
  return String(value);
 }
 function parseNumberInput(f,raw){
  let value=String(raw).trim();
  if(!value)return '';
+ const digits=fixedIntegerDigits(f);
+ if(digits)return fixedIntegerError(value,digits)?raw:Number(value.normalize('NFKC'));
  for(const [number,label] of Object.entries(f.presentation?.valueLabels||{}))if(value===label)return Number(number);
  if(f.type==='Integer'&&f.presentation?.integerFormat)value=value.normalize('NFKC');
  if(f.type==='Integer'&&f.presentation?.integerFormat==='grouped'&&/^[+-]?\d{1,3}(,\d{3})+$/.test(value))value=value.replaceAll(',','');
  if(!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(value)||!Number.isFinite(Number(value)))return raw;
  return Number(value);
 }
-function numberInputError(f,v){if(v===null||v===undefined||v==='')return '';if(typeof v!=='number'||!Number.isFinite(v)||f.type==='Integer'&&!Number.isInteger(v))return '数値型が一致しません';if(f.min!==undefined&&v<f.min)return '最小値を下回っています';if(f.max!==undefined&&v>f.max)return '最大値を上回っています';return '';}
+function numberValueError(f,v){if(typeof v!=='number'||!Number.isFinite(v)||f.type==='Integer'&&!Number.isInteger(v))return '数値型が一致しません';if(f.min!==undefined&&v<f.min)return '最小値を下回っています';if(f.max!==undefined&&v>f.max)return '最大値を上回っています';return '';}
+function numberInputError(f,v){
+ if(v===null||v===undefined||v==='')return '';
+ const digits=fixedIntegerDigits(f);
+ return (digits?fixedIntegerError(v,digits):'')||numberValueError(f,v);
+}
 function yearInputExample(){return {presentation:{layout:'inline',separator:'',hideChildLabels:true},fields:[field('era','元号','Enum',{options:['令和','平成','昭和','大正','明治'],default:'令和',required:true}),field('year','年数','Integer',{min:1,required:true,presentation:{suffix:'年',valueLabels:{'1':'元'}}})]};}
 function validatePresentation(f,err,path){const p=f.presentation;if(p===undefined)return;if(!p||typeof p!=='object'||Array.isArray(p)){err(path,'表示設定はオブジェクトです');return;}for(const k of Object.keys(p))if(!['layout','separator','hideChildLabels','prefix','suffix','valueLabels','pathDisplay','integerFormat','integerDigits'].includes(k))err(path+'.'+k,'未対応の表示設定です');
  for(const k of ['layout','separator','hideChildLabels'])if(p[k]!==undefined&&f.type!=='Object'&&!(k==='separator'&&f.type==='TreeEnum'))err(path+'.'+k,'Objectの表示設定です');
  if(p.layout!==undefined&&!['stacked','inline'].includes(p.layout))err(path+'.layout','stackedまたはinlineを指定してください');if(p.separator!==undefined&&(typeof p.separator!=='string'||p.separator.length>40))err(path+'.separator','区切りは40文字以内の文字列です');if(p.hideChildLabels!==undefined&&typeof p.hideChildLabels!=='boolean')err(path+'.hideChildLabels','真偽値を指定してください');
  for(const k of ['prefix','suffix'])if(p[k]!==undefined){if(!['String','Text','Integer','Float','Date','DateTime','Enum'].includes(f.type))err(path+'.'+k,'単純な文字列・数値・日付・選択項目に指定してください');if(typeof p[k]!=='string'||p[k].length>100)err(path+'.'+k,'接辞は100文字以内の文字列です');}
  if(p.integerFormat!==undefined&&(f.type!=='Integer'||!['grouped','padded'].includes(p.integerFormat)))err(path+'.integerFormat','整数の表示書式を指定してください');
- if(p.integerDigits!==undefined&&(p.integerFormat!=='padded'||!Number.isInteger(p.integerDigits)||p.integerDigits<1||p.integerDigits>20))err(path+'.integerDigits','ゼロ埋めの桁数は1〜20の整数で指定してください');
+ if(p.integerDigits!==undefined&&(p.integerFormat!=='padded'||!validIntegerDigits(p.integerDigits)))err(path+'.integerDigits','桁数は1〜20の整数で指定してください');
  if(p.pathDisplay!==undefined&&(f.type!=='TreeEnum'||!['full','leaf'].includes(p.pathDisplay)))err(path+'.pathDisplay','TreeEnumのfullまたはleafを指定してください');
- if(p.valueLabels!==undefined){const labels=p.valueLabels;if(!numberTypes.includes(f.type))err(path+'.valueLabels','数値項目の表示名です');if(!labels||typeof labels!=='object'||Array.isArray(labels)||Object.keys(labels).length>100){err(path+'.valueLabels','表示名は100件以内のオブジェクトです');return;}const used=new Set();for(const [k,label]of Object.entries(labels)){const n=Number(k);if(!k||!Number.isFinite(n)||String(n)!==k||f.type==='Integer'&&!Number.isInteger(n)||numberInputError(f,n))err(path+'.valueLabels.'+k,'項目の型・範囲に一致する数値を指定してください');if(typeof label!=='string'||!label.trim()||label!==label.trim()||label.length>100||used.has(label)||label!==''&&Number.isFinite(Number(label))&&Number(label)!==n)err(path+'.valueLabels.'+k,'表示名は前後空白なし・重複なしの1〜100文字で、別の数値と重ならないようにしてください');used.add(label);}}
+ if(p.valueLabels!==undefined){const labels=p.valueLabels;if(!numberTypes.includes(f.type))err(path+'.valueLabels','数値項目の表示名です');if(!labels||typeof labels!=='object'||Array.isArray(labels)||Object.keys(labels).length>100){err(path+'.valueLabels','表示名は100件以内のオブジェクトです');return;}const used=new Set();for(const [k,label]of Object.entries(labels)){const n=Number(k);if(!k||!Number.isFinite(n)||String(n)!==k||f.type==='Integer'&&!Number.isInteger(n)||numberValueError(f,n))err(path+'.valueLabels.'+k,'項目の型・範囲に一致する数値を指定してください');if(typeof label!=='string'||!label.trim()||label!==label.trim()||label.length>100||used.has(label)||label!==''&&Number.isFinite(Number(label))&&Number(label)!==n)err(path+'.valueLabels.'+k,'表示名は前後空白なし・重複なしの1〜100文字で、別の数値と重ならないようにしてください');used.add(label);}}
 }
 // Registered elements retain their full field schema while itemType stays native.
 function arrayItemField(f){const item=f?.type==='Array'&&!f.itemVariants&&Array.isArray(f.fields)&&f.fields.length===1&&f.fields[0]?.key==='value'?f.fields[0]:null;return item?.typeRef?item:null;}
@@ -350,6 +370,6 @@ function validateData(def,values){const errors=[],globalIds=new Set(),input=inpu
 }
 function envelope(ws,kind){if(kind==='TypeLibrary')return root.DocBench.exportTypeLibrary(ws.definition);if(kind==='Workspace')return clone(ws);const key=kind==='Definition'?'definition':kind==='RenderDefinition'?'render':'data';return {...clone(ws[key]),history:{currentBranch:ws.currentBranch,branches:clone(ws.branches),nodes:ws.history.map(n=>({...clone(n),state:clone(n.state[key])}))}};}
 function assertImport(v){if(!v||typeof v!=='object'||v.formatVersion!==1||!['Workspace','Definition','RenderDefinition','DocumentData','TypeLibrary'].includes(v.kind))throw Error('DocBench形式v1のJSONを選んでください');const check=JSON.stringify(v);if(/"(?:__proto__|constructor|prototype)"\s*:/.test(check))throw Error('予約プロパティを含むJSONは読み込めません');if(check.length>80*1024*1024)throw Error('読み込み上限は80MBです');if(v.kind==='Workspace'){if(!v.definition||!v.render||!v.data||!Array.isArray(v.history)||!v.branches||!Object.hasOwn(v.branches,v.currentBranch))throw Error('Workspaceの必須構造がありません');const ids=new Set(v.history.map(n=>n.id));if(ids.size!==v.history.length||v.history.some(n=>!n.state||!Array.isArray(n.parents)||n.parents.some(p=>!ids.has(p)))||Object.values(v.branches).some(id=>!ids.has(id)))throw Error('履歴IDまたは親状態の参照が不正です');const active=new Set(),done=new Set(),map=new Map(v.history.map(n=>[n.id,n]));function walk(id){if(active.has(id))throw Error('履歴の循環参照を検出');if(done.has(id))return;active.add(id);for(const p of map.get(id).parents)walk(p);active.delete(id);done.add(id);}ids.forEach(walk);}normalizeOutputModels(v);return root.DocBench.normalizeTypeModels?root.DocBench.normalizeTypeModels(v):v;}
-root.DocBench={arrayItemField,arrayVariant,collectionVariantField,rowFields,collectionFields,editorChildren,inputLabel,parseNumberInput,numberInputError,yearInputExample,types,clone,equal,uid,now,esc,safeKey,field,defaultValue,newRow,renderDocument,outputDocuments,outputDesigns,createOutputDocument,duplicateOutputDocument,normalizeRender,normalizeOutputModels,createWorkspace,sample,state,snapshot,checkout,ancestor,merge,diff,get,fieldAt,allFields,conditionTypes,schemaPath,conditionFields,inputState,validateDefinition,validateData,envelope,assertImport};
+root.DocBench={arrayItemField,arrayVariant,collectionVariantField,rowFields,collectionFields,editorChildren,fixedIntegerDigits,inputLabel,parseNumberInput,numberInputError,yearInputExample,types,clone,equal,uid,now,esc,safeKey,field,defaultValue,newRow,renderDocument,outputDocuments,outputDesigns,createOutputDocument,duplicateOutputDocument,normalizeRender,normalizeOutputModels,createWorkspace,sample,state,snapshot,checkout,ancestor,merge,diff,get,fieldAt,allFields,conditionTypes,schemaPath,conditionFields,inputState,validateDefinition,validateData,envelope,assertImport};
 if(typeof module!=='undefined')module.exports=root.DocBench;
 })(typeof globalThis!=='undefined'?globalThis:this);
