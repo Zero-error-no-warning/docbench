@@ -102,3 +102,21 @@ test('type-local visibility follows each use and array row through edits, valida
  assert(errors.some(e=>e.message.includes('循環参照')));
  assert(errors.some(e=>e.message.includes('型・選択肢')));
 });
+
+test('nested collections keep their schema while evaluating local conditions for each inner row',()=>{
+ const def=D.sample().definition,source=D.field('enabled','A','Boolean');
+ const target=D.field('detail','C','String',{typeVisibleWhen:{fieldId:source.id,equals:true}});
+ const type=D.createType(def,'条件付き複合型',D.field('value','型','Object',{fields:[source,target]}));
+ const entries=D.field('entries','明細','Array',{initialRows:2});
+ D.setArrayItemType(def,entries,'@'+type.id);
+ const groups=D.field('groups','グループ','Array',{itemType:'Object',fields:[entries],initialRows:1});
+ def.fields=[groups];
+ const values={groups:D.defaultValue(groups)};
+ values.groups[0].entries[0].value={enabled:false,detail:'非表示'};
+ values.groups[0].entries[1].value={enabled:true,detail:'表示'};
+ const input=D.inputState(def,values);
+ assert.equal(input.visible('groups.0.entries.value.detail'),true);
+ assert.equal(input.visible('groups.0.entries.0.value.detail'),false);
+ assert.equal(input.visible('groups.0.entries.1.value.detail'),true);
+ assert.deepEqual(input.values().groups[0].entries.map(row=>row.value.detail),[undefined,'表示']);
+});

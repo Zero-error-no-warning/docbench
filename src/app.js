@@ -111,6 +111,10 @@ function conditionHTML(prefix,label,condition){
  const simple=D.simpleCondition(ws.definition,condition);
  return D.conditionEditorHTML(prefix,label,documentConditionChoices(),simple,{nodes:true,complex:!!condition?.nodeId&&!simple});
 }
+function conditionValueHTML(prefix,condition){
+ const simple=D.simpleCondition(ws.definition,condition)||condition;
+ return D.conditionValueHTML(prefix,D.fieldAt(ws.definition,simple?.field),simple?.equals);
+}
 function bindCondition(prefix,name,f){
  D.bindConditionEditor($('#app'),prefix,documentConditionChoices(),D.simpleCondition(ws.definition,f[name]),{
   openNodes:()=>openRuleEditor('target:'+f.id+':'+name),notify,

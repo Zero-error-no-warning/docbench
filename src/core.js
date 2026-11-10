@@ -247,7 +247,12 @@ function conditionValueValid(f,c){
 function inputState(def,values){
  const fields=new Map(allFields(def).map(x=>[x.path,x.field])),cache=new Map(),visiting=new Set(),runtime=root.DocBench.ruleRuntime?.(def,values,path=>visible(path));
  const rowContainers=[...fields].filter(([,f])=>['Array','Table'].includes(f.type)).map(([path])=>path);
- const rowScoped=new Set([...fields].filter(([path,f])=>f.typeVisibleWhen&&rowContainers.some(container=>path.startsWith(container+'.'))).map(([path])=>path));
+ const rowScoped=new Map();
+ for(const [path,f] of fields){
+  if(!f.typeVisibleWhen)continue;
+  const depth=rowContainers.filter(container=>path.startsWith(container+'.')).length;
+  if(depth)rowScoped.set(path,depth);
+ }
  function visible(path){
   path=String(path||'');const parent=path.includes('.')?path.slice(0,path.lastIndexOf('.')):'';
   if(/(?:^|\.)\d+$/.test(path))return visible(parent);
@@ -257,7 +262,8 @@ function inputState(def,values){
   if(visiting.has(path))return false;
   visiting.add(path);
   const local=f.typeVisibleWhen,source=local&&localConditionSource(def,path,local);
-  const structural=key===path&&rowScoped.has(key);
+  const rowDepth=rowScoped.get(key);
+  const structural=rowDepth&&(path.match(/\.\d+(?=\.|$)/g)?.length||0)<rowDepth;
   const result=(!parent||visible(parent))&&(!f.visibleWhen||matches(f.visibleWhen))&&(!local||structural||!!source&&matchesValue(source, parent+'.'+source.key,local));
   visiting.delete(path);cache.set(path,result);return result;
  }

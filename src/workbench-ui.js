@@ -22,16 +22,17 @@ function bindWorkbenchTreeSelection(host,row,attribute,select){
   queueMicrotask(()=>{const next=host.querySelector(selector);if(next?.checkVisibility())next.focus({preventScroll:true});});
  };
 }
+function conditionOptionsHTML(items,value){return items.map(({value:v,label})=>'<option value="'+D.esc(v)+'" '+(v===value?'selected':'')+'>'+D.esc(label)+'</option>').join('');}
+function conditionValueHTML(prefix,ref,value){
+ const id=prefix+'-value',select=(items,selected)=>'<select id="'+id+'">'+conditionOptionsHTML(items,selected)+'</select>';
+ if(ref?.type==='TreeEnum')return select(D.treeEntries(ref).map(x=>({value:JSON.stringify(x.path),label:x.labels.join(' ／ ')})),JSON.stringify(value));
+ if(ref?.type==='Enum')return select((ref.options||[]).map(v=>({value:v,label:v})),value);
+ if(ref?.type==='Boolean')return select([{value:'true',label:'はい（true）'},{value:'false',label:'いいえ（false）'}],String(value??true));
+ return '<input id="'+id+'" type="'+({Integer:'number',Float:'number',Date:'date',DateTime:'datetime-local'}[ref?.type]||'text')+'" value="'+D.esc(value??'')+'" '+(ref?.type==='Float'?'step="any" ':'')+(!ref?'disabled':'')+'>';
+}
 function conditionEditorHTML(prefix,label,choices,current,{nodes=false,complex=false}={}){
- const options=(items,value,empty)=> (empty?'<option value="">'+empty+'</option>':'')+items.map(({value:v,label})=>'<option value="'+D.esc(v)+'" '+(v===value?'selected':'')+'>'+D.esc(label)+'</option>').join('');
- const ref=choices.find(choice=>choice.value===current?.field)?.field,value=current?.equals,id=prefix+'-value';
- const select=(items,selected)=>'<select id="'+id+'">'+options(items,selected)+'</select>';
- let control;
- if(ref?.type==='TreeEnum')control=select(D.treeEntries(ref).map(x=>({value:JSON.stringify(x.path),label:x.labels.join(' ／ ')})),JSON.stringify(value));
- else if(ref?.type==='Enum')control=select((ref.options||[]).map(v=>({value:v,label:v})),value);
- else if(ref?.type==='Boolean')control=select([{value:'true',label:'はい（true）'},{value:'false',label:'いいえ（false）'}],String(value??true));
- else control='<input id="'+id+'" type="'+({Integer:'number',Float:'number',Date:'date',DateTime:'datetime-local'}[ref?.type]||'text')+'" value="'+D.esc(value??'')+'" '+(ref?.type==='Float'?'step="any" ':'')+(!ref?'disabled':'')+'>';
- return '<label>'+label+'<select id="'+prefix+'-field" '+(complex?'disabled':'')+'>'+options(choices,current?.field,'条件なし')+'</select></label><label>'+(current?.operator==='descendant'?'この選択肢以下に属するとき（自身を含む）':'この値に一致したとき')+control+'</label><div class="button-row">'+
+ const ref=choices.find(choice=>choice.value===current?.field)?.field;
+ return '<label>'+label+'<select id="'+prefix+'-field" '+(complex?'disabled':'')+'><option value="">条件なし</option>'+conditionOptionsHTML(choices,current?.field)+'</select></label><label>'+(current?.operator==='descendant'?'この選択肢以下に属するとき（自身を含む）':'この値に一致したとき')+conditionValueHTML(prefix,ref,current?.equals)+'</label><div class="button-row">'+
   (nodes?'<button type="button" id="'+prefix+'-nodes" class="small">'+(complex?'複合条件をノードで編集':'ノードで編集')+'</button>':'')+
   (current||complex?'<button type="button" id="'+prefix+'-clear" class="small">条件を解除</button>':'')+'</div>';
 }
@@ -471,5 +472,5 @@ function showDefinitionIssues(host,issues){
  }
  summary.replaceChildren(heading,list);summary.hidden=false;summary.focus();return true;
 }
-Object.assign(D,{conditionEditorHTML,bindConditionEditor,workbenchItemLine,workbenchTreeRow,bindWorkbenchTreeSelection,collectionRulesHTML,integerFormatHTML,bindIntegerFormat,uiIcon,mountWorkbenchUI,mountDefinitionEditorUI,mountDefinitionPreview,showDefinitionIssues});
+Object.assign(D,{conditionEditorHTML,conditionValueHTML,bindConditionEditor,workbenchItemLine,workbenchTreeRow,bindWorkbenchTreeSelection,collectionRulesHTML,integerFormatHTML,bindIntegerFormat,uiIcon,mountWorkbenchUI,mountDefinitionEditorUI,mountDefinitionPreview,showDefinitionIssues});
 })(globalThis);
