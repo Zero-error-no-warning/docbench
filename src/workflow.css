@@ -205,8 +205,10 @@ body.workflow-screen .definition-workbench .editor-primary :is(input:not([type=c
 .type-picker-control{display:flex;align-items:end;gap:6px;min-width:0}
 .type-picker-control>label{flex:1 1 auto;min-width:0}
 .type-picker-control>.type-search-open{flex:none;white-space:nowrap;margin-bottom:8px}
-.editor-name-type{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:end;gap:8px}
+.editor-name-type{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start;gap:8px}
+body.workflow-screen .definition-workbench .editor-name-type :is(input,select){display:block;width:100%;height:36px;min-width:0}
+.editor-name-type .type-picker-control{align-items:start}
 .editor-name-type .type-picker-control>label{min-width:0}
-.editor-name-type .type-search-open{display:grid;place-items:center;padding-inline:5px}
+.editor-name-type .type-search-open{align-self:end;display:grid;place-items:center;padding-inline:5px}
 .editor-variant-add>.type-picker-control{flex:1 1 190px}
 .editor-variant-add .type-picker-control>.type-search-open{margin-bottom:4px}

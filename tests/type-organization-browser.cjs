@@ -15,7 +15,7 @@ module.exports=async({page,url})=>{
   await page.locator('[data-type-select="'+id+'"]').click();
   async function assertSameRow(name,format){
    const a=await page.locator(name).boundingBox(),b=await page.locator(format).boundingBox();
-   assert(a&&b&&Math.abs(a.y-b.y)<2&&a.x+a.width<=b.x,'name and format are side by side');
+   assert(a&&b&&Math.abs(a.y-b.y)<2&&a.x+a.width<=b.x,`name and format are side by side: ${JSON.stringify({a,b})}`);
   }
   await assertSameRow('#type-name','#type-prop-type');
   for(const [key,value] of [['folder','会計 / 支出'],['tags','明細、申請']]){
