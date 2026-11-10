@@ -8,6 +8,28 @@ function workbenchItemLine(name,type,key){
  return '<span class="workbench-item-line"><span class="tree-text" title="'+label+'"><strong>'+label+'</strong>'+
   (key?'<small>'+D.esc(key)+'</small>':'')+'</span><span class="tree-type" title="'+kind+'">'+kind+'</span></span>';
 }
+function searchControls(id,label,placeholder){
+ const box=document.createElement('div');box.className='workbench-search';
+ box.innerHTML='<label class="sr-only" for="'+id+'">'+label+'</label><div class="workbench-search-control">'+uiIcon('search')+
+  '<input id="'+id+'" type="search" placeholder="'+placeholder+'" autocomplete="off"><button type="button" aria-label="検索を解除">'+uiIcon('close')+
+  '</button></div><span class="workbench-search-status" role="status" aria-live="polite"></span>';
+ return box;
+}
+function bindSearchControls(box,refresh){
+ const input=box.querySelector('input'),clear=box.querySelector('button');
+ function update(){clear.hidden=!input.value.trim();refresh();}
+ input.oninput=update;
+ input.onkeydown=event=>{if(event.key==='Escape'&&input.value){event.preventDefault();input.value='';update();}};
+ clear.onmousedown=event=>event.preventDefault();
+ clear.onclick=()=>{input.value='';update();input.focus({preventScroll:true});};
+ update();
+}
+const typeSearchPlaceholder='名前・フォルダ・タグ・子項目など';
+function searchEmptyMessage(){
+ const message=document.createElement('p');message.className='workbench-search-empty';
+ message.textContent='一致する項目がありません。検索語を変えてください。';message.hidden=true;
+ return message;
+}
 function typeFolderPaths(index){
  const folders=new Map();
  for(const {folder=[]} of index)for(let i=1;i<=folder.length;i++){
@@ -15,22 +37,17 @@ function typeFolderPaths(index){
  }
  return folders;
 }
-function typeFilterControls(index,onChange,state,{showFolders=true}={}){
+function typeTagFilter(index,onChange,state){
  const controls=document.createElement('div');controls.className='type-search-filters';
- const folders=showFolders?typeFolderPaths(index):new Map();
  const tags=[...new Set(index.flatMap(entry=>entry.tags))].sort((a,b)=>a.localeCompare(b,'ja'));
- function select(label,entries,value,onSelect){
-  const field=document.createElement('label'),control=document.createElement('select');
-  field.textContent=label;
-  for(const [key,name] of [['','すべて'],...entries])control.add(new Option(name,key));
-  control.value=entries.some(([key])=>key===value)?value:'';
-  control.onchange=()=>{onSelect(control.value);onChange();};
-  field.append(control);controls.append(field);
- }
- if(!folders.has(JSON.stringify(state.folder)))state.folder=[];
  if(!tags.includes(state.tag))state.tag='';
- if(folders.size)select('フォルダ',[...folders].map(([key,path])=>[key,path.join(' › ')]).sort((a,b)=>a[1].localeCompare(b[1],'ja')),JSON.stringify(state.folder),value=>{state.folder=value?JSON.parse(value):[];});
- if(tags.length)select('タグ',tags.map(tag=>[tag,tag]),state.tag,value=>{state.tag=value;});
+ if(!tags.length)return controls;
+ const field=document.createElement('label'),control=document.createElement('select');
+ field.textContent='タグ';control.add(new Option('すべて',''));
+ for(const tag of tags)control.add(new Option(tag,tag));
+ control.value=state.tag;
+ control.onchange=()=>{state.tag=control.value;onChange();};
+ field.append(control);controls.append(field);
  return controls;
 }
 function typeSearchDescription(entry){
@@ -38,11 +55,14 @@ function typeSearchDescription(entry){
  const reason=entry.matches.filter(match=>!['名前','キー'].includes(match.label)).map(match=>match.label+'「'+match.value.slice(0,45)+'」').join('、');
  return [location,tags,reason&&reason+'に一致'].filter(Boolean).join(' · ');
 }
-function mountTypeFolders(list,index,closed){
+function mountTypeTree(list,index,closed=new Set()){
  const folders=new Map(),entries=new Map(index.map(entry=>[entry.type.id,entry.folder]));
- const buttons=[...list.querySelectorAll('[data-type-select]')];
- for(const button of buttons){
-  const path=entries.get(button.dataset.typeSelect)||[];let parent=list;
+ const rows=[...list.querySelectorAll('[data-type-select]')].map(button=>{
+  const detail=document.createElement('small');detail.dataset.typeMatch='';button.append(detail);
+  return {button,detail,id:button.dataset.typeSelect};
+ });
+ for(const {button,id} of rows){
+  const path=entries.get(id)||[];let parent=list;
   for(let i=0;i<path.length;i++){
    const key=JSON.stringify(path.slice(0,i+1));let folder=folders.get(key);
    if(!folder){
@@ -50,22 +70,31 @@ function mountTypeFolders(list,index,closed){
     node.className='type-folder';node.dataset.typeFolder=key;
     summary.textContent=path[i];children.className='type-folder-children';
     node.append(summary,children);parent.append(node);
-    folder={node,children,buttons:[]};folders.set(key,folder);
+    folder={node,children,ids:[]};folders.set(key,folder);
     summary.onclick=event=>{
      event.preventDefault();node.open=!node.open;
      if(!list.dataset.filtered){if(node.open)closed.delete(key);else closed.add(key);}
     };
    }
-   folder.buttons.push(button);parent=folder.children;
+   folder.ids.push(id);parent=folder.children;
   }
   parent.append(button);
  }
- return (found,filtering)=>{
+ return (query,tag)=>{
+  const filtering=!!(query.trim()||tag);
+  const found=new Map(D.searchTypes(index,query,[],tag).map(entry=>[entry.type.id,entry]));
   list.dataset.filtered=filtering?'true':'';
-  for(const [key,{node,buttons}] of folders){
-   node.hidden=filtering&&!buttons.some(button=>found.has(button.dataset.typeSelect));
+  for(const {button,detail,id} of rows){
+   const entry=found.get(id);
+   button.hidden=!entry;
+   detail.textContent=entry&&filtering?typeSearchDescription(entry):'';
+   detail.hidden=!detail.textContent;
+  }
+  for(const [key,{node,ids}] of folders){
+   node.hidden=filtering&&!ids.some(id=>found.has(id));
    node.open=filtering||!closed.has(key);
   }
+  return found.size;
  };
 }
 function mountTypePickers(panel,definition){
@@ -89,28 +118,31 @@ function mountTypePickers(panel,definition){
   button.onclick=()=>{
    const dialog=document.createElement('dialog');dialog.className='type-picker';
    dialog.setAttribute('aria-label','型を検索');
-   dialog.innerHTML='<div class="type-picker-head"><h3>型を検索</h3><button type="button">閉じる</button></div><label>検索語<input type="search" placeholder="名前・フォルダ・タグ・子項目など" autocomplete="off"></label><p role="status"></p><div class="type-picker-results"></div>';
-   const input=dialog.querySelector('input'),results=dialog.querySelector('.type-picker-results'),state={};
-   function refresh(){
-    const matches=D.searchTypes(index,input.value,state.folder,state.tag);
-    dialog.querySelector('[role=status]').textContent=matches.length+' 件';
-    results.replaceChildren();
-    for(const entry of matches){
-     const item=document.createElement('button'),name=document.createElement('strong'),context=document.createElement('small');
-     item.type='button';name.textContent=entry.type.name;
-     context.textContent=typeSearchDescription(entry)||D.basicTypeLabel(entry.type.schema?.type);
-     item.append(name,context);item.onclick=()=>{
-      dialog.close();
-      select.value=options.get(entry.type.id);select.dispatchEvent(new Event('change',{bubbles:true}));
-     };
-     results.append(item);
-    }
+   dialog.innerHTML='<div class="type-picker-head"><h3>型を検索</h3><button type="button">閉じる</button></div><div class="type-picker-results"></div>';
+   const results=dialog.querySelector('.type-picker-results'),state={};
+   const box=searchControls('type-picker-search','型を検索',typeSearchPlaceholder),empty=searchEmptyMessage();
+   results.before(box,empty);
+   const input=box.querySelector('input'),status=box.querySelector('[role=status]');
+   for(const {type} of index){
+    const item=document.createElement('button');
+    item.type='button';item.className='type-list-item';item.dataset.typeSelect=type.id;
+    item.innerHTML=workbenchItemLine(type.name,D.basicTypeLabel(type.schema?.type));
+    item.onclick=()=>{
+     dialog.close();
+     select.value=options.get(type.id);select.dispatchEvent(new Event('change',{bubbles:true}));
+    };
+    results.append(item);
    }
-   input.closest('label').after(typeFilterControls(index,refresh,state));
-   input.oninput=refresh;
-   dialog.querySelector('button').onclick=()=>dialog.close();
+   const filterTypes=mountTypeTree(results,index);
+   function refresh(){
+    const count=filterTypes(input.value,state.tag);
+    status.textContent=count+(input.value.trim()||state.tag?' 件が一致':' 種類の型');empty.hidden=count>0;
+   }
+   status.before(typeTagFilter(index,refresh,state));
+   bindSearchControls(box,refresh);
+   dialog.querySelector('.type-picker-head button').onclick=()=>dialog.close();
    dialog.onclose=()=>{dialog.remove();if(button.isConnected)button.focus({preventScroll:true});};
-   panel.append(dialog);dialog.showModal();input.focus();refresh();
+   panel.append(dialog);dialog.showModal();input.focus();
   };
  }
 }
@@ -122,34 +154,24 @@ function mountWorkbenchUI(host,screen,definition){
  }
  if(library)for(const [id,label,description]of [['type-export','型を保存','型定義を保存'],['type-import','型を読込','型定義を読込']]){const button=host.querySelector('#'+id);if(button){button.textContent=label;button.setAttribute('aria-label',description);button.title=description;}}
  if(!list)return;
- const key=definition.id+':'+screen,box=document.createElement('div');box.className='workbench-search';box.innerHTML='<label class="sr-only" for="workbench-list-search">'+(library?'型を検索':'入力項目を検索')+'</label><div class="workbench-search-control">'+uiIcon('search')+'<input id="workbench-list-search" type="search" placeholder="'+'名前・キーで検索'+'" autocomplete="off"><button type="button" aria-label="検索を解除">'+uiIcon('close')+'</button></div><span class="workbench-search-status" role="status" aria-live="polite"></span>';list.before(box);
- const input=box.querySelector('input'),clear=box.querySelector('button'),status=box.querySelector('[role=status]'),empty=document.createElement('p');empty.className='workbench-search-empty';empty.textContent='一致する項目がありません。検索語を変えてください。';empty.hidden=true;list.after(empty);input.value=queries.get(key)||'';
+ const key=definition.id+':'+screen,box=searchControls('workbench-list-search',library?'型を検索':'入力項目を検索',library?typeSearchPlaceholder:'名前・キーで検索');list.before(box);
+ const input=box.querySelector('input'),status=box.querySelector('[role=status]'),empty=searchEmptyMessage();list.after(empty);input.value=queries.get(key)||'';
  const libraryIndex=library?D.typeSearchIndex(D.availableTypes(definition)):[];
- const closed=closedTypeFolders.get(key)||new Set(),updateFolders=library?mountTypeFolders(list,libraryIndex,closed):null;
+ const closed=closedTypeFolders.get(key)||new Set(),filterTypes=library?mountTypeTree(list,libraryIndex,closed):null;
  if(library)closedTypeFolders.set(key,closed);
  const filterKey=key+':organization',filter=queries.get(filterKey)||{};
- if(library){box.querySelector('[role=status]').before(typeFilterControls(libraryIndex,apply,filter,{showFolders:false}));queries.set(filterKey,filter);input.placeholder='名前・フォルダ・タグ・子項目など';}
+ if(library){status.before(typeTagFilter(libraryIndex,apply,filter));queries.set(filterKey,filter);}
  let searching=!!input.value.trim();const branches=[...list.querySelectorAll('.tree-branch')],expanded=new Map(branches.map(branch=>{const children=branch.querySelector(':scope > [id]');return [children,children?.hidden];}));
- function apply(){const wasSearching=searching,query=input.value.trim().toLocaleLowerCase(),filtering=!!(query||filter.tag);if(query&&!searching)for(const child of expanded.keys())if(child)expanded.set(child,child.hidden);searching=!!query;const entries=[...list.querySelectorAll(library?'[data-type-select]':'[data-select]')],matches=new Set(entries.filter(el=>!query||el.textContent.toLocaleLowerCase().includes(query)));queries.set(key,input.value);clear.hidden=!query;
+ function apply(){const wasSearching=searching,query=input.value.trim().toLocaleLowerCase(),filtering=!!(query||filter.tag);if(query&&!searching)for(const child of expanded.keys())if(child)expanded.set(child,child.hidden);searching=!!query;const entries=[...list.querySelectorAll(library?'[data-type-select]':'[data-select]')],matches=new Set(entries.filter(el=>!query||el.textContent.toLocaleLowerCase().includes(query)));queries.set(key,input.value);
   if(library){
-   const found=new Map(D.searchTypes(libraryIndex,input.value,[],filter.tag).map(entry=>[entry.type.id,entry]));
    matches.clear();
-   for(const el of entries){
-    const entry=found.get(el.dataset.typeSelect);
-    el.hidden=!entry;
-    if(entry){
-     matches.add(el);
-     let detail=el.querySelector('[data-type-match]');
-     if(!detail){detail=document.createElement('small');detail.dataset.typeMatch='';el.append(detail);}
-     detail.textContent=filtering?typeSearchDescription(entry):'';detail.hidden=!detail.textContent;
-    }
-   }
-   updateFolders(found,filtering);
+   filterTypes(input.value,filter.tag);
+   for(const el of entries)if(!el.hidden)matches.add(el);
   }
   else {const visit=(branch,ancestorMatch=false)=>{const item=branch.querySelector(':scope > [data-select]'),children=branch.querySelector(':scope > [id]'),own=matches.has(item),childBranches=children?[...children.children].filter(el=>el.classList.contains('tree-branch')):[],childMatch=childBranches.map(child=>visit(child,ancestorMatch||own)).some(Boolean),visible=!query||ancestorMatch||own||childMatch;branch.hidden=!visible;if(children){children.hidden=query?!visible:expanded.get(children);const toggle=item.querySelector('[data-tree-toggle]');if(toggle){toggle.setAttribute('aria-expanded',String(!children.hidden));toggle.textContent=children.hidden?'▸':'▾';toggle.setAttribute('aria-label',item.querySelector('strong').textContent+'の子項目を'+(children.hidden?'展開':'折りたたむ'));}}return own||childMatch;};for(const branch of [...list.children].filter(el=>el.classList.contains('tree-branch')))visit(branch);}
   const count=matches.size;status.textContent=filtering?count+' 件が一致':entries.length+(library?' 種類の型':' 項目');empty.hidden=count>0||!filtering;if(wasSearching&&!query){const selected=list.querySelector('.selected');if(selected){const rect=selected.getBoundingClientRect(),bounds=list.getBoundingClientRect();if(rect.top<bounds.top)list.scrollTop+=rect.top-bounds.top;else if(rect.bottom>bounds.bottom)list.scrollTop+=rect.bottom-bounds.bottom;}}
  }
- input.oninput=apply;input.onkeydown=event=>{if(event.key==='Escape'&&input.value){event.preventDefault();input.value='';apply();}};clear.onmousedown=event=>event.preventDefault();clear.onclick=()=>{input.value='';apply();input.focus({preventScroll:true});};apply();
+ bindSearchControls(box,apply);
  if(!library)list.addEventListener('click',event=>{if(!input.value.trim()||event.target.closest('[data-tree-toggle]'))return;const item=event.target.closest('[data-select]');if(!item)return;for(let branch=item.parentElement.parentElement?.closest('.tree-branch');branch;branch=branch.parentElement?.closest('.tree-branch')){const toggle=branch.querySelector(':scope > .tree-item > [data-tree-toggle]');const children=branch.querySelector(':scope > [id]');if(toggle&&expanded.get(children)){toggle.setAttribute('aria-expanded','false');toggle.click();}}},{capture:true});
  for(const branch of branches){const toggle=branch.querySelector(':scope > .tree-item > [data-tree-toggle]'),children=branch.querySelector(':scope > [id]');toggle?.addEventListener('click',()=>expanded.set(children,children.hidden));}
  for(const el of list.querySelectorAll('[data-select]')){el.tabIndex=0;el.setAttribute('role','button');el.setAttribute('aria-pressed',String(el.classList.contains('selected')));el.onkeydown=event=>{if(event.target!==el||!['Enter',' '].includes(event.key))return;event.preventDefault();const id=el.dataset.select;el.click();queueMicrotask(()=>host.querySelector('[data-select="'+CSS.escape(id)+'"]')?.focus({preventScroll:true}));};}

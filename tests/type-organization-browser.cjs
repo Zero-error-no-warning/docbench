@@ -31,6 +31,7 @@ module.exports=async({page,url})=>{
   const type=page.locator('[data-type-select="'+id+'"]');
   const accounting=page.locator('.type-folder').filter({has:page.locator('summary:text-is("会計")')}).first();
   assert.equal(await type.locator('xpath=ancestor::details[contains(@class,"type-folder")]').count(),2);
+  assert.equal(await accounting.evaluate(el=>getComputedStyle(el).borderTopWidth),'0px');
   await accounting.locator(':scope > summary').click();
   assert(!await type.isVisible());
   const listSearch=page.locator('#workbench-list-search');
@@ -71,8 +72,22 @@ module.exports=async({page,url})=>{
   await assertItemLine(page.locator('.tree-item.selected'),'短い文字');
   await page.getByRole('button',{name:'入力形式の候補を検索'}).click();
   const dialog=page.getByRole('dialog',{name:'型を検索'});
-  await dialog.getByRole('searchbox').fill('会計 交通手段');
-  await dialog.getByRole('button',{name:/^旅費/}).click();
+  const pickerType=dialog.locator('[data-type-select="'+id+'"]');
+  const pickerFolder=dialog.locator('.type-folder').filter({has:page.locator('summary:text-is("会計")')}).first();
+  const pickerSearch=dialog.getByRole('searchbox');
+  await assertItemLine(pickerType,'複合型');
+  assert.equal(await pickerType.locator('xpath=ancestor::details[contains(@class,"type-folder")]').count(),2);
+  assert.equal(await pickerFolder.evaluate(el=>getComputedStyle(el).borderTopWidth),'0px');
+  assert.equal(await dialog.getByRole('combobox',{name:'フォルダ'}).count(),0);
+  await pickerFolder.locator(':scope > summary').click();
+  assert(!await pickerType.isVisible());
+  await pickerSearch.fill('会計 交通手段');
+  assert.equal(await dialog.locator('.type-list-item:visible').count(),1);
+  await dialog.getByRole('button',{name:'検索を解除'}).click();
+  assert(!await pickerType.isVisible());
+  await dialog.getByRole('combobox',{name:'タグ'}).selectOption('明細');
+  assert.equal(await dialog.locator('.type-list-item:visible').count(),1);
+  await pickerType.click();
   assert.equal(await page.locator('[data-prop=type]').inputValue(),'@'+id);
 
   await page.locator('#add-field').click();
