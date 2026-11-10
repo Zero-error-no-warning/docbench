@@ -1,7 +1,7 @@
 /* Reusable field schemas live in the complete Definition and share its history. */
 (function(root){
 'use strict';const D=root.DocBench;
-const instanceKeys=['id','key','label','description','section','group','required','visibleWhen','requiredWhen'];
+const instanceKeys=['id','key','label','description','section','group','required','visibleWhen','requiredWhen','typeVisibleWhen'];
 function builtinTypeDefinitions(){return ['fiscalYear','year'].map(key=>{const schema=D.field('value',key==='fiscalYear'?'和暦年度':'和暦年','Object',D.yearInputExample());schema.id='builtin_'+key+'_root';schema.fields.forEach(f=>f.id='builtin_'+key+'_'+f.key);schema.fields[1].presentation.suffix=key==='fiscalYear'?'年度':'年';return {id:'builtin_'+key,key,name:schema.label,description:key==='fiscalYear'?'元号と年数で年度を入力します。':'元号と年数で年を入力します。',schema,source:'standard'};});}
 function availableTypes(def){const local=Array.isArray(def.typeDefinitions)?def.typeDefinitions:[];return [...local.filter(t=>t&&typeof t==='object'),...builtinTypeDefinitions().filter(t=>!local.some(x=>x?.id===t.id))];}
 function moveType(def,id,index){const types=availableTypes(def),from=types.findIndex(t=>t.id===id);if(from<0||!Number.isInteger(index))return false;const to=Math.max(0,Math.min(types.length-1,index));if(from===to)return false;types.splice(to,0,types.splice(from,1)[0]);def.typeDefinitions=types.map(t=>localType(def,t.id)||D.clone(t));return true;}
@@ -93,7 +93,24 @@ function bindArrayVariantSettings(host,config){
  panel.querySelectorAll('[data-variant-remove]').forEach(button=>button.onclick=()=>config.change(f=>{f.fields=f.fields.filter(c=>c.id!==button.dataset.variantRemove);}));
 }
 // Nested references keep their own source-field identities; only the outer binding is removed.
-function cleanTypeSchema(field,preserveRootRef=false){const schema=D.clone(field);function walk(f,isRoot,bound){if(isRoot&&!preserveRootRef)delete f.typeRef;if(!bound)delete f.typeFieldId;delete f.requiredOverride;delete f.visibleWhen;delete f.requiredWhen;f.id=D.uid();if(isRoot){f.key='value';f.section='';f.group='';f.description='';f.required=false;}for(const c of f.fields||[])walk(c,false,bound||!!f.typeRef);}walk(schema,true,false);return schema;}
+function remapLocalConditions(schema,ids){
+ for(const {field} of D.allFields({fields:[schema]})){
+  const condition=field.typeVisibleWhen;
+  if(ids.has(condition?.fieldId))condition.fieldId=ids.get(condition.fieldId);
+ }
+}
+function cleanTypeSchema(field,preserveRootRef=false){
+ const schema=D.clone(field),ids=new Map();
+ function walk(f,isRoot,bound){
+  if(isRoot&&!preserveRootRef)delete f.typeRef;
+  if(!bound)delete f.typeFieldId;
+  delete f.requiredOverride;delete f.visibleWhen;delete f.requiredWhen;
+  const id=D.uid();ids.set(f.id,id);f.id=id;
+  if(isRoot){f.key='value';f.section='';f.group='';f.description='';f.required=false;}
+  for(const c of f.fields||[])walk(c,false,bound||!!f.typeRef);
+ }
+ walk(schema,true,false);remapLocalConditions(schema,ids);return schema;
+}
 function directTypeRefs(schema){const result=[];function walk(f,path){if(!f||typeof f!=='object')return;if(f.typeRef!==undefined){result.push({field:f,path});return;}for(const c of Array.isArray(f.fields)?f.fields:[])walk(c,path+'.'+c.key);}walk(schema,schema?.key||'value');return result;}
 function canUseType(def,ownerId,typeId){const seen=new Set();function reaches(id){if(id===ownerId)return true;if(seen.has(id))return false;seen.add(id);const type=availableTypes(def).find(t=>t?.id===id);return !!type&&directTypeRefs(type.schema).some(x=>reaches(x.field.typeRef?.id));}return !reaches(typeId);}
 function referenceErrors(fields,def){const errors=[];for(const {field,path}of D.allFields({fields})){if((field.type==='Union'||field.itemVariants)&&Array.isArray(field.fields)){
@@ -101,10 +118,37 @@ function referenceErrors(fields,def){const errors=[];for(const {field,path}of D.
  if(ids.some(id=>typeof id!=='string')||new Set(ids).size!==ids.length)errors.push({path,message:'明細の型は登録したObject型から重複せずに選んでください'});
  }if(field.typeRef===undefined)continue;const ref=field.typeRef;if(!ref||typeof ref!=='object'||Array.isArray(ref)||typeof ref.id!=='string'||Object.keys(ref).some(k=>k!=='id')){errors.push({path:path+'.typeRef',message:'型のIDだけを指定してください'});continue;}const type=localType(def,ref.id);if(!type)errors.push({path:path+'.typeRef',message:'参照する型がDefinitionに含まれていません'});else if(type.schema&&typeof type.schema==='object'&&!D.equal(instanceTypeShape(field,type.schema),schemaShape(type.schema)))errors.push({path:path+'.typeRef',message:'項目の構造が型の定義と一致しません'});}return errors;}
 function typeSchemaErrors(schema,def={fields:[]},ownerId){if(!schema||typeof schema!=='object'||Array.isArray(schema))return [{path:'schema',message:'型の項目定義が必要です'}];const plain=D.clone(schema);for(const {field}of D.allFields({fields:[plain]})){if(D.arrayItemField(field))field.itemType='Object';delete field.typeRef;delete field.typeFieldId;delete field.requiredOverride;}const errors=D.validateDefinition({fields:[plain]},undefined,{validateTypes:false}).errors;for(const {field,path}of D.allFields({fields:[schema]})){if(field.requiredOverride!==undefined)errors.push({path,message:'必須の上書きは書類の項目側で設定してください'});if(field.visibleWhen||field.requiredWhen)errors.push({path,message:'表示・必須条件は書類の項目側で設定してください'});}errors.push(...referenceErrors([schema],def));if(schema.typeRef)errors.push({path:'schema.typeRef',message:'登録型は子項目で使用してください'});if(ownerId)for(const {field,path}of directTypeRefs(schema))if(!canUseType(def,ownerId,field.typeRef?.id))errors.push({path,message:'型の循環参照はできません'});if(schema.key!=='value')errors.push({path:'schema.key',message:'型のルートキーはvalueです'});return errors;}
-function createType(def,name='新しい型',schema=D.field('value','値','String')){let i=1,key='customType';while(availableTypes(def).some(t=>t.key===key))key='customType'+(++i);const t={id:D.uid(),key,name,description:'',schema:cleanTypeSchema(schema)};t.schema.label=name;(def.typeDefinitions||=[]).push(t);return t;}
+function createType(def,name='新しい型',schema=D.field('value','値','String')){let i=1,key='customType';while(availableTypes(def).some(t=>t.key===key))key='customType'+(++i);const t={id:D.uid(),key,name,description:'',schema:cleanTypeSchema(schema)};t.schema.label=name;delete t.schema.typeVisibleWhen;(def.typeDefinitions||=[]).push(t);return t;}
 function canonical(v){return Array.isArray(v)?v.map(canonical):v&&typeof v==='object'?Object.fromEntries(Object.entries(v).sort(([a],[b])=>a.localeCompare(b)).map(([k,x])=>[k,canonical(x)])):v;}
-function schemaShape(f,isRoot=true){const out={};for(const [key,value]of Object.entries(f).sort(([a],[b])=>a.localeCompare(b))){if(['id','typeFieldId','requiredOverride','visibleWhen','requiredWhen'].includes(key)||isRoot&&(key==='typeRef'||instanceKeys.includes(key)))continue;out[key]=key==='fields'&&Array.isArray(value)?value.map(c=>schemaShape(c,false)):canonical(value);}return out;}
-function instantiateSchema(schema,ref,existing={}){function expand(schema,old,isRoot){const f=D.clone(schema);f.id=old?.id||D.uid();if(!isRoot)f.typeFieldId=schema.id;if(f.fields)f.fields=schema.fields.map(c=>expand(c,old?.fields?.find(o=>o.typeFieldId===c.id)||old?.fields?.find(o=>o.key===c.key),false));if(D.arrayItemField(f))f.itemType=D.arrayItemField(f).type;for(const k of ['visibleWhen','requiredWhen'])if(old?.[k])f[k]=D.clone(old[k]);if(!isRoot){if(typeof old?.requiredOverride==='boolean'){f.requiredOverride=old.requiredOverride;f.required=old.requiredOverride;}else if(old?.requiredWhen)f.required=false;}if(isRoot){for(const k of instanceKeys)if(Object.hasOwn(existing,k))f[k]=D.clone(existing[k]);f.required=!!existing.required;f.typeRef={id:ref.id};}return f;}return expand(schema,existing,true);}
+function schemaShape(f,isRoot=true,siblings=[]){
+ const out={};
+ for(const [key,value] of Object.entries(f).sort(([a],[b])=>a.localeCompare(b))){
+  if(['id','typeFieldId','requiredOverride','visibleWhen','requiredWhen'].includes(key)||isRoot&&(key==='typeRef'||instanceKeys.includes(key)))continue;
+  if(key==='fields'&&Array.isArray(value))out[key]=value.map(c=>schemaShape(c,false,value));
+  else if(key==='typeVisibleWhen'&&value?.fieldId)out[key]=canonical({...value,fieldId:siblings.find(c=>c.id===value.fieldId)?.key??value.fieldId});
+  else out[key]=canonical(value);
+ }
+ return out;
+}
+function instantiateSchema(schema,ref,existing={}){
+ const ids=new Map();
+ function expand(schema,old,isRoot){
+  const f=D.clone(schema);f.id=old?.id||D.uid();ids.set(schema.id,f.id);
+  if(!isRoot)f.typeFieldId=schema.id;
+  if(f.fields)f.fields=schema.fields.map(c=>expand(c,old?.fields?.find(o=>o.typeFieldId===c.id)||old?.fields?.find(o=>o.key===c.key),false));
+  if(D.arrayItemField(f))f.itemType=D.arrayItemField(f).type;
+  for(const k of ['visibleWhen','requiredWhen'])if(old?.[k])f[k]=D.clone(old[k]);
+  if(!isRoot){
+   if(typeof old?.requiredOverride==='boolean'){f.requiredOverride=old.requiredOverride;f.required=old.requiredOverride;}
+   else if(old?.requiredWhen)f.required=false;
+  }else{
+   for(const k of instanceKeys)if(Object.hasOwn(existing,k))f[k]=D.clone(existing[k]);
+   f.required=!!existing.required;f.typeRef={id:ref.id};
+  }
+  return f;
+ }
+ const field=expand(schema,existing,true);remapLocalConditions(field,ids);return field;
+}
 // Refresh templates in dependency order before expanding document instances.
 function refreshTypeSchemas(def){const active=new Set(),done=new Set();function visit(id,depth=0){if(active.has(id))throw Error('型の循環参照はできません');if(depth>16)throw Error('型の入れ子は16段階以内にしてください');if(done.has(id))return;active.add(id);const t=ensureLocalType(def,id);if(!t.schema)throw Error('型の定義がありません');for(const {field}of directTypeRefs(t.schema)){const ref=field.typeRef;if(!ref||typeof ref.id!=='string')throw Error('型のIDだけを指定してください');visit(ref.id,depth+1);const next=instantiateSchema(localType(def,ref.id).schema,ref,field);for(const k of Object.keys(field))delete field[k];Object.assign(field,next);}normalizeArrayItemTypes([t.schema]);active.delete(id);done.add(id);}for(const t of [...(def.typeDefinitions||[])])visit(t.id);}
 function instantiateType(def,ref,existing){ensureLocalType(def,ref.id);refreshTypeSchemas(def);return instantiateSchema(localType(def,ref.id).schema,ref,existing);}
@@ -139,5 +183,5 @@ function normalizeDefinitionTypes(def){if(!def)return;normalizeArrayItemTypes(de
  def.typeDefinitions=converted;for(const t of converted)if(t?.schema)normalizeArrayItemTypes([t.schema]);
 }
 function normalizeTypeModels(value){if(value.kind==='Workspace'){normalizeDefinitionTypes(value.definition);for(const node of value.history||[])normalizeDefinitionTypes(node.state?.definition);}else if(value.kind==='Definition'){normalizeDefinitionTypes(value);for(const node of value.history?.nodes||[])normalizeDefinitionTypes(node.state);}else if(value.kind==='TypeLibrary')normalizeDefinitionTypes(value);return value;}
-Object.assign(D,{basicTypeLabel,typeOrganization,typeSearchIndex,searchTypes,exportTypeLibrary,importTypeLibrary,builtinTypeDefinitions,availableTypes,moveType,arrayItemType,arrayItemChoices,setArrayItemType,addArrayVariant,arrayVariantSettings,bindArrayVariantSettings,canUseType,localType,ensureLocalType,typeName,cleanTypeSchema,typeSchemaErrors,createType,instantiateType,applyType,synchronizeTypes,detachType,typeUsages,validateTypeLibrary,normalizeTypeModels});
+Object.assign(D,{remapLocalConditions,basicTypeLabel,typeOrganization,typeSearchIndex,searchTypes,exportTypeLibrary,importTypeLibrary,builtinTypeDefinitions,availableTypes,moveType,arrayItemType,arrayItemChoices,setArrayItemType,addArrayVariant,arrayVariantSettings,bindArrayVariantSettings,canUseType,localType,ensureLocalType,typeName,cleanTypeSchema,typeSchemaErrors,createType,instantiateType,applyType,synchronizeTypes,detachType,typeUsages,validateTypeLibrary,normalizeTypeModels});
 })(globalThis);

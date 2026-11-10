@@ -22,6 +22,42 @@ function bindWorkbenchTreeSelection(host,row,attribute,select){
   queueMicrotask(()=>{const next=host.querySelector(selector);if(next?.checkVisibility())next.focus({preventScroll:true});});
  };
 }
+function conditionEditorHTML(prefix,label,choices,current,{nodes=false,complex=false}={}){
+ const options=(items,value,empty)=> (empty?'<option value="">'+empty+'</option>':'')+items.map(({value:v,label})=>'<option value="'+D.esc(v)+'" '+(v===value?'selected':'')+'>'+D.esc(label)+'</option>').join('');
+ const ref=choices.find(choice=>choice.value===current?.field)?.field,value=current?.equals,id=prefix+'-value';
+ const select=(items,selected)=>'<select id="'+id+'">'+options(items,selected)+'</select>';
+ let control;
+ if(ref?.type==='TreeEnum')control=select(D.treeEntries(ref).map(x=>({value:JSON.stringify(x.path),label:x.labels.join(' ／ ')})),JSON.stringify(value));
+ else if(ref?.type==='Enum')control=select((ref.options||[]).map(v=>({value:v,label:v})),value);
+ else if(ref?.type==='Boolean')control=select([{value:'true',label:'はい（true）'},{value:'false',label:'いいえ（false）'}],String(value??true));
+ else control='<input id="'+id+'" type="'+({Integer:'number',Float:'number',Date:'date',DateTime:'datetime-local'}[ref?.type]||'text')+'" value="'+D.esc(value??'')+'" '+(ref?.type==='Float'?'step="any" ':'')+(!ref?'disabled':'')+'>';
+ return '<label>'+label+'<select id="'+prefix+'-field" '+(complex?'disabled':'')+'>'+options(choices,current?.field,'条件なし')+'</select></label><label>'+(current?.operator==='descendant'?'この選択肢以下に属するとき（自身を含む）':'この値に一致したとき')+control+'</label><div class="button-row">'+
+  (nodes?'<button type="button" id="'+prefix+'-nodes" class="small">'+(complex?'複合条件をノードで編集':'ノードで編集')+'</button>':'')+
+  (current||complex?'<button type="button" id="'+prefix+'-clear" class="small">条件を解除</button>':'')+'</div>';
+}
+function bindConditionEditor(host,prefix,choices,current,{change,openNodes,notify}){
+ const find=suffix=>host.querySelector('#'+prefix+'-'+suffix),source=find('field'),clear=find('clear'),nodes=find('nodes');
+ if(!source)return;
+ if(clear)clear.onclick=()=>change(null);
+ if(nodes)nodes.onclick=openNodes;
+ source.onchange=()=>{
+  const field=source.value,ref=choices.find(x=>x.value===field)?.field;
+  if(!ref){change(null);return;}
+  const equals=ref.type==='TreeEnum'?D.treeEntries(ref).find(x=>!x.node.children?.length)?.path||[]:ref.type==='Enum'?ref.options?.[0]||'':ref.type==='Boolean'?true:['Integer','Float'].includes(ref.type)?0:'';
+  change({field,equals});
+ };
+ find('value').onchange=event=>{
+  const ref=choices.find(x=>x.value===current?.field)?.field;if(!ref)return;
+  let equals=event.target.value;
+  if(ref.type==='TreeEnum')equals=JSON.parse(equals);
+  if(ref.type==='Boolean')equals=equals==='true';
+  if(['Integer','Float'].includes(ref.type)){
+   equals=event.target.valueAsNumber;
+   if(!Number.isFinite(equals)||ref.type==='Integer'&&!Number.isInteger(equals)){notify('条件の値に'+(ref.type==='Integer'?'整数':'数値')+'を入力してください');return;}
+  }
+  change({...current,equals});
+ };
+}
 function searchControls(id,label,placeholder){
  const box=document.createElement('div');box.className='workbench-search';
  box.innerHTML='<label class="sr-only" for="'+id+'">'+label+'</label><div class="workbench-search-control">'+uiIcon('search')+
@@ -435,5 +471,5 @@ function showDefinitionIssues(host,issues){
  }
  summary.replaceChildren(heading,list);summary.hidden=false;summary.focus();return true;
 }
-Object.assign(D,{workbenchItemLine,workbenchTreeRow,bindWorkbenchTreeSelection,collectionRulesHTML,integerFormatHTML,bindIntegerFormat,uiIcon,mountWorkbenchUI,mountDefinitionEditorUI,mountDefinitionPreview,showDefinitionIssues});
+Object.assign(D,{conditionEditorHTML,bindConditionEditor,workbenchItemLine,workbenchTreeRow,bindWorkbenchTreeSelection,collectionRulesHTML,integerFormatHTML,bindIntegerFormat,uiIcon,mountWorkbenchUI,mountDefinitionEditorUI,mountDefinitionPreview,showDefinitionIssues});
 })(globalThis);

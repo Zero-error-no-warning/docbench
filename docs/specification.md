@@ -59,6 +59,7 @@ LLMへの指示例：
 | options | Enum/MultiEnumの文字列選択肢、重複不可 |
 | minSelections / maxSelections | MultiEnum選択数 |
 | visibleWhen | `{ "field":"kind", "equals":"A" }`。条件に一致する場合だけ、入力・検証・書類出力の対象にする |
+| typeVisibleWhen | `{ "fieldId":"sibling-id", "equals":"A" }`。同じObjectの別の子項目をIDで参照する型内の表示条件。型の展開時に使用箇所の項目IDへ置き換え、配列では各行の値を評価する。書類の `visibleWhen` と併用した場合は両方が成立するときに表示する |
 | requiredWhen | `{ "field":"status", "equals":"完了" }`。ルートの入力値を参照し、型を含めて一致したら必須 |
 | section / group | フォーム内の見出し。配列順で表示 |
 | description | 入力者向け説明 |

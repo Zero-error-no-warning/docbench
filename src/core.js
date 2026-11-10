@@ -232,24 +232,58 @@ function allFields(def){const out=[],seen=new WeakSet();function visit(fs,p){for
 const conditionTypes=['String','Text','Integer','Float','Boolean','Date','DateTime','Enum','TreeEnum'];
 function schemaPath(path){return String(path).replace(/\[\d+\]/g,'').split('.').filter(p=>!/^\d+$/.test(p)).join('.');}
 function conditionFields(def){const all=allFields(def);return all.filter(x=>conditionTypes.includes(x.field.type)&&!all.some(p=>x.path.startsWith(p.path+'.')&&['Array','Table'].includes(p.field.type)));}
+function localConditionSource(def,path,condition){
+ const parent=path.includes('.')?path.slice(0,path.lastIndexOf('.')):'',owner=parent&&fieldAt(def,schemaPath(parent));
+ return owner?.type==='Object'?owner.fields?.find(f=>f.id===condition?.fieldId):undefined;
+}
+function conditionValueValid(f,c){
+ if(!f||!conditionTypes.includes(f.type))return false;
+ const v=c.equals;
+ if(f.type==='TreeEnum')return Array.isArray(v)&&v.length>0&&!root.DocBench.treeValueError?.(f,v,true);
+ if(f.type==='Boolean')return typeof v==='boolean';
+ if(numberTypes.includes(f.type))return typeof v==='number'&&Number.isFinite(v)&&(f.type!=='Integer'||Number.isInteger(v));
+ return typeof v==='string'&&(f.type!=='Enum'||f.options?.includes(v));
+}
 function inputState(def,values){
  const fields=new Map(allFields(def).map(x=>[x.path,x.field])),cache=new Map(),visiting=new Set(),runtime=root.DocBench.ruleRuntime?.(def,values,path=>visible(path));
- function visible(path){path=schemaPath(path);if(cache.has(path))return cache.get(path);const f=fields.get(path);
-  if(!f){const parent=path.slice(0,path.lastIndexOf('.'));return path.endsWith('.value')&&fields.get(parent)?.type==='Array'?visible(parent):false;}
+ const rowContainers=[...fields].filter(([,f])=>['Array','Table'].includes(f.type)).map(([path])=>path);
+ const rowScoped=new Set([...fields].filter(([path,f])=>f.typeVisibleWhen&&rowContainers.some(container=>path.startsWith(container+'.'))).map(([path])=>path));
+ function visible(path){
+  path=String(path||'');const parent=path.includes('.')?path.slice(0,path.lastIndexOf('.')):'';
+  if(/(?:^|\.)\d+$/.test(path))return visible(parent);
+  if(cache.has(path))return cache.get(path);
+  const key=schemaPath(path),f=fields.get(key);
+  if(!f)return path.endsWith('.value')&&fields.get(schemaPath(parent))?.type==='Array'?visible(parent):false;
   if(visiting.has(path))return false;
-  visiting.add(path);const parent=path.includes('.')?path.slice(0,path.lastIndexOf('.')):null;
-  const result=(!parent||visible(parent))&&(!f.visibleWhen||matches(f.visibleWhen));visiting.delete(path);cache.set(path,result);return result;
+  visiting.add(path);
+  const local=f.typeVisibleWhen,source=local&&localConditionSource(def,path,local);
+  const structural=key===path&&rowScoped.has(key);
+  const result=(!parent||visible(parent))&&(!f.visibleWhen||matches(f.visibleWhen))&&(!local||structural||!!source&&matchesValue(source, parent+'.'+source.key,local));
+  visiting.delete(path);cache.set(path,result);return result;
  }
- function matches(condition){if(condition?.nodeId){const result=runtime?.evaluate(condition.nodeId);return result?.status==='known'&&result.valueType==='boolean'&&result.value===true;}if(!condition||!visible(condition.field))return false;const f=fields.get(condition.field);if(f?.type==='TreeEnum')return root.DocBench.treePredicate(f,get(values,condition.field),condition.equals,condition.operator||'eq')===true;return get(values,condition.field)!==undefined&&equal(get(values,condition.field),condition.equals);}
+ function matchesValue(f,path,condition){
+  if(!visible(path))return false;
+  const value=get(values,path);
+  return f?.type==='TreeEnum'?root.DocBench.treePredicate(f,value,condition.equals,condition.operator||'eq')===true:value!==undefined&&equal(value,condition.equals);
+ }
+ function matches(condition){if(condition?.nodeId){const result=runtime?.evaluate(condition.nodeId);return result?.status==='known'&&result.valueType==='boolean'&&result.value===true;}return !!condition&&matchesValue(fields.get(condition.field),condition.field,condition);}
  function required(f){return !!f.required||matches(f.requiredWhen);}
+ function walk(fs,obj,prefix,visit){
+  for(const f of fs||[]){const path=prefix?prefix+'.'+f.key:f.key,v=obj?.[f.key];visit(f,path);
+   if(f.type==='Object')walk(f.fields,v,path,visit);
+   else if(f.type==='Union')walk([arrayVariant(f,v)].filter(Boolean),v,path,visit);
+   else if(['Array','Table'].includes(f.type)&&Array.isArray(v))v.forEach((row,i)=>walk(rowFields(f,row),row,path+'.'+i,visit));
+  }
+ }
+ function signature(){const state=[...fields].map(([path,f])=>[path,visible(path),required(f)]);if(rowScoped.size)walk(def.fields,values,'',(f,path)=>{if(rowScoped.has(schemaPath(path)))state.push([path,visible(path),required(f)]);});return JSON.stringify(state);}
  function project(fs,obj,prefix){if(!obj||typeof obj!=='object'||Array.isArray(obj))return clone(obj);const result={};
   for(const [key,value] of Object.entries(obj))if(key.startsWith('_'))result[key]=clone(value);
   for(const f of fs||[]){const path=prefix?prefix+'.'+f.key:f.key;if(!visible(path)||!Object.hasOwn(obj,f.key))continue;const value=obj[f.key];
-   result[f.key]=f.type==='Object'?project(f.fields,value,path):f.type==='Union'?project([arrayVariant(f,value)].filter(Boolean),value,path):['Array','Table'].includes(f.type)&&Array.isArray(value)?value.map(row=>project(rowFields(f,row),row,path)):clone(value);
+   result[f.key]=f.type==='Object'?project(f.fields,value,path):f.type==='Union'?project([arrayVariant(f,value)].filter(Boolean),value,path):['Array','Table'].includes(f.type)&&Array.isArray(value)?value.map((row,i)=>project(rowFields(f,row),row,path+'.'+i)):clone(value);
   }return result;
  }
  function schema(fs,prefix){return (fs||[]).filter(f=>visible(prefix?prefix+'.'+f.key:f.key)).map(f=>({...clone(f),...(f.fields?{fields:schema(f.fields,prefix?prefix+'.'+f.key:f.key)}:{})}));}
- let projected;return {visible,matches,required,values:()=>projected??(projected=project(def.fields,values,'')),definition:()=>({...def,fields:schema(def.fields,'')})};
+ let projected;return {visible,matches,required,signature,values:()=>projected??(projected=project(def.fields,values,'')),definition:()=>({...def,fields:schema(def.fields,'')})};
 }
 function validateDefinition(def,render,{validateTypes=true}={}) {
  const errors=[],warnings=[],ids=new Set(), seen=new WeakSet();
@@ -267,7 +301,12 @@ function validateDefinition(def,render,{validateTypes=true}={}) {
   for(const name of ['visibleWhen','requiredWhen'])if(f[name]!=null&&!f[name].nodeId){const c=f[name],ref=conditionFields(def).find(x=>x.path===c.field)?.field;
    if(!c||typeof c!=='object'||Array.isArray(c)||!Object.hasOwn(c,'equals'))err(p+'.'+name,'条件はfieldとequalsを指定してください');
    if(!ref)err(p+'.'+name,'条件の参照項目は配列外の文字列・数値・真偽値・日付・選択項目です');
-   else if(ref.type==='TreeEnum'?!!root.DocBench.treeValueError?.(ref,c.equals,true)||!Array.isArray(c.equals)||!c.equals.length:ref.type==='Boolean'?typeof c.equals!=='boolean':['Integer','Float'].includes(ref.type)?typeof c.equals!=='number'||!Number.isFinite(c.equals)||ref.type==='Integer'&&!Number.isInteger(c.equals):typeof c.equals!=='string'||ref.type==='Enum'&&!ref.options?.includes(c.equals))err(p+'.'+name,'条件の値が参照項目の型・選択肢と一致しません');
+   else if(!conditionValueValid(ref,c))err(p+'.'+name,'条件の値が参照項目の型・選択肢と一致しません');
+  }
+  if(Object.hasOwn(f,'typeVisibleWhen')){
+   const c=f.typeVisibleWhen,ref=localConditionSource(def,p,c);
+   if(!c||typeof c!=='object'||Array.isArray(c)||ref===f||!ref)err(p+'.typeVisibleWhen','同じ複合型の別の子項目を参照してください');
+   else if(!conditionValueValid(ref,c))err(p+'.typeVisibleWhen','条件の値が参照項目の型・選択肢と一致しません');
   }
   if(f.type==='Union'&&(!Array.isArray(f.fields)||!f.fields.length||f.fields.some(c=>c?.type!=='Object')))err(p,'選択型には、候補となる複合型を1つ以上指定してください');
   if(f.itemVariants!==undefined){
@@ -281,7 +320,7 @@ function validateDefinition(def,render,{validateTypes=true}={}) {
  }}walk(def.fields,'');
  if(validateTypes&&root.DocBench.validateTypeLibrary){const check=root.DocBench.validateTypeLibrary(def);errors.push(...check.errors);warnings.push(...check.warnings);}
  const nodes=new Map(allFields(def).map(x=>[x.path,x.field])),active=new Set(),done=new Set();
- function dependency(path){if(active.has(path)){err(path+'.visibleWhen','表示条件の循環参照を検出しました');return;}if(done.has(path))return;active.add(path);const f=nodes.get(path);if(f){if(path.includes('.'))dependency(path.slice(0,path.lastIndexOf('.')));for(const ref of root.DocBench.conditionReferences?.(def,f.visibleWhen)||[f.visibleWhen?.field])if(nodes.has(ref))dependency(ref);}active.delete(path);done.add(path);}
+ function dependency(path){if(active.has(path)){err(path+'.visibleWhen','表示条件の循環参照を検出しました');return;}if(done.has(path))return;active.add(path);const f=nodes.get(path);if(f){if(path.includes('.'))dependency(path.slice(0,path.lastIndexOf('.')));for(const ref of root.DocBench.conditionReferences?.(def,f.visibleWhen)||[f.visibleWhen?.field])if(nodes.has(ref))dependency(ref);const local=localConditionSource(def,path,f.typeVisibleWhen);if(local)dependency(path.slice(0,path.lastIndexOf('.'))+'.'+local.key);}active.delete(path);done.add(path);}
  nodes.forEach((_,path)=>dependency(path));
  if(root.DocBench.validateRuleGraph)errors.push(...root.DocBench.validateRuleGraph(def,render));
  const used=new Set();for(const target of root.DocBench.ruleTargets?.({definition:def,render},true)||[])for(const ref of root.DocBench.conditionReferences?.(def,target.owner[target.property])||[])used.add(ref);
@@ -332,8 +371,8 @@ function validateDefinition(def,render,{validateTypes=true}={}) {
  return {errors,warnings};
 }
 function validateData(def,values){const errors=[],globalIds=new Set(),input=inputState(def,values);const err=(p,m)=>errors.push({path:p,message:m});
- function check(fs,obj,path){if(!obj||typeof obj!=='object'||Array.isArray(obj)){err(path,'Object型の値が必要です');return;}
- for(const f of fs||[]){const p=path?path+'.'+f.key:f.key;if(!input.visible(p))continue;const v=obj[f.key],required=input.required(f);
+ function check(fs,obj,path,dataPath=path){if(!obj||typeof obj!=='object'||Array.isArray(obj)){err(path,'Object型の値が必要です');return;}
+ for(const f of fs||[]){const p=path?path+'.'+f.key:f.key;const dp=dataPath?dataPath+'.'+f.key:f.key;if(!input.visible(dp))continue;const v=obj[f.key],required=input.required(f);
  const empty=f.type==='Union'&&v&&typeof v==='object'&&!Array.isArray(v)&&!Object.keys(v).length||v===null||v===undefined||v===''||Array.isArray(v)&&v.length===0||f.type==='RichText'&&typeof v==='string'&&!v.replace(/<[^>]*>/g,'').replace(/&nbsp;/g,' ').trim();
  if(required&&empty){err(p,'必須項目です');continue;}if(empty&&!(Array.isArray(v)&&collectionVariantField(f)))continue;
  if(['String','Text','RichText','Enum','Date','DateTime'].includes(f.type)&&typeof v!=='string'){err(p,'文字列で入力してください');continue;}
@@ -345,11 +384,11 @@ function validateData(def,values){const errors=[],globalIds=new Set(),input=inpu
  if(f.type==='TreeEnum'){const message=root.DocBench.treeValueError?.(f,v);if(message)err(p,message);}
  if(f.type==='MultiEnum'){if(!Array.isArray(v)||v.some(x=>!f.options?.includes(x))||new Set(v).size!==v.length)err(p,'複数選択の値が不正です');else{if(f.minSelections!==undefined&&v.length<f.minSelections)err(p,'選択数が不足しています');if(f.maxSelections!==undefined&&v.length>f.maxSelections)err(p,'選択数が上限を超えています');}}
  if(['File','Image'].includes(f.type)){if(!v||typeof v.name!=='string'||typeof v.content!=='string'||!/^data:[^,]*;base64,/.test(v.content))err(p,'添付情報が不正です');if(f.type==='Image'&&!/^data:image\/(png|jpeg|gif|webp);base64,/.test(v.content||''))err(p,'画像はPNG/JPEG/GIF/WebPを使用してください');}
- if(f.type==='Object')check(f.fields,v,p);
+ if(f.type==='Object')check(f.fields,v,p,dp);
  if(f.type==='Union'){
   const variant=arrayVariant(f,v),value=variant&&v[variant.key];
   if(!value||typeof value!=='object'||Array.isArray(value))err(p,'候補から型を1つ選び、その型の項目を入力してください');
-  else check([variant],v,p);
+  else check([variant],v,p,dp);
  }
  if(['Array','Table'].includes(f.type)){
   if(!Array.isArray(v)){err(p,'配列で入力してください');continue;}
@@ -360,7 +399,7 @@ function validateData(def,values){const errors=[],globalIds=new Set(),input=inpu
    if(union?.type==='Union'&&!arrayVariant(union,r[union.key]))err(rp,'この行に設定された型と入力値を確認してください');
    const fields=rowFields(f,r);
    if(f.itemVariants&&(!fields.length||!r[fields[0].key]||typeof r[fields[0].key]!=='object'||Array.isArray(r[fields[0].key])))err(rp,'この行に設定された型と入力値を確認してください');
-   check(fields,r,rp);
+   check(fields,r,rp,dp+'.'+i);
   });
   if(f.sortBy&&input.visible(schemaPath(p)+'.'+f.sortBy))for(let i=1;i<v.length;i++){const a=v[i-1][f.sortBy],b=v[i][f.sortBy];if(f.sortDirection==='desc'?a<b:a>b)err(p,'並び順制約に違反しています: '+f.sortBy);}
  }

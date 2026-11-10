@@ -93,8 +93,10 @@ function expandRich(content,def,values,input=D.inputState(def,values)){
  const pathAt=(path,scopes)=>{for(let i=scopes.length-1;i>=0;i--){const s=scopes[i];if(path===s.field||path?.startsWith(s.field+'.'))return s.path+path.slice(s.field.length);}return path;};
  function repeatScopes(field,scopes){
   const source=wordRepeatSource(def,field);
-  if(!source||!input.visible(field))return [];
-  const collectionPath=pathAt(source.path,scopes),rows=D.get(active,collectionPath);
+  if(!source)return [];
+  const collectionPath=pathAt(source.path,scopes);
+  if(!input.visible(pathAt(field,scopes)))return [];
+  const rows=D.get(active,collectionPath);
   if(!Array.isArray(rows))return [];
   return rows.flatMap((row,index)=>{
    const value=source.wrapper?row?.[source.wrapper]:row;
@@ -114,7 +116,7 @@ function expandRich(content,def,values,input=D.inputState(def,values)){
    }
    return content.length?[{...n,attrs:{...a},content}]:[];
   }
-  const copy={...n,...(n.attrs?{attrs:{...a}}:{})};if(n.type==='fieldRef'){copy.attrs={...a,valuePath:pathAt(a.field,scopes)};}
+  const copy={...n,...(n.attrs?{attrs:{...a}}:{})};if(n.type==='fieldRef'){const valuePath=pathAt(a.field,scopes);if(!input.visible(valuePath))return [];copy.attrs={...a,valuePath};}
   if(n.content)copy.content=n.content.flatMap(c=>expand(c,scopes,depth+1));return [copy];
  }return expand(content)[0]||{type:'doc',content:[]};
 }

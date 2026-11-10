@@ -5,11 +5,11 @@ module.exports=async({page,url})=>{
  const original=await page.evaluate(()=>DocBenchApp.getWorkspace());
  const heightPreference=await page.evaluate(()=>localStorage.getItem('docbench:typeListHeight'));
  try{
-  const {id,root,transport,station,supplies}=await page.evaluate(()=>{
+  const {id,root,transport,station,date,supplies}=await page.evaluate(()=>{
    const D=DocBench,w=D.sample();
    const train=D.field('transport','交通手段','Object',{fields:[D.field('station','駅')]}),travel=D.createType(w.definition,'旅費',D.field('value','旅費','Object',{fields:[train,D.field('date','利用日','Date')]}));
    const supply=D.createType(w.definition,'物品');supply.folder=['会計','物品'];
-   DocBenchApp.setWorkspace(w);return {id:travel.id,root:travel.schema.id,transport:travel.schema.fields[0].id,station:travel.schema.fields[0].fields[0].id,supplies:supply.id};
+   DocBenchApp.setWorkspace(w);return {id:travel.id,root:travel.schema.id,transport:travel.schema.fields[0].id,station:travel.schema.fields[0].fields[0].id,date:travel.schema.fields[1].id,supplies:supply.id};
   });
   await page.locator('[data-view=types]').click();
   await page.locator('[data-type-select="'+id+'"]').click();
@@ -91,6 +91,16 @@ module.exports=async({page,url})=>{
   const outlineStyle=row=>row.evaluate(el=>getComputedStyle(el).outline);
   const treeOutline=await outlineStyle(transportRow);
   await assertSameRow('#type-prop-label','#type-prop-type');
+  await reveal(page,'#visible-field');
+  await page.locator('#visible-field').selectOption(date);
+  await reveal(page,'#visible-value');
+  await page.locator('#visible-value').fill('2026-11-10');
+  await page.locator('#visible-value').dispatchEvent('change');
+  const stationPreview=page.locator('#type-preview-form [data-input="value.transport.station"]');
+  assert.equal(await stationPreview.count(),0);
+  const datePreview=page.locator('#type-preview-form [data-input="value.date"]');
+  await datePreview.fill('2026-11-10');await datePreview.dispatchEvent('change');
+  await stationPreview.waitFor();
   await publishDefinition(page);
   await page.locator('[data-view=definition]').click();
   await page.locator('#add-field').click();
@@ -123,6 +133,12 @@ module.exports=async({page,url})=>{
   assert.equal(await dialog.locator('.type-list-item:visible').count(),1);
   await pickerType.click();
   assert.equal(await page.locator('[data-prop=type]').inputValue(),'@'+id);
+  const travelKey=await page.locator('[data-prop=key]').inputValue();
+  const travelDate=page.locator('[data-input="'+travelKey+'.date"]');
+  const travelStation=page.locator('[data-input="'+travelKey+'.transport.station"]');
+  assert.equal(await travelStation.count(),0);
+  await travelDate.fill('2026-11-10');await travelDate.dispatchEvent('change');
+  await travelStation.waitFor();
   await page.getByRole('button',{name:'入力形式の候補を検索'}).click();
   assert.equal(await pickerType.getAttribute('aria-pressed'),'true');
   assert.deepEqual(await selectionStyle(pickerType),selectedStyle);
