@@ -57,6 +57,7 @@ module.exports=async({page,url})=>{
   const rootGeometry=await rowGeometry(page.locator('[data-type-select=builtin_year]'));
   assert.equal(rootGeometry.left,8);
   assert.deepEqual(await rowGeometry(page.locator('[data-type-field="'+root+'"]')),rootGeometry);
+  assert.equal((await rowGeometry(type)).left-rootGeometry.left,26);
   const selectedStyle=await selectionStyle(type);
   assert.equal(selectedStyle.borderRadius,'6px');
   assert.match(selectedStyle.boxShadow,/inset/);
@@ -78,6 +79,7 @@ module.exports=async({page,url})=>{
   assert(await page.locator('[data-type-field="'+root+'"]').isVisible());
   await rootBranch.click();assert(await transportBranch.isVisible());assert(!await stationRow.isVisible());
   await assertItemLine(page.locator('[data-type-field="'+transport+'"]'),'複合型');
+  assert.equal((await rowGeometry(page.locator('[data-type-field="'+transport+'"]'))).left-rootGeometry.left,13);
   await page.locator('.task-child-list').getByRole('button',{name:'交通手段',exact:true}).click();
   assert.equal(await page.locator('#type-prop-label').inputValue(),'交通手段');
   assert.deepEqual(await selectionStyle(page.locator('[data-type-field="'+transport+'"]')),selectedStyle);
@@ -149,6 +151,17 @@ module.exports=async({page,url})=>{
   await value.fill('12');await value.dispatchEvent('change');
   assert.equal(await value.inputValue(),'000012');
   assert.equal(await page.evaluate(key=>DocBenchApp.getWorkspace().data.values[key],key),12);
+
+  const viewport=page.viewportSize();
+  try{
+   await page.setViewportSize({width:1050,height:800});
+   for(const [screen,row] of [['types','[data-type-select=builtin_year]'],['definition','.tree-item:not(.selected)']]){
+    await page.locator('[data-view='+screen+']').click();
+    assert.equal(await page.locator('.definition-workbench').getAttribute('data-flow-layout'),'focused');
+    if(!await page.locator('.flow-source').isVisible())await page.locator('[data-task-back]').click();
+    assert.deepEqual(await rowGeometry(page.locator(row).first()),rootGeometry);
+   }
+  }finally{await page.setViewportSize(viewport);}
  }finally{
   await page.evaluate(({original,heightPreference})=>{
    DocBenchApp.setWorkspace(original);
