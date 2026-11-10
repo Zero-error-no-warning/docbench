@@ -159,7 +159,10 @@ module.exports=async({page,url})=>{
     await page.locator('[data-view='+screen+']').click();
     assert.equal(await page.locator('.definition-workbench').getAttribute('data-flow-layout'),'focused');
     if(!await page.locator('.flow-source').isVisible())await page.locator('[data-task-back]').click();
-    assert.deepEqual(await rowGeometry(page.locator(row).first()),rootGeometry);
+    if(screen==='types')await page.locator('.workbench-search').getByLabel('タグ').selectOption('');
+    const visibleRow=page.locator(row+':visible').first();
+    await visibleRow.waitFor({state:'visible'});
+    assert.deepEqual(await rowGeometry(visibleRow),rootGeometry);
    }
   }finally{await page.setViewportSize(viewport);}
  }finally{
