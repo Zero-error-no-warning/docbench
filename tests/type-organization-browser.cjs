@@ -17,6 +17,12 @@ module.exports=async({page,url})=>{
    const a=await page.locator(name).boundingBox(),b=await page.locator(format).boundingBox();
    assert(a&&b&&Math.abs(a.y-b.y)<2&&a.x+a.width<=b.x,`name and format are side by side: ${JSON.stringify({a,b})}`);
   }
+  async function assertItemLine(row,kind){
+   const line=row.locator('.workbench-item-line'),type=line.locator('.tree-type');
+   assert.equal(await type.innerText(),kind);
+   const a=await line.locator('strong').boundingBox(),b=await type.boundingBox();
+   assert(a&&b&&Math.abs(a.y+a.height/2-b.y-b.height/2)<2&&a.x+a.width<=b.x,`list name and type share a line: ${JSON.stringify({a,b})}`);
+  }
   await assertSameRow('#type-name','#type-prop-type');
   for(const [key,value] of [['folder','会計 / 支出'],['tags','明細、申請']]){
    const input='#type-'+key;await reveal(page,input);
@@ -36,6 +42,9 @@ module.exports=async({page,url})=>{
   await accounting.locator(':scope > summary').click();
   assert(await type.isVisible());
   assert(await page.locator('[data-type-select="'+supplies+'"]').isVisible());
+  await assertItemLine(type,'複合型');
+  assert(!await type.locator('[data-type-match]').isVisible());
+  assert.equal(await page.locator('.workbench-search').getByRole('combobox',{name:'フォルダ'}).count(),0);
   await page.locator('.workbench-search').getByLabel('タグ').selectOption('明細');
   assert.equal(await page.locator('.type-list-item:visible').count(),1);
   const split=page.getByRole('separator',{name:'型の一覧の高さ',exact:true});
@@ -51,10 +60,15 @@ module.exports=async({page,url})=>{
   await rootBranch.click();assert(!await transportBranch.isVisible());
   assert(await page.locator('[data-type-field="'+root+'"]').isVisible());
   await rootBranch.click();assert(await transportBranch.isVisible());assert(!await stationRow.isVisible());
+  await assertItemLine(page.locator('[data-type-field="'+transport+'"]'),'複合型');
+  await page.locator('.task-child-list').getByRole('button',{name:'交通手段',exact:true}).click();
+  assert.equal(await page.locator('#type-prop-label').inputValue(),'交通手段');
+  await assertSameRow('#type-prop-label','#type-prop-type');
   await publishDefinition(page);
   await page.locator('[data-view=definition]').click();
   await page.locator('#add-field').click();
   await assertSameRow('[data-prop=label]','[data-prop=type]');
+  await assertItemLine(page.locator('.tree-item.selected'),'短い文字');
   await page.getByRole('button',{name:'入力形式の候補を検索'}).click();
   const dialog=page.getByRole('dialog',{name:'型を検索'});
   await dialog.getByRole('searchbox').fill('会計 交通手段');

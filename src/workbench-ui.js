@@ -3,6 +3,11 @@
 'use strict';const D=root.DocBench,queries=new Map(),closedTypeFolders=new Map();
 const paths={search:'m21 21-4.3-4.3 M19 11a8 8 0 1 1-16 0 8 8 0 0 1 16 0',menu:'M4 6h16M4 12h16M4 18h16',undo:'M9 5 4 10l5 5M4 10h9a7 7 0 0 1 7 7',redo:'m15 5 5 5-5 5M20 10h-9a7 7 0 0 0-7 7',settings:'M4 7h16M4 17h16M8 4v6M16 14v6',close:'m6 6 12 12M18 6 6 18'};
 function uiIcon(name){return '<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+paths[name]+'"/></svg>';}
+function workbenchItemLine(name,type,key){
+ const label=D.esc(name),kind=D.esc(type);
+ return '<span class="workbench-item-line"><span class="tree-text" title="'+label+'"><strong>'+label+'</strong>'+
+  (key?'<small>'+D.esc(key)+'</small>':'')+'</span><span class="tree-type" title="'+kind+'">'+kind+'</span></span>';
+}
 function typeFolderPaths(index){
  const folders=new Map();
  for(const {folder=[]} of index)for(let i=1;i<=folder.length;i++){
@@ -10,9 +15,9 @@ function typeFolderPaths(index){
  }
  return folders;
 }
-function typeFilterControls(index,onChange,state={}){
+function typeFilterControls(index,onChange,state,{showFolders=true}={}){
  const controls=document.createElement('div');controls.className='type-search-filters';
- const folders=typeFolderPaths(index);
+ const folders=showFolders?typeFolderPaths(index):new Map();
  const tags=[...new Set(index.flatMap(entry=>entry.tags))].sort((a,b)=>a.localeCompare(b,'ja'));
  function select(label,entries,value,onSelect){
   const field=document.createElement('label'),control=document.createElement('select');
@@ -28,8 +33,8 @@ function typeFilterControls(index,onChange,state={}){
  if(tags.length)select('タグ',tags.map(tag=>[tag,tag]),state.tag,value=>{state.tag=value;});
  return controls;
 }
-function typeSearchDescription(entry,showLocation=true){
- const location=showLocation?entry.folder.join(' › '):'',tags=entry.tags.map(tag=>'#'+tag).join(' ');
+function typeSearchDescription(entry){
+ const location=entry.folder.join(' › '),tags=entry.tags.map(tag=>'#'+tag).join(' ');
  const reason=entry.matches.filter(match=>!['名前','キー'].includes(match.label)).map(match=>match.label+'「'+match.value.slice(0,45)+'」').join('、');
  return [location,tags,reason&&reason+'に一致'].filter(Boolean).join(' · ');
 }
@@ -123,12 +128,11 @@ function mountWorkbenchUI(host,screen,definition){
  const closed=closedTypeFolders.get(key)||new Set(),updateFolders=library?mountTypeFolders(list,libraryIndex,closed):null;
  if(library)closedTypeFolders.set(key,closed);
  const filterKey=key+':organization',filter=queries.get(filterKey)||{};
- if(library){box.querySelector('[role=status]').before(typeFilterControls(libraryIndex,apply,filter));queries.set(filterKey,filter);input.placeholder='名前・フォルダ・タグ・子項目など';}
+ if(library){box.querySelector('[role=status]').before(typeFilterControls(libraryIndex,apply,filter,{showFolders:false}));queries.set(filterKey,filter);input.placeholder='名前・フォルダ・タグ・子項目など';}
  let searching=!!input.value.trim();const branches=[...list.querySelectorAll('.tree-branch')],expanded=new Map(branches.map(branch=>{const children=branch.querySelector(':scope > [id]');return [children,children?.hidden];}));
- function apply(){const wasSearching=searching,query=input.value.trim().toLocaleLowerCase();if(query&&!searching)for(const child of expanded.keys())if(child)expanded.set(child,child.hidden);searching=!!query;const entries=[...list.querySelectorAll(library?'[data-type-select]':'[data-select]')],matches=new Set(entries.filter(el=>!query||el.textContent.toLocaleLowerCase().includes(query)));queries.set(key,input.value);clear.hidden=!query;
+ function apply(){const wasSearching=searching,query=input.value.trim().toLocaleLowerCase(),filtering=!!(query||filter.tag);if(query&&!searching)for(const child of expanded.keys())if(child)expanded.set(child,child.hidden);searching=!!query;const entries=[...list.querySelectorAll(library?'[data-type-select]':'[data-select]')],matches=new Set(entries.filter(el=>!query||el.textContent.toLocaleLowerCase().includes(query)));queries.set(key,input.value);clear.hidden=!query;
   if(library){
-   const filtering=!!(query||filter.folder?.length||filter.tag);
-   const found=new Map(D.searchTypes(libraryIndex,input.value,filter.folder,filter.tag).map(entry=>[entry.type.id,entry]));
+   const found=new Map(D.searchTypes(libraryIndex,input.value,[],filter.tag).map(entry=>[entry.type.id,entry]));
    matches.clear();
    for(const el of entries){
     const entry=found.get(el.dataset.typeSelect);
@@ -137,13 +141,13 @@ function mountWorkbenchUI(host,screen,definition){
      matches.add(el);
      let detail=el.querySelector('[data-type-match]');
      if(!detail){detail=document.createElement('small');detail.dataset.typeMatch='';el.append(detail);}
-     detail.textContent=typeSearchDescription(entry,filtering);detail.hidden=!detail.textContent;
+     detail.textContent=filtering?typeSearchDescription(entry):'';detail.hidden=!detail.textContent;
     }
    }
    updateFolders(found,filtering);
   }
   else {const visit=(branch,ancestorMatch=false)=>{const item=branch.querySelector(':scope > [data-select]'),children=branch.querySelector(':scope > [id]'),own=matches.has(item),childBranches=children?[...children.children].filter(el=>el.classList.contains('tree-branch')):[],childMatch=childBranches.map(child=>visit(child,ancestorMatch||own)).some(Boolean),visible=!query||ancestorMatch||own||childMatch;branch.hidden=!visible;if(children){children.hidden=query?!visible:expanded.get(children);const toggle=item.querySelector('[data-tree-toggle]');if(toggle){toggle.setAttribute('aria-expanded',String(!children.hidden));toggle.textContent=children.hidden?'▸':'▾';toggle.setAttribute('aria-label',item.querySelector('strong').textContent+'の子項目を'+(children.hidden?'展開':'折りたたむ'));}}return own||childMatch;};for(const branch of [...list.children].filter(el=>el.classList.contains('tree-branch')))visit(branch);}
-  const count=matches.size;status.textContent=query||filter.folder?.length||filter.tag?count+' 件が一致':entries.length+(library?' 種類の型':' 項目');empty.hidden=count>0||!query&&!filter.folder?.length&&!filter.tag;if(wasSearching&&!query){const selected=list.querySelector('.selected');if(selected){const rect=selected.getBoundingClientRect(),bounds=list.getBoundingClientRect();if(rect.top<bounds.top)list.scrollTop+=rect.top-bounds.top;else if(rect.bottom>bounds.bottom)list.scrollTop+=rect.bottom-bounds.bottom;}}
+  const count=matches.size;status.textContent=filtering?count+' 件が一致':entries.length+(library?' 種類の型':' 項目');empty.hidden=count>0||!filtering;if(wasSearching&&!query){const selected=list.querySelector('.selected');if(selected){const rect=selected.getBoundingClientRect(),bounds=list.getBoundingClientRect();if(rect.top<bounds.top)list.scrollTop+=rect.top-bounds.top;else if(rect.bottom>bounds.bottom)list.scrollTop+=rect.bottom-bounds.bottom;}}
  }
  input.oninput=apply;input.onkeydown=event=>{if(event.key==='Escape'&&input.value){event.preventDefault();input.value='';apply();}};clear.onmousedown=event=>event.preventDefault();clear.onclick=()=>{input.value='';apply();input.focus({preventScroll:true});};apply();
  if(!library)list.addEventListener('click',event=>{if(!input.value.trim()||event.target.closest('[data-tree-toggle]'))return;const item=event.target.closest('[data-select]');if(!item)return;for(let branch=item.parentElement.parentElement?.closest('.tree-branch');branch;branch=branch.parentElement?.closest('.tree-branch')){const toggle=branch.querySelector(':scope > .tree-item > [data-tree-toggle]');const children=branch.querySelector(':scope > [id]');if(toggle&&expanded.get(children)){toggle.setAttribute('aria-expanded','false');toggle.click();}}},{capture:true});
@@ -248,18 +252,13 @@ function mountDefinitionEditorUI(host,screen,definition,openTypes){
   const tools=document.createElement('div');tools.className='type-list-tools';tools.append(actions,outline);
   const list=source.querySelector('.type-list'),empty=source.querySelector('.workbench-search-empty');
   (empty||list).after(tools);mountTypeListSplit(source,list,tools);
-  const types=D.availableTypes(definition),entries=new Map(types.map(type=>[type.id,type]));
+  const types=D.availableTypes(definition);
   const folderInput=body.querySelector('#type-folder');
   if(folderInput){
    const choices=document.createElement('datalist');choices.id='type-folder-paths';
    const paths=[...typeFolderPaths(types).values()].map(path=>path.join(' / ')).sort((a,b)=>a.localeCompare(b,'ja'));
    for(const path of paths)choices.append(new Option(path,path));
    folderInput.setAttribute('list',choices.id);folderInput.after(choices);
-  }
-  for(const item of source.querySelectorAll('.type-list-item')){
-   const entry=entries.get(item.dataset.typeSelect);
-   const key=item.querySelector('small');key.hidden=true;
-   const caption=document.createElement('small');caption.textContent=D.basicTypeLabel(entry?.schema?.type);item.append(caption);
   }
  }
  if(!format)return;
@@ -287,7 +286,7 @@ function mountDefinitionEditorUI(host,screen,definition,openTypes){
  issueSummary.setAttribute('role','alert');issueSummary.hidden=true;
  basic.before(issueSummary,primary);primary.append(basic);
  const name=basic.querySelector('[data-prop=label],[data-type-prop=label]')?.closest('label');
- if(name)name.firstChild.textContent=library?'子項目名':'項目名';
+ if(name)name.firstChild.textContent='項目名';
  const typeName=library?body.querySelector('#type-name')?.closest('label'):null;
  if(typeName&&names.length<=1)typeName.firstChild.textContent='型名';
  const nameAndType=document.createElement('div');nameAndType.className='editor-name-type';
@@ -335,14 +334,19 @@ function mountDefinitionEditorUI(host,screen,definition,openTypes){
  const children=childAdd?.closest('details,[data-editor-children]');
  if(children){
   primary.append(children);
-  if(!library){
-   const intro=children.querySelector('p.muted');if(intro)intro.remove();
-   const list=document.createElement('div');list.className='task-child-list';
-   for(const row of selected?.closest('.tree-branch')?.querySelectorAll(':scope > div > .tree-branch > .tree-item')||[]){
-    const button=document.createElement('button');button.type='button';button.textContent=row.querySelector('strong').textContent;button.onclick=()=>row.click();list.append(button);
-   }
-   if(list.childElementCount)childAdd.before(list);
+  children.querySelector('p.muted')?.remove();
+  const branch=selected?.closest(library?'.type-structure-branch':'.tree-branch');
+  const rows=branch?.querySelectorAll(library?':scope > .type-structure-children > .type-structure-branch > .type-structure-row > [data-type-field]':':scope > div > .tree-branch > .tree-item');
+  const list=document.createElement('div');list.className='task-child-list';
+  for(const row of rows||[]){
+   const button=document.createElement('button');button.type='button';button.textContent=row.querySelector('strong').textContent;
+   button.onclick=()=>{
+    branch.querySelector(':scope > div > .tree-toggle[aria-expanded=false]')?.click();
+    row.click();
+   };
+   list.append(button);
   }
+  if(list.childElementCount)childAdd.before(list);
  }
  for(const group of [...form.children].filter(el=>el.matches('details'))){
   if(['type-validation','field-validation'].includes(group.dataset.disclosure)&&!group.querySelector('input,select,textarea')){group.remove();continue;}
@@ -394,5 +398,5 @@ function showDefinitionIssues(host,issues){
  }
  summary.replaceChildren(heading,list);summary.hidden=false;summary.focus();return true;
 }
-Object.assign(D,{collectionRulesHTML,integerFormatHTML,bindIntegerFormat,uiIcon,mountWorkbenchUI,mountDefinitionEditorUI,mountDefinitionPreview,showDefinitionIssues});
+Object.assign(D,{workbenchItemLine,collectionRulesHTML,integerFormatHTML,bindIntegerFormat,uiIcon,mountWorkbenchUI,mountDefinitionEditorUI,mountDefinitionPreview,showDefinitionIssues});
 })(globalThis);
